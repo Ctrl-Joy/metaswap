@@ -4,6 +4,7 @@ import { deployment, metachainDevnet } from '@metaswap/sdk'
 import { RPC_URL, WALLETCONNECT_PROJECT_ID } from '@/config'
 import { safeStorage } from '@/lib/storage'
 import { devWallet, DEV_WALLET_COUNT } from './devWallet'
+import { localAccountConnector } from './localAccount'
 
 const multicall3 = deployment.contracts?.Multicall3
 
@@ -29,7 +30,11 @@ if (WALLETCONNECT_PROJECT_ID) {
 }
 connectors.push(coinbaseWallet({ appName: 'MetaSwap', preference: { options: 'all' } }))
 // Dev wallets only make sense on the local Anvil chain.
-if (devnet.id === 31337) for (let i = 0; i < DEV_WALLET_COUNT; i++) connectors.push(devWallet(i))
+if (devnet.id === 31337) {
+  for (let i = 0; i < DEV_WALLET_COUNT; i++) connectors.push(devWallet(i))
+  // "Create account": devnet-only key kept in this browser.
+  connectors.push(localAccountConnector())
+}
 
 export const wagmiConfig = createConfig({
   chains: [devnet],

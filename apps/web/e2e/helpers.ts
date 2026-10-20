@@ -88,6 +88,8 @@ export async function connectDevWallet(page: Page, index: number, path = '/swap'
   })
   await page.goto(path)
   await page.getByTestId('connect-button').click()
+  // The Dev wallet lives under "Other wallets" (like Uniswap's secondary options).
+  await page.getByTestId('connect-other-wallets').click()
   await page.getByTestId(`dev-account-${index}`).click()
   await page.getByTestId('connect-dev-wallet').click()
   await expect(page.getByTestId('account-button')).toBeVisible()

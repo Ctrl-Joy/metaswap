@@ -330,32 +330,54 @@ function NetworkPill() {
   )
 }
 
+/**
+ * Header wallet button (Uniswap Web3Status): signed out, a 34px "Get started" pill (radius 12, 14px/535);
+ * connected, a transparent text button with the 24px avatar and the 16px address in the UI font, which
+ * hides below 1280px (avatar only) like Uniswap's `media-xl:hidden`; pending txs replace the address.
+ */
 function AccountButton() {
   const { address, isConnecting } = useWallet()
   const openConnect = useUi((s) => s.openConnect)
-  const openDrawer = useUi((s) => s.openDrawer)
+  const drawerOpen = useUi((s) => s.drawerOpen)
+  const setDrawerOpen = useUi((s) => s.setDrawerOpen)
+  const connectOpen = useUi((s) => s.connectOpen)
+  const setConnectOpen = useUi((s) => s.setConnectOpen)
   const pending = usePendingCount(address)
   if (!address)
     return (
-      <Button size="md" onClick={openConnect} loading={isConnecting} data-testid="connect-button" className="h-10 px-4">
-        Connect
+      <Button
+        size="sm"
+        onClick={() => (connectOpen ? setConnectOpen(false) : openConnect())}
+        loading={isConnecting}
+        data-testid="connect-button"
+        data-panel-trigger
+        className="h-[34px] rounded-xl px-3 text-body-3"
+      >
+        Get started
       </Button>
     )
   return (
     <button
       type="button"
-      onClick={openDrawer}
+      onClick={() => setDrawerOpen(!drawerOpen)}
       data-testid="account-button"
-      className="flex h-10 items-center gap-2 rounded-full bg-surface-2 py-1 pr-3 pl-1 text-body-3 font-semibold transition-colors hover:bg-surface-2-hover"
+      data-panel-trigger
+      aria-expanded={drawerOpen}
+      className="flex h-10 items-center gap-2 rounded-xl px-2 text-body-2 text-text-1 transition-colors hover:bg-surface-2"
     >
+      <span className="relative mx-1 inline-flex">
+        <Identicon address={address} size={24} />
+        {pending > 0 && <Spinner size={12} className="absolute -right-1 -bottom-1 rounded-full bg-surface-1 text-accent" />}
+      </span>
       {pending > 0 ? (
-        <span className="flex h-8 items-center gap-1.5 rounded-full bg-accent-tint px-2.5 text-accent">
-          <Spinner size={14} /> {pending} pending
+        <span className="hidden whitespace-nowrap text-accent xl:inline" data-testid="account-pending">
+          {pending} pending
         </span>
       ) : (
-        <Identicon address={address} size={32} />
+        <span className="hidden whitespace-nowrap xl:inline" data-testid="account-address">
+          {shortenAddress(address)}
+        </span>
       )}
-      <span className="hidden font-mono sm:inline">{shortenAddress(address)}</span>
     </button>
   )
 }

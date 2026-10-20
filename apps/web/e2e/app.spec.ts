@@ -42,6 +42,8 @@ test('connect modal lists the Dev wallet with 5 Anvil accounts and is keyboard-c
   await page.getByTestId('connect-button').click()
   const modal = page.getByTestId('connect-modal')
   await expect(modal).toBeVisible()
+  await expect(modal.getByTestId('connect-options')).toContainText('Other wallets')
+  await modal.getByTestId('connect-other-wallets').click()
   await expect(modal.getByTestId('dev-wallet-section')).toBeVisible()
   for (let i = 0; i < 5; i++) await expect(modal.getByTestId(`dev-account-${i}`)).toBeVisible()
   await page.keyboard.press('Escape')

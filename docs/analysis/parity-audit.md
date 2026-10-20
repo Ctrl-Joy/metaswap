@@ -305,3 +305,33 @@ Fixed:
   - Auction Price/Demand toggle, with the clearing price replayed from bids and levels.
 
 Still open: settings "Trade options" restyle, route "View" modal, sticky token header (now the web shell/the explore area areas); mobile bottom-sheet nav; Wallets search filter.
+
+## Account button, drawer and connect panel (the parity review, 2026-10-21)
+
+Rebuilt from Uniswap's open-source interface (`apps/web/src/components/AccountDrawer/{index,AuthenticatedHeader,ActionTile,DefaultMenu,SlideOutMenu}.tsx`, `MiniPortfolio/MiniPortfolio.tsx`, `Web3Status/index.tsx`, `StatusIcon/index.tsx`, `AccountDetails/MultiBlockchainAddressDisplay.tsx`, `pages/Portfolio/Overview/ViewAllButton.tsx`, `packages/ui/src/theme/fonts.ts`), plus the REA measurement `measured/connect-panel`.
+
+**Header button**
+- Transparent text button with a 24px avatar and the 16px address in the UI font.
+- The address hides below 1280px.
+- Signed out, it is a 34px "Get started" pill.
+
+**Avatar**
+- New original "Metamark" (a deterministic gradient blob emblem) replaces the pixel grid everywhere.
+
+**Drawer and connect panel layout**
+- Both use the same panel: 368px wide, right 12px under the header, radius 20, no scrim; a bottom sheet below 768px.
+
+**Drawer contents**
+- 48px avatar with settings and disconnect icons.
+- 18px address with copy, plus the wallet label.
+- 36px balance with faded decimals and today's change.
+- Send / Receive tiles.
+- "View portfolio", then "Recent activity" (3 items), then "View all activity".
+- Uniswap's drawer has no tabs, so the old 5-tab strip is gone. Limit orders still appear in activity.
+
+**Connect panel**
+- "MetaSwap Mobile" opens WalletConnect, or a setup note when no project ID is set.
+- "Other wallets ›" lists browser wallets, Coinbase and the Dev wallet.
+- "Create account" makes a devnet-only local key, funds it with 100 ETH plus faucets, and connects it.
+- "Log in" reconnects that key.
+- A devnet terms line closes the panel.
