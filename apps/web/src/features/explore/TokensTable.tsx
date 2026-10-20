@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronDown, Search, Smile, TrendingUp, LayoutGrid } from 'lucide-react'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
-import { PercentChange, Popover, TokenLogo, Usd } from '@/components/ui'
+import { LiveNumber, PercentChange, Popover, TokenLogo, Usd } from '@/components/ui'
 import { CHAIN_SLUG } from '@/config'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -237,7 +237,7 @@ export function TokensTable({
                     </Link>
                   </ExTd>
                   <ExTd align="right" className="text-text-1">
-                    {formatPrice(r.priceUsd)}
+                    <LiveNumber value={r.priceUsd} format={(n) => formatPrice(n)} fallback={formatPrice(null)} testId="token-row-price" />
                   </ExTd>
                   <ExTd align="right">
                     <PercentChange value={r.change1h} />

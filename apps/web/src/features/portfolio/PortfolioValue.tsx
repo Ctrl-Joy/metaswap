@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ChevronDown, Check } from 'lucide-react'
-import { Button, Popover, Skeleton } from '@/components/ui'
+import { Button, LiveNumber, Popover, Skeleton } from '@/components/ui'
 import { usePortfolioHistory, type PortfolioRange } from '@/api/hooks'
 import { TimeChart, type HoverInfo } from '@/features/explore/charts/TimeChart'
 import { ChartFrame } from '@/features/explore/charts/ChartFrame'
@@ -58,7 +58,7 @@ export function PortfolioValue({ address, isDemo, totalUsd, change24hUsd, change
   return (
     <div className="min-w-0" data-testid="portfolio-value">
       <div className="text-heading-2 font-medium tabular" data-testid="portfolio-total">
-        {loading || headline === null ? <Skeleton width={200} height={40} rounded="lg" /> : mask(formatUsd(headline))}
+        {loading || headline === null ? <Skeleton width={200} height={40} rounded="lg" /> : hover?.value != null ? mask(formatUsd(headline)) : <LiveNumber value={headline} tween format={(n) => mask(formatUsd(n))} />}
       </div>
       <div className="mt-2 flex min-h-[22px] items-center gap-1.5 text-body-2 text-text-2">
         {delta !== null && delta !== undefined && !loading ? (

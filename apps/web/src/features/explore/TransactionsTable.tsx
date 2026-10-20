@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SegmentedTabs, Usd } from '@/components/ui'
+import { SegmentedTabs, Usd, useRowEnter } from '@/components/ui'
 import { ExTableSkeleton, ExTd, ExTh, ExTHead, ExTr, ExTable } from './ExploreTable'
 import { formatAmount, formatRelativeTime, shortenAddress } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -54,6 +54,7 @@ export function TransactionsTable({
   const [limit, setLimit] = useState(PAGE_SIZE)
   const filtered = useMemo(() => (rows ?? []).filter((r) => kind === 'all' || r.kind === kind), [rows, kind])
   const visible = filtered.slice(0, limit)
+  const enter = useRowEnter(useMemo(() => visible.map((t) => t.id), [visible]))
 
   if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load transactions" />
 
@@ -96,7 +97,7 @@ export function TransactionsTable({
               const label = txLabel(tx, perspective)
               const [first, ...rest] = label.text.split(' ')
               return (
-              <ExTr height={56} key={tx.id} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb}>
+              <ExTr height={56} key={tx.id} rowRef={enter(tx.id)} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb}>
                 <ExTd className="text-text-2" title={new Date(tx.timeMs).toLocaleString()}>
                   {formatRelativeTime(tx.timeMs, now)}
                 </ExTd>

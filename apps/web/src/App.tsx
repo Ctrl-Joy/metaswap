@@ -14,6 +14,7 @@ import { AccountDrawer } from '@/features/account/AccountDrawer'
 import { useSettings } from '@/state/settings'
 import { useTxStore, watchTx } from '@/state/transactions'
 import { FOOTERLESS } from './routes'
+import { RealtimeBridge } from '@/api/RealtimeBridge'
 
 function ThemeSync() {
   const theme = useSettings((s) => s.theme)
@@ -72,6 +73,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <TooltipProvider>
           <ThemeSync />
           <TxResumer />
+          <RealtimeBridge />
           {children}
         </TooltipProvider>
       </QueryClientProvider>

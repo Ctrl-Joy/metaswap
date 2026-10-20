@@ -4,6 +4,7 @@ import { usePublicClient } from 'wagmi'
 import type { Address } from 'viem'
 import { erc20Abi } from '@/lib/abis'
 import type { Token } from '@metaswap/sdk'
+import { liveInterval } from '@/api/realtime'
 
 export type Balances = Record<string, bigint>
 
@@ -18,7 +19,7 @@ export function useTokenBalances(tokens: readonly Token[], account: Address | un
   const q = useQuery({
     queryKey: ['balances', account, key],
     enabled: !!account && !!client && tokens.length > 0,
-    refetchInterval: 4_000,
+    refetchInterval: liveInterval(4_000),
     queryFn: async (): Promise<Balances> => {
       if (!client || !account) return {}
       const out: Balances = {}

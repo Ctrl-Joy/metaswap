@@ -6,6 +6,7 @@ import { useApiQuery } from '@/api/hooks'
 import type { CandlePoint, ExploreStatsRaw, ExploreTokenApiRow, PoolApiRow, PoolDetailApi, PoolHistoryPoint, PoolTicksApi, RangeKey, TokenDetailApi, TokenRow, TxRow } from './types'
 import { sumRecentVolume } from './poolFilters'
 import { normalizePool, normalizeTokenRow, withNativeEthRow, normalizeTx, RANGES, rangeFrom, toCandles, toSeries, type RangeConfig } from './transforms'
+import { liveInterval } from '@/api/realtime'
 
 /** Explore polls every 10 s (spec: 10 to 15 s). */
 export const EXPLORE_REFRESH_MS = 10_000
@@ -17,7 +18,7 @@ export function apiTokenAddress(urlAddress: string): string {
 
 export function useExploreStatsData() {
   return useApiQuery<ExploreStatsRaw>(['explore', 'stats', 'day'], '/explore/stats', { interval: 'day' }, {
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     placeholderData: keepPreviousData,
   })
@@ -30,7 +31,7 @@ export function useExploreTokenRows(range: RangeKey) {
       const body = await apiGet<unknown>('/explore/tokens', { sort: 'volume', order: 'desc', range }, { signal })
       return withNativeEthRow(asList<ExploreTokenApiRow>(body, 'tokens').map(normalizeTokenRow).filter((r): r is TokenRow => r !== null))
     },
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     retry: 0,
     placeholderData: keepPreviousData,
@@ -44,7 +45,7 @@ export function useExplorePoolRows() {
       const body = await apiGet<unknown>('/explore/pools', { sort: 'tvl', order: 'desc' }, { signal })
       return asList<PoolApiRow>(body, 'pools').map(normalizePool)
     },
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     retry: 0,
     placeholderData: keepPreviousData,
@@ -67,7 +68,7 @@ export function useExploreTransactions(filter: TxFilter = {}, limit = 50) {
         .map((item) => normalizeTx(item))
         .filter((t): t is TxRow => t !== null)
     },
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     retry: 0,
     placeholderData: keepPreviousData,
@@ -78,7 +79,7 @@ export function useExploreTransactions(filter: TxFilter = {}, limit = 50) {
 export function useTokenDetail(address: string | undefined) {
   return useApiQuery<TokenDetailApi>(['tokens', 'detail', address], `/tokens/${address}`, undefined, {
     enabled: !!address,
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     retry: (count, err) => (err as { status?: number }).status !== 404 && count < 1,
   })
@@ -98,7 +99,7 @@ export function useTokenPriceLine(address: string | undefined, range: RangeKey) 
       const candles = await candlesFor(address!, '1d', undefined, signal)
       return toSeries(candles.map((c) => ({ time: c.time, value: c.close })))
     },
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     placeholderData: keepPreviousData,
     retry: 0,
   })
@@ -116,7 +117,7 @@ export function useTokenCandles(address: string | undefined, range: RangeKey) {
     queryKey: ['api', 'tokens', address, 'candles', range],
     enabled: !!address,
     queryFn: ({ signal }) => candlesFor(address!, cfg.candleInterval, rangeFrom(range, Math.floor(Date.now() / 1000)), signal),
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     placeholderData: keepPreviousData,
     retry: 0,
   })
@@ -128,7 +129,7 @@ export function useTokenAllCandles(address: string | undefined) {
     queryKey: ['api', 'tokens', address, 'candles', 'all-daily'],
     enabled: !!address,
     queryFn: ({ signal }) => candlesFor(address!, '1d', undefined, signal),
-    refetchInterval: EXPLORE_REFRESH_MS * 3,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS * 3),
     retry: 0,
   })
 }
@@ -152,7 +153,7 @@ export function useTokenTvlHistory(address: string | undefined, range: RangeKey)
 export function usePoolDetail(address: string | undefined) {
   return useApiQuery<PoolDetailApi>(['pools', 'detail', address], `/pools/${address}`, undefined, {
     enabled: !!address,
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     staleTime: 5_000,
     retry: (count, err) => (err as { status?: number }).status !== 404 && count < 1,
   })
@@ -166,7 +167,7 @@ export function usePoolHistory(address: string | undefined, interval: 'hour' | '
       const body = await apiGet<unknown>(`/pools/${address}/history`, { interval }, { signal })
       return asList<PoolHistoryPoint>(body, 'history')
     },
-    refetchInterval: EXPLORE_REFRESH_MS,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS),
     placeholderData: keepPreviousData,
     retry: 0,
   })
@@ -177,7 +178,7 @@ export function usePoolTicks(address: string | undefined, enabled: boolean) {
     queryKey: ['api', 'pools', address, 'ticks'],
     enabled: !!address && enabled,
     queryFn: ({ signal }) => apiGet<PoolTicksApi>(`/pools/${address}/ticks`, undefined, { signal }),
-    refetchInterval: EXPLORE_REFRESH_MS * 3,
+    refetchInterval: liveInterval(EXPLORE_REFRESH_MS * 3),
     retry: 0,
   })
 }

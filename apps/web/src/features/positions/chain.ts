@@ -6,6 +6,7 @@ import { erc20Abi, zeroAddress, type Address } from 'viem'
 import { contractAddress, FEE_TIER_LIST, type Token } from './tokens'
 import { nonfungiblePositionManagerAbi, v2FactoryAbi, v2PairAbi, v3FactoryAbi, v3PoolAbi } from '@metaswap/sdk/abis'
 import { MAX_UINT128 } from './math'
+import { liveInterval } from '@/api/realtime'
 
 export interface V3PoolState {
   fee: number
@@ -23,7 +24,7 @@ export function useV3Pools(token0: Address | undefined, token1: Address | undefi
   return useQuery({
     queryKey: ['readContracts', 'lp', 'v3pools', token0, token1],
     enabled: !!client && !!token0 && !!token1 && token0.toLowerCase() !== token1.toLowerCase(),
-    refetchInterval: 6_000,
+    refetchInterval: liveInterval(6_000),
     queryFn: async (): Promise<Record<number, V3PoolState>> => {
       const factory = contractAddress('V3Factory')
       const out: Record<number, V3PoolState> = {}
@@ -63,7 +64,7 @@ export function useV2Pair(tokenA: Address | undefined, tokenB: Address | undefin
   return useQuery({
     queryKey: ['readContracts', 'lp', 'v2pair', tokenA, tokenB, account],
     enabled: !!client && !!tokenA && !!tokenB && tokenA.toLowerCase() !== tokenB.toLowerCase(),
-    refetchInterval: 6_000,
+    refetchInterval: liveInterval(6_000),
     queryFn: async (): Promise<V2PairState> => {
       const [t0, t1] = tokenA!.toLowerCase() < tokenB!.toLowerCase() ? [tokenA!, tokenB!] : [tokenB!, tokenA!]
       const address = await client!.readContract({ address: contractAddress('V2Factory'), abi: v2FactoryAbi, functionName: 'getPair', args: [t0, t1] })
@@ -92,7 +93,7 @@ export function useV2PairByAddress(pair: Address | undefined, account: Address |
   return useQuery({
     queryKey: ['readContracts', 'lp', 'v2pairAddr', pair, account],
     enabled: !!client && !!pair,
-    refetchInterval: 6_000,
+    refetchInterval: liveInterval(6_000),
     queryFn: () => readPair(client!, pair!, account),
   })
 }
@@ -120,7 +121,7 @@ export function useV3Position(tokenId: bigint | undefined) {
   return useQuery({
     queryKey: ['readContracts', 'lp', 'v3position', tokenId?.toString()],
     enabled: !!client && tokenId !== undefined,
-    refetchInterval: 6_000,
+    refetchInterval: liveInterval(6_000),
     retry: 0,
     queryFn: async (): Promise<V3PositionState | null> => {
       const npm = contractAddress('NonfungiblePositionManager')

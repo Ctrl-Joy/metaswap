@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { apiGet, asList } from '@/api/client'
 import type { LaunchDetail, LaunchRow } from './types'
+import { liveInterval } from '@/api/realtime'
 
 export type LaunchStatusFilter = 'all' | 'active' | 'upcoming' | 'launched' | 'failed'
 export type LaunchSort = 'fdv' | 'volume' | 'liquidity' | 'age' | 'bidVolume'
@@ -24,7 +25,7 @@ export function useLaunches(query: LaunchQuery = {}) {
         await apiGet<unknown>('/launches', { status: query.status, launchpad: query.launchpad, verified: query.verified === undefined ? undefined : String(query.verified), sort: query.sort, q: query.q }, { signal }),
         'launches',
       ),
-    refetchInterval: REFRESH,
+    refetchInterval: liveInterval(REFRESH),
     placeholderData: keepPreviousData,
     retry: 0,
   })
@@ -34,7 +35,7 @@ export function useTrendingLaunches() {
   return useQuery({
     queryKey: ['api', 'launches', 'trending'],
     queryFn: async ({ signal }) => asList<LaunchRow>(await apiGet<unknown>('/launches/trending', undefined, { signal }), 'launches'),
-    refetchInterval: REFRESH,
+    refetchInterval: liveInterval(REFRESH),
     retry: 0,
   })
 }
@@ -43,7 +44,7 @@ export function useTopVerifiedLaunches() {
   return useQuery({
     queryKey: ['api', 'launches', 'top-verified'],
     queryFn: async ({ signal }) => asList<LaunchRow>(await apiGet<unknown>('/launches/top-verified', undefined, { signal }), 'launches'),
-    refetchInterval: REFRESH,
+    refetchInterval: liveInterval(REFRESH),
     retry: 0,
   })
 }
@@ -54,7 +55,7 @@ export function useLaunchDetail(auction: Address | undefined, bidsOf?: Address) 
     queryKey: ['api', 'launches', 'detail', auction, bidsOf],
     queryFn: ({ signal }) => apiGet<LaunchDetail>(`/launches/${auction}`, { bidsOf }, { signal }),
     enabled: !!auction,
-    refetchInterval: 5_000,
+    refetchInterval: liveInterval(5_000),
     retry: 0,
   })
 }

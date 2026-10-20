@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
+import type { HTMLAttributes, Ref, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Skeleton } from '@/components/ui'
@@ -71,9 +71,10 @@ export function ExSortTh({
 }
 
 /** Body row. `height` is 64 for tokens and pools, 56 for transactions. */
-export function ExTr({ className, onClick, height = 64, children, ...rest }: HTMLAttributes<HTMLTableRowElement> & { height?: 56 | 64 }) {
+export function ExTr({ className, onClick, height = 64, children, rowRef, ...rest }: HTMLAttributes<HTMLTableRowElement> & { height?: 56 | 64; rowRef?: Ref<HTMLTableRowElement> }) {
   return (
     <tr
+      ref={rowRef}
       className={cn('border-t border-border transition-colors first:border-t-0', height === 64 ? 'h-16' : 'h-14', onClick && 'cursor-pointer hover:bg-surface-2-hover', className)}
       onClick={onClick}
       {...rest}

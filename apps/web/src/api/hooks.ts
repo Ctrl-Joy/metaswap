@@ -1,6 +1,7 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { apiGet, asList } from './client'
+import { liveInterval } from './realtime'
 import type {
   ActivityItem,
   BalanceRow,
@@ -32,7 +33,7 @@ export function useApiQuery<T>(key: readonly unknown[], path: string, params?: R
 }
 
 export function useHealth(opts?: Opts<HealthResponse>) {
-  return useApiQuery<HealthResponse>(['health'], '/health', undefined, { refetchInterval: 10_000, retry: 0, ...opts })
+  return useApiQuery<HealthResponse>(['health'], '/health', undefined, { refetchInterval: liveInterval(10_000), retry: 0, ...opts })
 }
 
 export function useApiTokens() {
@@ -53,7 +54,7 @@ export function useTokenCandles(address: Address | undefined, interval: '1m' | '
 }
 
 export function usePriceHistory(address: Address | undefined, range: '1H' | '1D' | '1W' | '1M' | '1Y') {
-  return useApiQuery<Array<{ time: number; priceUsd: number }>>(['tokens', address, 'price-history'], `/tokens/${address}/price-history`, { range }, { enabled: !!address, refetchInterval: 15_000 })
+  return useApiQuery<Array<{ time: number; priceUsd: number }>>(['tokens', address, 'price-history'], `/tokens/${address}/price-history`, { range }, { enabled: !!address, refetchInterval: liveInterval(15_000) })
 }
 
 export function useExploreStats() {
@@ -81,7 +82,7 @@ export function useExploreTransactions(params: { type?: 'swap' | 'add' | 'remove
   return useQuery({
     queryKey: ['api', 'explore', 'transactions', params],
     queryFn: async ({ signal }) => asList<ActivityItem>(await apiGet<unknown>('/explore/transactions', params, { signal }), 'transactions'),
-    refetchInterval: 5_000,
+    refetchInterval: liveInterval(5_000),
   })
 }
 
@@ -94,7 +95,7 @@ export function useAccountActivity(address: Address | undefined) {
     queryKey: ['api', 'accounts', address, 'activity'],
     queryFn: async ({ signal }) => asList<ActivityItem>(await apiGet<unknown>(`/accounts/${address}/activity`, undefined, { signal }), 'activity'),
     enabled: !!address,
-    refetchInterval: 10_000,
+    refetchInterval: liveInterval(10_000),
     retry: 0,
   })
 }
@@ -122,7 +123,7 @@ export function useXOrders(swapper: Address | undefined, status?: OrderStatus) {
     queryKey: ['api', 'x', 'orders', swapper, status ?? 'all'],
     queryFn: async ({ signal }) => asList<XOrder>(await apiGet<unknown>('/x/orders', { swapper, status }, { signal }), 'orders'),
     enabled: !!swapper,
-    refetchInterval: 3_000,
+    refetchInterval: liveInterval(3_000),
     retry: 0,
   })
 }
@@ -144,7 +145,7 @@ export function usePortfolioQuery(address: Address | undefined) {
     queryKey: ['api', 'accounts', address, 'portfolio'],
     queryFn: ({ signal }) => apiGet<PortfolioResponse>(`/accounts/${address}/portfolio`, undefined, { signal }),
     enabled: !!address,
-    refetchInterval: 10_000,
+    refetchInterval: liveInterval(10_000),
     retry: 0,
   })
 }
@@ -157,7 +158,7 @@ export function usePortfolioHistory(address: Address | undefined, range: Portfol
     queryFn: async ({ signal }) => asList<{ time: number; valueUsd: number }>(await apiGet<unknown>(`/accounts/${address}/portfolio/history`, { range }, { signal }), 'history', 'points'),
     enabled: !!address,
     staleTime: 10_000,
-    refetchInterval: 12_000,
+    refetchInterval: liveInterval(12_000),
     placeholderData: (prev) => prev,
     retry: 0,
   })
@@ -177,7 +178,7 @@ export function useAccountEarn(address: Address | undefined) {
     queryKey: ['api', 'accounts', address, 'earn'],
     queryFn: async ({ signal }) => asList<EarnPosition>(await apiGet<unknown>(`/accounts/${address}/earn`, undefined, { signal }), 'positions', 'earn'),
     enabled: !!address,
-    refetchInterval: 10_000,
+    refetchInterval: liveInterval(10_000),
     retry: 0,
   })
 }

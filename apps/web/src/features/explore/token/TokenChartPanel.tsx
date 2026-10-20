@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CandlestickChart, LineChart } from 'lucide-react'
-import { PercentChange, SegmentedTabs, Skeleton, Usd } from '@/components/ui'
+import { LiveNumber, PercentChange, SegmentedTabs, Skeleton, Usd } from '@/components/ui'
 import { formatPrice, formatUsd } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { ChartControls, ChartFrame, type ChartStatus } from '../charts/ChartFrame'
@@ -87,7 +87,7 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
     <section className="flex flex-col gap-4" data-testid="token-chart-panel">
       <div className="flex flex-col gap-1">
         <div className="text-heading-2 font-semibold tabular md:text-heading-1" data-testid="token-price" aria-live="polite">
-          {headValue === null ? <Skeleton width={180} height={44} /> : mode === 'price' ? formatPrice(headValue) : <Usd value={headValue} compact />}
+          {headValue === null ? <Skeleton width={180} height={44} /> : mode === 'price' ? hover ? formatPrice(headValue) : <LiveNumber value={headValue} format={(n) => formatPrice(n)} /> : <Usd value={headValue} compact />}
         </div>
         <div className="flex items-center gap-2 text-body-2">
           {headChange ? (

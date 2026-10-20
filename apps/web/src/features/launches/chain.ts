@@ -3,6 +3,7 @@ import { usePublicClient } from 'wagmi'
 import { erc20Abi, zeroAddress, type Address } from 'viem'
 import { launchAuctionAbi } from './abi'
 import { STATUS_BY_INDEX, type LaunchStatus } from './types'
+import { liveInterval } from '@/api/realtime'
 
 export interface AuctionBid {
   id: bigint
@@ -55,7 +56,7 @@ export function useAuctionState(auction: Address | undefined, account: Address |
   return useQuery({
     queryKey: ['readContracts', 'lp', 'auction', auction, account],
     enabled: !!client && !!auction,
-    refetchInterval: 3_000,
+    refetchInterval: liveInterval(3_000),
     retry: 0,
     queryFn: async (): Promise<AuctionState> => {
       const c = client!

@@ -5,6 +5,7 @@ import type { Address } from 'viem'
 import { apiGet, asList } from '@/api/client'
 import { useApiQuery } from '@/api/hooks'
 import type { ApiToken, ExplorePoolRow } from '@/api/types'
+import { liveInterval } from '@/api/realtime'
 
 export interface PositionToken extends ApiToken {
   amount: string
@@ -62,7 +63,7 @@ export function useAccountPositionsData(address: Address | undefined) {
     queryFn: ({ signal }) => apiGet<AccountPositions>(`/accounts/${address}/positions`, undefined, { signal }),
     enabled: !!address,
     retry: 1,
-    refetchInterval: 15_000,
+    refetchInterval: liveInterval(15_000),
   })
 }
 
