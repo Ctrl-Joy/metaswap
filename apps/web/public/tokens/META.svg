@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B8CFF"/><stop offset="1" stop-color="#5B5BF0"/></linearGradient></defs>
+  <circle cx="64" cy="64" r="64" fill="url(#g)"/>
+  <text x="64" y="64" dy=".35em" text-anchor="middle" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" font-size="56" fill="#fff" letter-spacing="-0.5">M</text>
+</svg>
