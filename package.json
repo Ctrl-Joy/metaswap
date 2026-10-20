@@ -1,0 +1,19 @@
+{
+  "name": "metaswap",
+  "private": true,
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/sdk"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "contracts:build": "cd packages/contracts && forge build",
+    "contracts:test": "cd packages/contracts && forge test",
+    "sdk:sync": "node packages/sdk/scripts/sync.mjs"
+  }
+}

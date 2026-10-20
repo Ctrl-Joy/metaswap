@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.log
+.env
+.env.local
+
+# foundry
+packages/contracts/out*/
+packages/contracts/cache*/
+packages/contracts/broadcast/
+packages/contracts/deployments/31337.json
+
+# runtime data
+services/*/data/
+*.sqlite
+*.sqlite-*
+
+# test artifacts
+playwright-report/
+test-results/
