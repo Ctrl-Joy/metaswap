@@ -275,9 +275,18 @@ export function TimeChart(props: Props) {
       ;(s as ISeriesApi<'Histogram'>).setData(bars.map((p): HistogramData<Time> => ({ time: p.time as UTCTimestamp, value: p.value, color: palette.accent })))
       lastPoint.current = null
     } else {
-      // drop interior repeats of the previous value (forward-filled buckets) so lines connect
-      // real changes instead of drawing a staircase, as on Uniswap
-      const points = normalizeSeries(props.data).filter((p, i, arr) => i === 0 || i === arr.length - 1 || p.value !== arr[i - 1]!.value)
+      // Drop interior points that barely move from the last kept point (forward-filled buckets, or
+      // tiny drifts such as continuously accruing yield) so lines connect real changes instead of
+      // drawing a staircase, as on Uniswap. "Barely" = under 0.2% of the visible value range.
+      const all = normalizeSeries(props.data)
+      const values = all.map((p) => p.value)
+      const eps = (Math.max(...values) - Math.min(...values)) * 0.002
+      const points: SeriesPoint[] = []
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i]!
+        const prev = points[points.length - 1]
+        if (i === 0 || i === all.length - 1 || !prev || Math.abs(p.value - prev.value) > eps) points.push(p)
+      }
       const tc = trendColor(points, palette)
       ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).applyOptions(
         props.kind === 'area'
