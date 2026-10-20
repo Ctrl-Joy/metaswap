@@ -10,7 +10,7 @@ import { TokenAbout, TokenHeader, TokenStats } from '@/features/explore/token/To
 import { TokenSwapWidget } from '@/features/explore/token/TokenSwapWidget'
 import { PoolsTable } from '@/features/explore/PoolsTable'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
-import { poolHasToken } from '@/features/explore/transforms'
+import { poolHasToken, tokenOf } from '@/features/explore/transforms'
 import { CHAIN_SLUG } from '@/config'
 
 type Tab = 'transactions' | 'pools'
@@ -33,6 +33,14 @@ export default function TokenDetailPage() {
   useDocumentTitle(symbol ? `${symbol}` : 'Token')
 
   const poolsForToken = useMemo(() => (pools.data ?? []).filter((p) => poolHasToken(p, apiAddr)), [pools.data, apiAddr])
+
+  const topPool = useMemo(() => {
+    const p = [...poolsForToken].sort((a, b) => (b.tvlUsd ?? 0) - (a.tvlUsd ?? 0))[0]
+    if (!p) return undefined
+    const a = tokenOf(p.token0).symbol
+    const b = tokenOf(p.token1).symbol
+    return { address: p.address, label: `${a}/${b} ${p.version}${p.fee ? ` ${p.fee / 10_000}%` : ''}` }
+  }, [poolsForToken])
 
   if (chain && chain !== CHAIN_SLUG) return <NotFoundState what="Network" backTo="/explore" backLabel="Back to explore" />
   if (detail.isError && isNotFound(detail.error)) return <NotFoundState what="Token" backTo="/explore/tokens" backLabel="Back to tokens" />
@@ -66,7 +74,7 @@ export default function TokenDetailPage() {
             candles={allCandles.data}
             loading={loading}
           />
-          {symbol && <TokenAbout symbol={symbol} name={name} />}
+          {symbol && <TokenAbout symbol={symbol} name={name} address={apiAddr} topPool={topPool} />}
           <section className="flex flex-col gap-4">
             <UnderlineTabs<Tab>
               value={tab}
@@ -84,6 +92,7 @@ export default function TokenDetailPage() {
                 onRetry={() => txs.refetch()}
                 emptyText={`No ${symbol || 'token'} transactions yet.`}
                 testId="token-transactions"
+                perspective={symbol}
               />
             ) : (
               <PoolsTable

@@ -36,7 +36,7 @@ export function priceToInput(n: number): string {
 }
 
 /** MetaSwapX limit order form (ui-ux.md §5): price, sell/buy, expiry → gasless signed order. */
-export function LimitForm() {
+export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token | undefined, output: Token | undefined) => void } = {}) {
   const { find } = useTokenList()
   const wallet = useWallet()
   const openConnect = useUi((s) => s.openConnect)
@@ -59,6 +59,9 @@ export function LimitForm() {
   }, [find, inputToken, outputToken])
 
   const amountIn = inputToken ? parseAmount(amountText, inputToken.decimals) : null
+  useEffect(() => {
+    onTokensChange?.(inputToken, outputToken)
+  }, [inputToken, outputToken, onTokensChange])
   const balanceTokens = useMemo(() => [inputToken, outputToken].filter(Boolean) as Token[], [inputToken, outputToken])
   const { balances } = useTokenBalances(balanceTokens, wallet.address)
   const inBal = inputToken ? balances[inputToken.address.toLowerCase()] : undefined

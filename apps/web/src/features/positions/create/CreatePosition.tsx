@@ -406,6 +406,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
               onInvert={() => setInvert((v) => !v)}
               ticks={ticksQ.data?.ticks}
               ticksLoading={exists && ticksQ.isLoading}
+              poolAddress={exists ? (pool!.address ?? undefined) : undefined}
             />
           </>
         )}

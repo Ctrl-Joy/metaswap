@@ -328,3 +328,46 @@ export function rangeAround(currentTick: number, spacing: number, pct: number): 
   if (hi <= lo) hi = lo + spacing
   return [lo, hi]
 }
+
+/** Uniswap's range strategies on the new-position page. */
+export type RangeStrategy = 'stable' | 'wide' | 'lower' | 'upper'
+
+/** ln(2) / ln(1.0001): ticks for a 2× (or ½×) price move. */
+const TICKS_2X = Math.round(Math.log(2) / Math.log(1.0001))
+
+/**
+ * Tick range for a strategy, in pool (token1-per-token0) ticks, snapped to `spacing` and clamped.
+ * - stable: ± 3 tick spacings around the current tick;
+ * - wide: −50% … +100% of the price;
+ * - lower / upper: one-sided ranges just below / above the current price (−50% / +100%), so the deposit is
+ *   a single token. "Lower"/"upper" refer to the **displayed** price, so `invert` flips which pool side is used.
+ */
+export function strategyTicks(strategy: RangeStrategy, currentTick: number, spacing: number, invert = false): [number, number] {
+  const lo = minUsableTick(spacing)
+  const hi = maxUsableTick(spacing)
+  const clamp = (a: number, b: number): [number, number] => {
+    const l = Math.max(lo, Math.min(a, hi - spacing))
+    const u = Math.min(hi, Math.max(b, l + spacing))
+    return [l, u]
+  }
+  const down = Math.floor(currentTick / spacing) * spacing
+  const below: [number, number] = [Math.floor((currentTick - TICKS_2X) / spacing) * spacing, down]
+  const above: [number, number] = [down + spacing, Math.ceil((currentTick + TICKS_2X) / spacing) * spacing]
+  switch (strategy) {
+    case 'stable':
+      return clamp(down - 3 * spacing, down + 4 * spacing)
+    case 'wide':
+      return clamp(Math.floor((currentTick - TICKS_2X) / spacing) * spacing, Math.ceil((currentTick + TICKS_2X) / spacing) * spacing)
+    case 'lower':
+      return clamp(...(invert ? above : below))
+    case 'upper':
+      return clamp(...(invert ? below : above))
+  }
+}
+
+/** Percent difference of `price` vs `current` (e.g. −7.51 for 7.51% below). Null when undefined/infinite. */
+export function pctFromCurrent(price: number, current: number | undefined): number | null {
+  if (current === undefined || !Number.isFinite(price) || !Number.isFinite(current) || current <= 0) return null
+  if (price === 0) return -100
+  return (price / current - 1) * 100
+}

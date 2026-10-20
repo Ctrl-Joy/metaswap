@@ -167,7 +167,7 @@ export default function PoolDetailPage() {
 
         <section className="flex min-w-0 flex-col gap-4 [grid-area:bottom]">
           <h2 className="text-heading-3 font-semibold">Transactions</h2>
-          <TransactionsTable rows={txs.data} isLoading={txs.isLoading} error={txs.error} onRetry={() => txs.refetch()} emptyText="No swaps or liquidity changes in this pool yet." testId="pool-transactions" />
+          <TransactionsTable rows={txs.data} isLoading={txs.isLoading} error={txs.error} onRetry={() => txs.refetch()} emptyText="No swaps or liquidity changes in this pool yet." testId="pool-transactions" perspective={d ? sym0 : undefined} />
         </section>
       </div>
     </div>

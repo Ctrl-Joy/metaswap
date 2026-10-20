@@ -59,3 +59,38 @@ export function isUnknownAddress(q: string, tokens: readonly Token[]): boolean {
   const s = q.trim()
   return isAddress(s, { strict: false }) && !tokens.some((t) => t.address.toLowerCase() === s.toLowerCase())
 }
+
+/**
+ * Order tokens by 24h volume (desc, unknown volume last, stable otherwise). `volumes` is keyed by
+ * lower-cased address. Used by the top-bar search's "Tokens by 24H volume" section.
+ */
+export function sortByVolume<T extends { address: string }>(tokens: readonly T[], volumes: Record<string, number | null | undefined>): T[] {
+  return tokens
+    .map((t, i) => ({ t, i, v: volumes[t.address.toLowerCase()] ?? -1 }))
+    .sort((a, b) => b.v - a.v || a.i - b.i)
+    .map((x) => x.t)
+}
+
+/** A remembered top-bar search selection. */
+export interface RecentSearch {
+  kind: 'token' | 'pool'
+  /** Token address (or "NATIVE") / pool address. */
+  id: string
+  label: string
+}
+
+/** Most-recent-first list without duplicates, capped at `max`. */
+export function pushRecent(list: readonly RecentSearch[], item: RecentSearch, max = 5): RecentSearch[] {
+  const key = (r: RecentSearch) => `${r.kind}:${r.id.toLowerCase()}`
+  return [item, ...list.filter((r) => key(r) !== key(item))].slice(0, max)
+}
+
+/** Keyboard navigation over a flat result list: ArrowDown/ArrowUp wrap, Home/End jump. */
+export function nextIndex(current: number, count: number, key: string): number {
+  if (count <= 0) return -1
+  if (key === 'ArrowDown') return current < 0 ? 0 : (current + 1) % count
+  if (key === 'ArrowUp') return current <= 0 ? count - 1 : current - 1
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  return current
+}

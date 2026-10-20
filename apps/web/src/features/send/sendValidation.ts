@@ -28,3 +28,8 @@ export const RECIPIENT_ERROR_TEXT: Record<Exclude<RecipientCheck, { ok: true }>[
   zero: 'Cannot send to the zero address',
   'token-contract': 'That is a token contract — tokens sent there are lost',
 }
+
+/** Most-recent-first list of recipients (lower-case de-dupe, original casing kept), capped at `max`. */
+export function addRecentRecipient(list: readonly string[], address: string, max = 5): string[] {
+  return [address, ...list.filter((a) => a.toLowerCase() !== address.toLowerCase())].slice(0, max)
+}

@@ -94,3 +94,39 @@ export function pctToBps(pct: string): number | null {
   if (!pct || !Number.isFinite(n) || n < 0 || n > 100) return null
   return Math.round(n * 100)
 }
+
+type Level = { price: bigint; demand: bigint }
+
+/**
+ * Demand-weighted interquartile price band ("Bids concentrated at X – Y"): the prices at 25% and 75%
+ * of cumulative bid demand, walking levels from low to high. Null without demand.
+ */
+export function bidConcentration(levels: readonly Level[]): [bigint, bigint] | null {
+  const asc = [...levels].filter((l) => l.demand > 0n).sort((a, b) => (a.price < b.price ? -1 : a.price > b.price ? 1 : 0))
+  const total = asc.reduce((s, l) => s + l.demand, 0n)
+  if (total === 0n) return null
+  const at = (q: bigint) => {
+    let cum = 0n
+    for (const l of asc) {
+      cum += l.demand
+      if (cum * 100n >= total * q) return l.price
+    }
+    return asc[asc.length - 1]!.price
+  }
+  return [at(25n), at(75n)]
+}
+
+/** Share of the auction supply that bids at or above `clearing` buy at that price, in basis points (≤ 10000). */
+export function supplySoldBps(levels: readonly Level[], clearing: bigint, auctionSupply: bigint, quoteDecimals: number): number {
+  if (auctionSupply <= 0n || clearing <= 0n) return 0
+  const demand = levels.reduce((s, l) => (l.price >= clearing ? s + l.demand : s), 0n)
+  const tokens = tokensForQuote(demand, clearing, quoteDecimals)
+  const bps = (tokens * 10_000n) / auctionSupply
+  return Number(bps > 10_000n ? 10_000n : bps)
+}
+
+/** Percent the clearing price sits above the floor (0 at the floor). */
+export function pctAboveFloor(clearing: bigint, floor: bigint): number {
+  if (floor <= 0n) return 0
+  return (Number(clearing) / Number(floor) - 1) * 100
+}

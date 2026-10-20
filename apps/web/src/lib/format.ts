@@ -1,12 +1,41 @@
 // Formatting helpers. Number formatting rules live in @metaswap/sdk (shared with the API);
 // this file re-exports them and adds a few UI-only helpers.
-export { formatUsd, formatPrice, formatAmount, formatTokenAmount, formatPercent, shortenAddress } from '@metaswap/sdk'
+import { formatPrice as sdkFormatPrice } from '@metaswap/sdk'
+export { formatUsd, formatAmount, formatTokenAmount, formatPercent, shortenAddress } from '@metaswap/sdk'
+
+const SUBSCRIPT = '₀₁₂₃₄₅₆₇₈₉'
+
+/**
+ * Subscript-zero notation for tiny numbers (Uniswap style): 0.00004106 → "0.0₄4106".
+ * Returns null when the value is not tiny (>= 0.0001) so callers can fall back to normal formatting.
+ * `sig` is the number of significant digits kept after the zero run.
+ */
+export function formatSubscript(value: number, sig = 4): string | null {
+  if (!Number.isFinite(value) || value <= 0 || value >= 0.0001) return null
+  const zeros = -Math.floor(Math.log10(value)) - 1
+  if (zeros < 4 || zeros > 99) return null
+  const digits = (value * 10 ** (zeros + sig)).toFixed(0).slice(0, sig).replace(/0+$/, '') || '0'
+  const sub = String(zeros)
+    .split('')
+    .map((d) => SUBSCRIPT[Number(d)])
+    .join('')
+  return `0.0${sub}${digits}`
+}
+
+/** Token USD price: SDK rules, plus subscript zeros for prices below $0.0001. */
+export function formatPrice(value: number | null | undefined): string {
+  if (value !== null && value !== undefined) {
+    const sub = formatSubscript(value)
+    if (sub) return `$${sub}`
+  }
+  return sdkFormatPrice(value)
+}
 
 /** "2m ago" for recent timestamps, a short date for older ones. */
 export function formatRelativeTime(ms: number, now = Date.now()): string {
   const diff = Math.max(0, now - ms)
   const s = Math.floor(diff / 1000)
-  if (s < 45) return s <= 5 ? 'just now' : `${s}s ago`
+  if (s < 60) return s <= 5 ? 'just now' : `${s}s ago`
   const m = Math.floor(s / 60)
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)

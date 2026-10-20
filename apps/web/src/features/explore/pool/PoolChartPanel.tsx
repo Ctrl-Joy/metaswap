@@ -78,7 +78,7 @@ export function PoolChartPanel({
     if (tab === 'liquidity' && !isV3) return tvlSeries.at(-1)?.value ?? null
     return null
   })()
-  const headLabel = tab === 'price' ? `1 ${base} = ${formatAmount(headValue ?? 0)} ${quote}` : tab === 'volume' ? 'Volume' : tab === 'liquidity' ? (isV3 ? 'Liquidity by price' : 'Total value locked') : 'Cumulative depth'
+  const headLabel = tab === 'price' ? headValue === null ? null : `1 ${base} = ${formatAmount(headValue)} ${quote}` : tab === 'volume' ? 'Volume' : tab === 'liquidity' ? (isV3 ? 'Liquidity by price' : 'Total value locked') : 'Cumulative depth'
 
   const showRange = tab === 'price' || tab === 'volume' || (tab === 'liquidity' && !isV3)
   const rangeFooter = showRange ? (
@@ -103,7 +103,7 @@ export function PoolChartPanel({
             <span className="text-heading-3 font-semibold tabular" data-testid="pool-headline">
               {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '-') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
             </span>
-            <span className="text-body-3 text-text-2">{hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel}</span>
+            <span className="text-body-3 text-text-2" data-testid="pool-headline-label">{hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}</span>
           </div>
         }
         footer={<ChartControls left={rangeFooter} right={null} />}

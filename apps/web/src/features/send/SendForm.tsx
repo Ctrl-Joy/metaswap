@@ -19,7 +19,21 @@ import { TokenButton } from '@/features/tokens/CurrencyInputPanel'
 import { TokenSelector } from '@/features/tokens/TokenSelector'
 import { useTokenList, useTokenPrices } from '@/features/tokens/useTokenList'
 import { useTokenBalance } from '@/hooks/useTokenBalances'
-import { checkRecipient, RECIPIENT_ERROR_TEXT } from './sendValidation'
+import { addRecentRecipient, checkRecipient, RECIPIENT_ERROR_TEXT } from './sendValidation'
+import { safeStorage } from '@/lib/storage'
+
+const RECENT_KEY = 'metaswap.send.recent'
+function loadRecipients(): string[] {
+  try {
+    const v = JSON.parse((safeStorage.getItem(RECENT_KEY) as string | null) ?? '[]') as unknown
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && /^0x[0-9a-fA-F]{40}$/.test(x)) : []
+  } catch {
+    return []
+  }
+}
+function rememberRecipient(address: string) {
+  safeStorage.setItem(RECENT_KEY, JSON.stringify(addRecentRecipient(loadRecipients(), address)))
+}
 
 /** Send tokens or ETH (flows.md §8): amount with USD toggle, recipient validation, review, track. */
 export function SendForm() {
@@ -34,6 +48,7 @@ export function SendForm() {
   const [text, setText] = useState('')
   const [usdMode, setUsdMode] = useState(false)
   const [recipient, setRecipient] = useState(params.get('to') ?? '')
+  const [recents, setRecents] = useState<string[]>(loadRecipients)
   const [selectorOpen, setSelectorOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [sent, setSent] = useState(false)
@@ -140,6 +155,17 @@ export function SendForm() {
         {check.ok && check.warning === 'checksum' && <span className="mt-2 block text-body-4 text-warning">Checksum mismatch — double-check this address.</span>}
         {check.ok && isContract && <span className="mt-2 block text-body-4 text-warning">This address is a contract. Make sure it can receive {token.symbol}.</span>}
       </label>
+      {!recipient && recents.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-2xl bg-surface-2 p-3" data-testid="send-recents">
+          <span className="px-1 text-body-4 text-text-2">Recent recipients</span>
+          {recents.map((a) => (
+            <button key={a} type="button" onClick={() => setRecipient(a)} className="flex items-center gap-2 rounded-xl px-1 py-1.5 text-left hover:bg-surface-3" data-testid="send-recent">
+              <Identicon address={a as `0x${string}`} size={22} />
+              <span className="font-mono text-body-3">{shortenAddress(a)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <Button size="xl" fullWidth className="mt-1" data-testid="send-cta" disabled={cta.disabled} onClick={cta.onClick} variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}>
         {cta.label}
@@ -170,7 +196,11 @@ export function SendForm() {
           amount={amount}
           to={check.address}
           usdValue={usdValue}
-          onSent={() => setSent(true)}
+          onSent={() => {
+            setSent(true)
+            rememberRecipient(check.address)
+            setRecents(loadRecipients())
+          }}
         />
       )}
     </div>

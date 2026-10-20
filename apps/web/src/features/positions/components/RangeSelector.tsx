@@ -7,13 +7,31 @@ import { cn } from '@/lib/cn'
 import type { Token } from '../tokens'
 import type { TickRow } from '../api'
 import { LiquidityChart } from './LiquidityChart'
-import { displayPriceToTick, fullRangeTicks, isFullRange, maxUsableTick, minUsableTick, stepTick, tickToDisplayPrice } from '../math'
+import { PriceHistoryRange } from './PriceHistoryRange'
+import { displayPriceToTick, fullRangeTicks, isFullRange, maxUsableTick, minUsableTick, pctFromCurrent, stepTick, strategyTicks, tickToDisplayPrice, type RangeStrategy } from '../math'
+import { formatSubscript } from '@/lib/format'
+
+const STRATEGIES: Array<{ id: RangeStrategy; title: string; range: string; text: string }> = [
+  { id: 'stable', title: 'Stable', range: '± 3 ticks', text: 'Good for stablecoins or low volatility pairs' },
+  { id: 'wide', title: 'Wide', range: '−50% — +100%', text: 'Good for volatile pairs' },
+  { id: 'lower', title: 'One-sided lower', range: '−50%', text: 'Supply liquidity if price goes down' },
+  { id: 'upper', title: 'One-sided upper', range: '+100%', text: 'Supply liquidity if price goes up' },
+]
+
+/** Plain (editable) price text: no subscript notation. */
+export function plainDisplayPrice(p: number): string {
+  if (!Number.isFinite(p) || p <= 0) return p === Infinity ? '∞' : '0'
+  if (p > 1e15) return '∞'
+  if (p < 1e-12) return '0'
+  if (p < 0.0001) return String(Number(p.toPrecision(6)))
+  return formatAmount(p, 6)
+}
 
 export function formatDisplayPrice(p: number): string {
   if (!Number.isFinite(p) || p <= 0) return p === Infinity ? '∞' : '0'
   if (p > 1e15) return '∞'
   if (p < 1e-12) return '0'
-  return formatAmount(p, 6)
+  return formatSubscript(p) ?? formatAmount(p, 6)
 }
 
 export interface RangeSelectorProps {
@@ -29,10 +47,12 @@ export interface RangeSelectorProps {
   onInvert: () => void
   ticks?: TickRow[]
   ticksLoading?: boolean
+  /** Existing pool: shows its price history behind the range band. */
+  poolAddress?: string
 }
 
 /** Full / custom range, histogram with handles, min/max inputs with tick-snapping steppers. */
-export function RangeSelector({ token0, token1, spacing, currentTick, tickLower, tickUpper, onChange, invert, onInvert, ticks, ticksLoading }: RangeSelectorProps) {
+export function RangeSelector({ token0, token1, spacing, currentTick, tickLower, tickUpper, onChange, invert, onInvert, ticks, ticksLoading, poolAddress }: RangeSelectorProps) {
   const full = isFullRange(tickLower, tickUpper, spacing)
   const [mode, setMode] = useState<'full' | 'custom'>(full ? 'full' : 'custom')
   useEffect(() => setMode(full ? 'full' : 'custom'), [full])
@@ -81,6 +101,16 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
     onChange(lo, hi === lo ? lo + spacing : hi)
   }
 
+  const applyStrategy = (st: RangeStrategy) => {
+    if (currentTick === undefined) return
+    onChange(...strategyTicks(st, currentTick, spacing, invert))
+  }
+  const activeStrategy = currentTick === undefined ? null : STRATEGIES.find((st) => {
+    const [a, b] = strategyTicks(st.id, currentTick, spacing, invert)
+    return a === tickLower && b === tickUpper
+  })?.id ?? null
+  const currentDisplay = currentTick === undefined ? undefined : tickToDisplayPrice(currentTick, d0, d1, invert)
+
   const outOfRange = currentTick !== undefined && (currentTick < tickLower || currentTick >= tickUpper)
 
   return (
@@ -126,6 +156,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
                 {unit}
               </span>
             </div>
+            <PriceHistoryRange poolAddress={poolAddress} invert={invert} current={currentDisplay} minPrice={minDisplay} maxPrice={maxDisplay} />
             <LiquidityChart
               ticks={ticks}
               loading={ticksLoading}
@@ -137,6 +168,23 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
               maxPrice={maxDisplay}
               onDrag={(which, price) => commitPrice(which, price)}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4" role="group" aria-label="Price strategies" data-testid="range-strategies">
+            {STRATEGIES.map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => applyStrategy(st.id)}
+                disabled={currentTick === undefined}
+                aria-pressed={activeStrategy === st.id}
+                data-testid={`range-strategy-${st.id}`}
+                className={cn('flex flex-col items-start gap-0.5 rounded-2xl border p-3 text-left transition-colors disabled:opacity-50', activeStrategy === st.id ? 'border-accent bg-accent-tint' : 'border-border bg-surface-1 hover:bg-surface-2')}
+              >
+                <span className="text-body-3 font-semibold">{st.title}</span>
+                <span className="text-body-4 font-semibold text-text-1 tabular">{st.range}</span>
+                <span className="text-body-4 text-text-2">{st.text}</span>
+              </button>
+            ))}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {[1, 5, 10, 20, 50].map((p) => (
@@ -151,6 +199,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
               unit={unit}
               value={minDisplay}
               testId="range-min"
+              delta={pctFromCurrent(minDisplay, currentDisplay)}
               onCommit={(p) => commitPrice('min', p)}
               onStep={(dir) => setSide('min', stepTick(minTick, spacing, dir, invert))}
             />
@@ -159,6 +208,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
               unit={unit}
               value={maxDisplay}
               testId="range-max"
+              delta={maxDisplay === Infinity ? null : pctFromCurrent(maxDisplay, currentDisplay)}
               onCommit={(p) => commitPrice('max', p)}
               onStep={(dir) => setSide('max', stepTick(maxTick, spacing, dir, invert))}
             />
@@ -174,10 +224,10 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
   )
 }
 
-function PriceInput({ label, unit, value, onCommit, onStep, testId }: { label: string; unit: string; value: number; onCommit: (p: number) => void; onStep: (d: 'up' | 'down') => void; testId: string }) {
+function PriceInput({ label, unit, value, onCommit, onStep, testId, delta }: { label: string; unit: string; value: number; onCommit: (p: number) => void; onStep: (d: 'up' | 'down') => void; testId: string; delta?: number | null }) {
   const [text, setText] = useState('')
   const [focused, setFocused] = useState(false)
-  const shown = formatDisplayPrice(value)
+  const shown = plainDisplayPrice(value)
   useEffect(() => {
     if (!focused) setText(shown === '∞' ? '∞' : shown.replace(/,/g, ''))
   }, [shown, focused])
@@ -205,7 +255,15 @@ function PriceInput({ label, unit, value, onCommit, onStep, testId }: { label: s
           aria-label={`${label} (${unit})`}
           className={cn('w-full bg-transparent text-heading-3 font-medium outline-none tabular')}
         />
-        <div className="truncate text-body-4 text-text-3">{unit}</div>
+        <div className="flex items-center gap-2 text-body-4">
+          <span className="truncate text-text-3">{unit}</span>
+          {delta !== null && delta !== undefined && Number.isFinite(delta) && (
+            <span className={cn('shrink-0 font-semibold tabular', delta > 0 ? 'text-success' : delta < 0 ? 'text-critical' : 'text-text-2')} data-testid={`${testId}-delta`}>
+              {delta > 0 ? '+' : ''}
+              {delta.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex flex-col gap-1">
         <button type="button" aria-label={`Increase ${label}`} data-testid={`${testId}-inc`} onClick={() => onStep('up')} className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-text-2 hover:text-text-1">

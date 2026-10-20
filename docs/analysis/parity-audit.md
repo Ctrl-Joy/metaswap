@@ -259,3 +259,23 @@ Grouped by area / owner file. Owners per PLAN.md/STAGE5: the web shell shell/tra
 
 (Counted from the prioritised rows in §1–§10; the §7 auction sub-details count as ❌. ✅ rows and STAGE5-covered rows
 are not counted. Rows that mix a ⚠️ gap with a 🔧 bug are counted as 🔧.)
+
+---
+
+## Phase 2 status (the parity review fixes, 2026-10-21)
+
+Fixed (fix-list numbers):
+- **#1 P1** trade chart: trend-icon toggle on /swap and /limit, chart left of the card on desktop, below it on mobile, persisted (`features/swap/TradeChart.tsx`, `pages/TradeLayout.tsx`).
+- **#2** search: ↑/↓/Home/End/Enter, Recent (+Clear), "Tokens by 24H volume" with 1D % and FDV, "Pools by 24H volume" with vol and APR (`components/layout/SearchModal.tsx`, `features/tokens/tokenSearch.ts`).
+- **#4** debug route string removed (details + review modal).
+- **#5** "0m ago" fixed; **#13** subscript-zero prices (`lib/format.ts` `formatSubscript`, used by `formatPrice` and range prices).
+- **#6** pool chart "1 WETH = 0" while loading.
+- **#7** pools table: 1D vol default sort, 30D vol (summed from daily history), vol/TVL ratio, Pool APR last; Filters modal (protocol, APR range, TVL buckets) and search.
+- **#8** tx labels "Swap A for B" / "Add A and B" / "Remove A and B", "Buy X"/"Sell X" on token and pool pages, two token-amount columns.
+- **#9** native ETH row in explore tokens; **#10** About link chips (contract, top pool, trade, launch auction, website); 52W high/low tiles.
+- **#11** range strategy cards (Stable / Wide / One-sided lower / upper), % delta under min/max, price-history chart behind the range band.
+- **#12** V2 → V3 migrate flow (remove via V2 router, then NPM multicall create+mint).
+- **#15** auction detail: ends-in banner + progress + "See full details", clearing % vs floor, "Bids concentrated at", "% of supply sold", Activity/Timeline tabs with bid count, Info rows (auction supply, implied price, % to LP, contract, launched on, LP owner), disclaimer.
+- **#29** Send: recent recipients.
+
+Left for later: nav hover dropdowns, ⋯-menu theme Auto/Language/Currency, mobile bottom-sheet nav, footer "API offline" flash (Header/Footer belong to the web shell); portfolio extras (#14, #26, #27); `$0` fiat line / quick-pick logos (`features/tokens/CurrencyInputPanel.tsx`, not in scope); `▲/▼` glyphs and neutral "0%" (`components/ui` PercentChange); Δ% on V2/V3 TVL and pool TVL/volume (needs API history per protocol); Price/Demand toggle on the auction chart (needs bid-time price history from the API); settings "Trade options" restyle, route "View" modal, sticky token header / "⋯" menus (P3 polish).

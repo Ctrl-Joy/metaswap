@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Share2 } from 'lucide-react'
+import { ArrowLeftRight, Droplets, FileCode2, Globe, Rocket, Share2 } from 'lucide-react'
+import { useLaunchDetail, useLaunches } from '@/features/launches/api'
+import { CHAIN_SLUG } from '@/config'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
 import { Badge, Button, Card, CopyButton, IconButton, Skeleton, TokenLogo, Usd } from '@/components/ui'
 import { formatUsd, shortenAddress } from '@/lib/format'
@@ -87,13 +89,18 @@ export function TokenStats({
     { label: 'FDV', node: <Usd value={fdv} compact />, testId: 'stat-fdv' },
     { label: '1D volume', node: <Usd value={volume24h} compact />, testId: 'stat-volume' },
     {
-      label: 'All-time high / low',
-      node: ext ? <span className="tabular">{`${formatUsd(ext.high, { compact: false })} / ${formatUsd(ext.low, { compact: false })}`}</span> : <span className="text-text-3">-</span>,
-      testId: 'stat-ath',
+      label: '52W high',
+      node: ext ? <span className="tabular">{formatUsd(ext.high, { compact: false })}</span> : <span className="text-text-3">-</span>,
+      testId: 'stat-high',
+    },
+    {
+      label: '52W low',
+      node: ext ? <span className="tabular">{formatUsd(ext.low, { compact: false })}</span> : <span className="text-text-3">-</span>,
+      testId: 'stat-low',
     },
   ]
   return (
-    <section aria-label="Token statistics" className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4" data-testid="token-stats">
+    <section aria-label="Token statistics" className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3" data-testid="token-stats">
       {items.map((it) => (
         <div key={it.label} className="flex min-w-0 flex-col gap-1" data-testid={it.testId}>
           <span className="text-body-3 text-text-2">{it.label}</span>
@@ -104,9 +111,15 @@ export function TokenStats({
   )
 }
 
-export function TokenAbout({ symbol, name }: { symbol: string; name: string }) {
+export function TokenAbout({ symbol, name, address, topPool }: { symbol: string; name: string; address?: string; topPool?: { address: string; label: string } }) {
   const [open, setOpen] = useState(false)
   const text = tokenDescription(symbol)
+  const isNative = !address || address.toLowerCase() === NATIVE_ADDRESS.toLowerCase()
+  const launches = useLaunches({})
+  const launch = !isNative ? launches.data?.find((l) => l.token.toLowerCase() === address!.toLowerCase()) : undefined
+  const detail = useLaunchDetail(launch?.auction)
+  const website = detail.data?.website
+  const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 text-body-3 font-semibold text-text-1 transition-colors hover:bg-surface-3'
   return (
     <section aria-label="About" className="flex flex-col gap-3" data-testid="token-about">
       <h2 className="text-heading-3 font-semibold">About {name}</h2>
@@ -115,6 +128,31 @@ export function TokenAbout({ symbol, name }: { symbol: string; name: string }) {
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
           {open ? 'Show less' : 'Show more'}
         </Button>
+      </div>
+      <div className="flex flex-wrap gap-2" data-testid="token-links">
+        {!isNative && (
+          <CopyButton value={address!} label="Copy contract address" className={chip}>
+            <FileCode2 size={15} aria-hidden /> Contract <span className="font-mono text-text-2">{shortenAddress(address!)}</span>
+          </CopyButton>
+        )}
+        {topPool && (
+          <Link to={`/explore/pools/${CHAIN_SLUG}/${topPool.address}`} className={chip} data-testid="token-link-pool">
+            <Droplets size={15} aria-hidden /> Top pool · {topPool.label}
+          </Link>
+        )}
+        <Link to={isNative ? '/swap?outputCurrency=ETH' : `/swap?outputCurrency=${address}`} className={chip} data-testid="token-link-trade">
+          <ArrowLeftRight size={15} aria-hidden /> Trade {symbol}
+        </Link>
+        {launch && (
+          <Link to={`/launches/${launch.auction}`} className={chip} data-testid="token-link-launch">
+            <Rocket size={15} aria-hidden /> Launch auction
+          </Link>
+        )}
+        {website && /^https?:\/\//.test(website) && (
+          <a href={website} target="_blank" rel="noreferrer noopener" className={chip} data-testid="token-link-website">
+            <Globe size={15} aria-hidden /> Website
+          </a>
+        )}
       </div>
     </section>
   )

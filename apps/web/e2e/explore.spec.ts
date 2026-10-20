@@ -39,8 +39,12 @@ test.describe('explore', () => {
 
     const tvlHeader = page.getByRole('columnheader', { name: 'TVL', exact: true })
     const firstPool = () => page.getByTestId('pool-row').first().getAttribute('data-pool')
+    // 1D volume is the default sort (like Uniswap); the first TVL click sorts by TVL descending,
+    // the second flips it to ascending, which moves the top row.
+    await expect(page.getByRole('columnheader', { name: '1D vol', exact: true })).toHaveAttribute('aria-sort', 'descending')
+    await tvlHeader.getByRole('button').click()
+    await expect(tvlHeader).toHaveAttribute('aria-sort', 'descending')
     const before = await firstPool()
-    // TVL is the default (descending); the first click flips it to ascending, which moves the top row.
     await tvlHeader.getByRole('button').click()
     await expect(tvlHeader).toHaveAttribute('aria-sort', 'ascending')
     const asc = await firstPool()

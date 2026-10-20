@@ -27,7 +27,7 @@ import type { QuoteResponse } from '@/api/types'
 const wethAddress = deployment.tokens?.find((t) => t.symbol === 'WETH')?.address
 
 /** The swap card body (Sell panel, flip, Buy panel, details, CTA) — ui-ux.md §2. */
-export function SwapForm({ defaultOutput }: { defaultOutput?: Token } = {}) {
+export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: Token; onTokensChange?: (input: Token | undefined, output: Token | undefined) => void } = {}) {
   const { find } = useTokenList()
   const [params, setParams] = useSearchParams()
   const [state, dispatch] = useReducer(swapReducer, undefined, () => ({
@@ -51,6 +51,9 @@ export function SwapForm({ defaultOutput }: { defaultOutput?: Token } = {}) {
   }, [find])
 
   const { inputToken, outputToken, independentField, typedValue } = state
+  useEffect(() => {
+    onTokensChange?.(inputToken, outputToken)
+  }, [inputToken, outputToken, onTokensChange])
   const exactOut = independentField === 'OUTPUT'
   const wallet = useWallet()
   const openConnect = useUi((s) => s.openConnect)

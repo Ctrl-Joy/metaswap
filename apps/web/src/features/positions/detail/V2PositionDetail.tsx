@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Minus, Plus } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, Minus, Plus } from 'lucide-react'
 import { isAddress, parseSignature, type Address, type Hex } from 'viem'
 import { readContract, signTypedData } from 'wagmi/actions'
 import { v2PairAbi } from '@metaswap/sdk/abis'
@@ -21,6 +21,7 @@ import { approvalStep, GAS, txStep, useStepRunner, type PlannedStep, type SentTx
 import { StatusBadge } from '../components/StatusBadge'
 import { ReviewRow, TxFlowModal } from '../components/TxFlowModal'
 import { PercentPicker } from '../components/PercentPicker'
+import { MigrateV2Modal } from './MigrateV2Modal'
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -72,6 +73,7 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
   const openConnect = useUi((s) => s.openConnect)
   const { prices } = useTokenPrices()
   const [removeOpen, setRemoveOpen] = useState(false)
+  const [migrateOpen, setMigrateOpen] = useState(false)
   const { amount0, amount1 } = v2AmountsForLiquidity(state.balance, state.reserve0, state.reserve1, state.totalSupply)
   const share = state.totalSupply > 0n ? Number(state.balance) / Number(state.totalSupply) : 0
   const usd0 = toNumber(amount0, t0.decimals) * (priceOf(prices, t0) ?? 0)
@@ -102,6 +104,9 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
             </ButtonLink>
             <Button variant="secondary" leftIcon={<Minus size={16} />} disabled={closed} onClick={() => setRemoveOpen(true)} data-testid="action-remove">
               Remove liquidity
+            </Button>
+            <Button variant="tint" leftIcon={<ArrowUpRight size={16} />} disabled={closed} onClick={() => setMigrateOpen(true)} data-testid="action-migrate">
+              Migrate to V3
             </Button>
           </div>
         ) : (
@@ -141,6 +146,7 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
         </Card>
       </div>
       {account && <RemoveV2Modal open={removeOpen} onOpenChange={setRemoveOpen} state={state} t0={t0} t1={t1} account={account} />}
+      {account && (!closed || migrateOpen) && <MigrateV2Modal open={migrateOpen} onOpenChange={setMigrateOpen} state={state} t0={t0} t1={t1} account={account} />}
     </Shell>
   )
 }

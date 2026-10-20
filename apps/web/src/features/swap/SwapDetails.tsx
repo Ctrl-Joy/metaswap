@@ -190,7 +190,6 @@ export function RouteDiagram({ quote }: { quote: QuoteResponse }) {
           </div>
         )
       })}
-      {quote.routeString && <div className="text-body-4 text-text-3">{quote.routeString}</div>}
     </div>
   )
 }

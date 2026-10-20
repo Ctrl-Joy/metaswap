@@ -100,3 +100,28 @@ describe('launch revert messages', () => {
     expect(launchRevertMessage(new Error('boom'))).toBeNull()
   })
 })
+
+import { bidConcentration, pctAboveFloor, supplySoldBps } from './units'
+
+describe('auction detail maths', () => {
+  const E18 = 10n ** 18n
+  const lv = (p: number, d: number) => ({ price: BigInt(Math.round(p * 1000)) * (E18 / 1000n), demand: BigInt(d) * 10n ** 6n })
+  it('bidConcentration returns the demand-weighted interquartile band', () => {
+    const levels = [lv(0.01, 10), lv(0.02, 40), lv(0.03, 40), lv(0.05, 10)]
+    const [lo, hi] = bidConcentration(levels)!
+    expect(lo).toBe(lv(0.02, 0).price)
+    expect(hi).toBe(lv(0.03, 0).price)
+    expect(bidConcentration([])).toBeNull()
+  })
+  it('supplySoldBps counts demand at or above the clearing price, capped at 100%', () => {
+    // 100 mUSDC at >= 0.02 buys 5,000 tokens at 0.02 → 50% of a 10,000 supply
+    const levels = [lv(0.01, 1000), lv(0.02, 60), lv(0.03, 40)]
+    expect(supplySoldBps(levels, lv(0.02, 0).price, 10_000n * E18, 6)).toBe(5000)
+    expect(supplySoldBps(levels, lv(0.01, 0).price, 10_000n * E18, 6)).toBe(10_000)
+    expect(supplySoldBps(levels, 0n, 1n, 6)).toBe(0)
+  })
+  it('pctAboveFloor', () => {
+    expect(pctAboveFloor(2n * E18, E18)).toBeCloseTo(100)
+    expect(pctAboveFloor(E18, E18)).toBe(0)
+  })
+})

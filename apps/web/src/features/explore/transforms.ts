@@ -1,5 +1,6 @@
 // Pure data transforms for the explore pages. No React, no fetching: everything here is unit tested
 // (transforms.test.ts). API shapes are normalised here so components read one clean model.
+import { NATIVE_ADDRESS } from '@metaswap/sdk'
 import type { ApiToken } from '@/api/types'
 import type {
   CandlePoint,
@@ -376,10 +377,31 @@ export function normalizeTx(item: Record<string, unknown>, resolve?: (addressOrS
 }
 
 export function txTitle(tx: TxRow): string {
-  if (tx.kind === 'swap') return `Swap ${tx.legs[0]?.symbol ?? '?'} for ${tx.legs[1]?.symbol ?? '?'}`
-  if (tx.kind === 'add') return 'Add'
-  if (tx.kind === 'remove') return 'Remove'
-  return 'Other'
+  return txLabel(tx).text
+}
+
+/** WETH and ETH are the same asset for Buy/Sell wording. */
+function sameAsset(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false
+  const n = (s: string) => (s.toUpperCase() === 'WETH' ? 'ETH' : s.toUpperCase())
+  return n(a) === n(b)
+}
+
+/**
+ * Uniswap-style transaction label. Without a perspective: "Swap A for B", "Add A and B", "Remove A and B".
+ * With a perspective token (token page, pool page token0): swaps read "Buy X" / "Sell X".
+ */
+export function txLabel(tx: TxRow, perspective?: string): { text: string; verb: 'buy' | 'sell' | 'swap' | 'add' | 'remove' | 'other' } {
+  const a = tx.legs[0]?.symbol ?? '?'
+  const b = tx.legs[1]?.symbol ?? '?'
+  if (tx.kind === 'swap') {
+    if (perspective && sameAsset(b, perspective)) return { text: `Buy ${b}`, verb: 'buy' }
+    if (perspective && sameAsset(a, perspective)) return { text: `Sell ${a}`, verb: 'sell' }
+    return { text: `Swap ${a} for ${b}`, verb: 'swap' }
+  }
+  if (tx.kind === 'add') return { text: `Add ${a} and ${b}`, verb: 'add' }
+  if (tx.kind === 'remove') return { text: `Remove ${a} and ${b}`, verb: 'remove' }
+  return { text: 'Other', verb: 'other' }
 }
 
 /* ------------------------------------------------------------------ stats */
@@ -409,4 +431,18 @@ export function exploreStatTiles(s: ExploreStatsRaw | undefined): StatTile[] {
     { key: 'v2', label: 'V2 TVL', value: toNum(s?.v2?.tvlUsd), delta: null },
     { key: 'v3', label: 'V3 TVL', value: toNum(s?.v3?.tvlUsd), delta: null },
   ]
+}
+
+/**
+ * Explore lists native ETH like Uniswap does. The API only returns WETH, so when no native row exists,
+ * insert "Ether (ETH)" right before WETH with the same market data (same asset, 1:1 wrap).
+ */
+export function withNativeEthRow(rows: TokenRow[]): TokenRow[] {
+  const native = NATIVE_ADDRESS.toLowerCase()
+  if (rows.some((r) => r.address.toLowerCase() === native)) return rows
+  const i = rows.findIndex((r) => r.symbol === 'WETH')
+  if (i < 0) return rows
+  const weth = rows[i]!
+  const eth: TokenRow = { ...weth, address: NATIVE_ADDRESS, symbol: 'ETH', name: 'Ether', decimals: 18, tags: weth.tags.filter((t) => t !== 'wrapped') }
+  return [...rows.slice(0, i), eth, ...rows.slice(i)]
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeftRight, ChevronLeft, ExternalLink, Gavel } from 'lucide-react'
 import { formatUnits, isAddress, type Address } from 'viem'
 import { NATIVE_ETH, type Token } from '@metaswap/sdk'
-import { Banner, Button, ButtonLink, Card, EmptyState, InfoTip, SegmentedTabs, Skeleton, Switch } from '@/components/ui'
+import { Banner, Button, ButtonLink, Card, CopyButton, EmptyState, InfoTip, SegmentedTabs, Skeleton, Switch, UnderlineTabs } from '@/components/ui'
 import { CurrencyInputPanel } from '@/features/tokens/CurrencyInputPanel'
 import { priceOf, useTokenList, useTokenPrices } from '@/features/tokens/useTokenList'
 import { TokenChartPanel } from '@/features/explore/token/TokenChartPanel'
@@ -11,6 +11,7 @@ import { useTokenBalance } from '@/hooks/useTokenBalances'
 import { useWallet } from '@/wallet/hooks'
 import { useUi } from '@/state/ui'
 import { CHAIN_SLUG } from '@/config'
+import { cn } from '@/lib/cn'
 import { formatAmount, formatRelativeTime, formatTokenAmount, formatUsd, shortenAddress } from '@/lib/format'
 import { maxSpendable, parseAmount, toInputString, toNumber } from '@/lib/amount'
 import { sanitizeAmountInput } from '@/lib/amount'
@@ -20,7 +21,7 @@ import { feeLabel, isWeth } from '@/features/positions/tokens'
 import { useLaunchDetail } from './api'
 import { useAuctionState, type AuctionState } from './chain'
 import { buildBid, buildClaimAll, buildSettle } from './contracts'
-import { fdvHuman, humanToPrice, priceToHuman, snapPriceToTick, tokensForQuote } from './units'
+import { bidConcentration, fdvHuman, humanToPrice, pctAboveFloor, priceToHuman, snapPriceToTick, supplySoldBps, tokensForQuote } from './units'
 import { launchpadName, type LaunchDetail } from './types'
 import { BidDistributionChart } from './components/BidDistributionChart'
 import { Countdown, LaunchpadChip, LaunchStatusBadge, LaunchTokenLogo, ProgressBar, VerifiedMark } from './components/LaunchBits'
@@ -83,6 +84,9 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
   const bars = useMemo(() => s.levels.map((l) => ({ price: priceToHuman(l.price), demand: toNumber(l.demand, s.quoteDecimals) })), [s.levels, s.quoteDecimals])
   const row = { symbol: s.symbol, token: s.token, logoURI: detail?.logoURI }
   const padName = detail ? launchpadName(detail) : ''
+  const aboveFloor = pctAboveFloor(s.clearingPrice, s.floorPrice)
+  const band = bidConcentration(s.levels)
+  const soldBps = supplySoldBps(s.levels, s.clearingPrice, s.auctionSupply, s.quoteDecimals)
 
   return (
     <Shell>
@@ -117,13 +121,15 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
         )}
       </div>
 
+      {(s.status === 'active' || s.status === 'upcoming') && <TimeBanner s={s} />}
+
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="auction-stats">
         <Stat label="FDV at floor" value={formatUsd(fdvFloor, { compact: true })} sub={`${formatAmount(priceToHuman(s.floorPrice))} ${s.quoteSymbol} / token`} />
         <Stat label="Bid volume" value={formatUsd(raisedUsd, { compact: true })} sub={`${fmtQuote(s.raised)} · ${s.totalBids.toString()} bids`} testId="stat-raised" />
         <Stat
           label={s.status === 'launched' ? 'Clearing price' : 'Live clearing price'}
           value={`${formatAmount(clearingHuman)} ${s.quoteSymbol}`}
-          sub={`FDV ${formatUsd(fdvClearing, { compact: true })}`}
+          sub={`${aboveFloor > 0.005 ? `+${formatPercentLoose(aboveFloor)} vs floor · ` : 'At floor · '}FDV ${formatUsd(fdvClearing, { compact: true })}`}
           testId="stat-clearing"
         />
         <div className="rounded-2xl border border-border bg-surface-1 p-4">
@@ -150,6 +156,21 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
               <h2 className="text-body-1 font-semibold">Bid distribution</h2>
               <span className="text-body-4 text-text-2">Demand by max price ({s.quoteSymbol})</span>
             </div>
+            <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-body-3" data-testid="bid-insights">
+              <span className="text-text-2">
+                Bids concentrated at{' '}
+                <span className="font-semibold text-text-1 tabular" data-testid="bid-concentration">
+                  {band ? `${formatAmount(priceToHuman(band[0]))} – ${formatAmount(priceToHuman(band[1]))} ${s.quoteSymbol}` : '-'}
+                </span>
+              </span>
+              <span className="text-text-2">
+                <span className="font-semibold text-text-1 tabular" data-testid="supply-sold">
+                  {(soldBps / 100).toFixed(2)}%
+                </span>{' '}
+                of supply sold
+              </span>
+            </div>
+            <ProgressBar value={soldBps / 100} tone={soldBps >= 10_000 ? 'success' : 'text'} className="mb-4" />
             <BidDistributionChart bars={bars} clearing={clearingHuman} floor={priceToHuman(s.floorPrice)} quoteSymbol={s.quoteSymbol} />
           </Card>
           <RecentBids detail={detail} s={s} />
@@ -480,35 +501,54 @@ function MyBids({ s, account }: { s: AuctionState; account?: Address }) {
   )
 }
 
+type ActivityTab = 'activity' | 'timeline'
+
 function RecentBids({ detail, s }: { detail?: LaunchDetail; s: AuctionState }) {
   const bids = detail?.bids ?? []
+  const [tab, setTab] = useState<ActivityTab>('activity')
   return (
     <Card className="p-5" data-testid="recent-bids">
-      <h2 className="mb-3 text-body-1 font-semibold">Recent bids</h2>
-      {bids.length === 0 ? (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <UnderlineTabs<ActivityTab>
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'activity', label: 'Activity', testId: 'auction-tab-activity' },
+            { value: 'timeline', label: 'Timeline', testId: 'auction-tab-timeline' },
+          ]}
+        />
+        <span className="text-body-3 text-text-2 tabular" data-testid="auction-bid-count">
+          {s.totalBids.toString()} bids
+        </span>
+      </div>
+      {tab === 'timeline' ? (
+        <Timeline s={s} />
+      ) : bids.length === 0 ? (
         <p className="text-body-3 text-text-2">{detail ? 'No bids yet.' : 'Bid history is unavailable.'}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-body-3">
             <thead className="text-body-4 text-text-2">
               <tr className="h-8 text-left">
-                <th className="font-medium">Time</th>
-                <th className="text-right font-medium">Amount</th>
+                <th className="font-medium">Wallet</th>
+                <th className="text-right font-medium">Bid</th>
                 <th className="text-right font-medium">Max price</th>
-                <th className="text-right font-medium">Bidder</th>
+                <th className="text-right font-medium">Time</th>
               </tr>
             </thead>
             <tbody>
               {bids.slice(0, 20).map((b) => {
                 const t = b.timestamp ?? b.time
                 return (
-                  <tr key={String(b.bidId)} className="h-10 border-t border-border">
-                    <td className="text-text-2">{t ? formatRelativeTime(t * 1000) : '-'}</td>
+                  <tr key={String(b.bidId)} className="h-10 border-t border-border" data-testid="auction-bid-row">
+                    <td className="font-mono text-text-2">{shortenAddress(b.bidder)}</td>
                     <td className="text-right tabular">
                       {formatTokenAmount(BigInt(b.amount), s.quoteDecimals)} {s.quoteSymbol}
                     </td>
-                    <td className="text-right tabular">{formatAmount(priceToHuman(BigInt(b.maxPrice)))}</td>
-                    <td className="text-right font-mono text-text-2">{shortenAddress(b.bidder)}</td>
+                    <td className="text-right tabular">
+                      {formatAmount(priceToHuman(BigInt(b.maxPrice)))} {s.quoteSymbol}
+                    </td>
+                    <td className="text-right text-text-2">{t ? formatRelativeTime(t * 1000) : '-'}</td>
                   </tr>
                 )
               })}
@@ -520,21 +560,94 @@ function RecentBids({ detail, s }: { detail?: LaunchDetail; s: AuctionState }) {
   )
 }
 
+/** Milestones of the auction lifecycle, with the completed ones marked. */
+function Timeline({ s }: { s: AuctionState }) {
+  const now = s.blockTime
+  const items: Array<{ key: string; label: string; time: number | null; done: boolean }> = [
+    { key: 'start', label: 'Bidding opens', time: s.startTime, done: now >= s.startTime },
+    { key: 'end', label: 'Bidding closes', time: s.endTime, done: now >= s.endTime },
+    {
+      key: 'settle',
+      label:
+        s.status === 'failed'
+          ? 'Failed: threshold not met, bids refunded'
+          : s.status === 'launched'
+            ? 'Settled: pool created, tokens claimable'
+            : 'Settlement: pool created at the clearing price',
+      time: null,
+      done: s.status === 'launched' || s.status === 'failed',
+    },
+  ]
+  return (
+    <ol className="flex flex-col gap-3" data-testid="auction-timeline">
+      {items.map((it) => (
+        <li key={it.key} className="flex items-start gap-3" data-done={it.done ? 'true' : 'false'}>
+          <span className={cn('mt-1 size-2.5 shrink-0 rounded-full', it.done ? 'bg-success' : 'bg-surface-3')} aria-hidden />
+          <span className="flex flex-col">
+            <span className="text-body-3 font-semibold">{it.label}</span>
+            {it.time !== null && <span className="text-body-4 text-text-2">{new Date(it.time * 1000).toLocaleString()}</span>}
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/** "Auction ends in …" banner with elapsed-time progress and a jump to the details. */
+function TimeBanner({ s }: { s: AuctionState }) {
+  const active = s.status === 'active'
+  const span = Math.max(1, s.endTime - s.startTime)
+  const elapsed = Math.min(100, Math.max(0, ((s.blockTime - s.startTime) / span) * 100))
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-accent-tint px-4 py-3" data-testid="auction-time-banner">
+      <span className="text-body-2 font-semibold text-text-1">
+        {active ? 'Auction ends in ' : 'Auction starts in '}
+        <Countdown to={active ? s.endTime : s.startTime} className="tabular" />
+      </span>
+      {active && <ProgressBar value={elapsed} tone="accent" className="min-w-[120px] flex-1" />}
+      <a href="#auction-info" className="text-body-3 font-semibold text-accent hover:underline" data-testid="auction-see-details">
+        See full details
+      </a>
+    </div>
+  )
+}
+
+function formatPercentLoose(p: number): string {
+  if (p >= 1000) return `${(p / 1000).toFixed(1)}K%`
+  return `${p.toFixed(p >= 100 ? 0 : 2)}%`
+}
+
 function AboutCard({ s }: { s: AuctionState }) {
   return (
-    <Card className="flex flex-col gap-2 p-5">
+    <Card className="flex flex-col gap-2 p-5" id="auction-info" data-testid="auction-info">
       <h2 className="text-body-1 font-semibold">About {s.name}</h2>
       {s.description && <p className="text-body-3 text-text-2">{s.description}</p>}
       <div className="grid gap-x-8 gap-y-1.5 text-body-3 sm:grid-cols-2">
         <ReviewRow label="Total supply">{formatTokenAmount(s.totalSupply, 18)}</ReviewRow>
+        <ReviewRow label="Auction supply">
+          {formatTokenAmount(s.auctionSupply, 18)} {s.symbol}
+        </ReviewRow>
+        <ReviewRow label="Implied token price" testId="auction-implied-price">
+          {formatAmount(priceToHuman(s.floorPrice))} – {formatAmount(priceToHuman(s.clearingPrice > s.floorPrice ? s.clearingPrice : s.floorPrice))} {s.quoteSymbol}
+        </ReviewRow>
+        <ReviewRow label="% committed to LP">{(Number(s.liquidityBps) / 100).toFixed(1)}%</ReviewRow>
         <ReviewRow label="Sold in auction">{(Number(s.auctionSupplyBps) / 100).toFixed(0)}%</ReviewRow>
         <ReviewRow label="Liquidity">{(Number(s.liquidityBps) / 100).toFixed(0)}% of raise</ReviewRow>
         <ReviewRow label="Pool fee">{feeLabel(s.poolFee)}</ReviewRow>
         <ReviewRow label="Starts">{new Date(s.startTime * 1000).toLocaleString()}</ReviewRow>
         <ReviewRow label="Ends">{new Date(s.endTime * 1000).toLocaleString()}</ReviewRow>
         <ReviewRow label="Token">
-          <span className="font-mono">{shortenAddress(s.token)}</span>
+          <CopyButton value={s.token} label="Copy token address">
+            <span className="font-mono">{shortenAddress(s.token)}</span>
+          </CopyButton>
         </ReviewRow>
+        <ReviewRow label="Contract address">
+          <CopyButton value={s.auction} label="Copy auction address">
+            <span className="font-mono">{shortenAddress(s.auction)}</span>
+          </CopyButton>
+        </ReviewRow>
+        <ReviewRow label="Launched on">{s.status === 'launched' ? new Date(s.endTime * 1000).toLocaleDateString() : '--'}</ReviewRow>
+        <ReviewRow label="LP owner">{s.pool ? 'Locked in the auction contract' : '--'}</ReviewRow>
         {s.website && (
           <ReviewRow label="Website">
             <a href={s.website} target="_blank" rel="noreferrer noopener" className="text-accent hover:underline">
@@ -543,6 +656,9 @@ function AboutCard({ s }: { s: AuctionState }) {
           </ReviewRow>
         )}
       </div>
+      <p className="mt-2 text-body-4 text-text-3" data-testid="auction-disclaimer">
+        Disclaimer: MetaSwap does not provide a valuation, recommendation or endorsement of any token or token project. Devnet tokens have no real value.
+      </p>
     </Card>
   )
 }

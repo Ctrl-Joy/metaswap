@@ -1,10 +1,11 @@
 // Explore data hooks. Built on the shared useApiQuery / apiGet (src/api). Keys start with ['api', ...].
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
 import { apiGet, asList } from '@/api/client'
 import { useApiQuery } from '@/api/hooks'
 import type { CandlePoint, ExploreStatsRaw, ExploreTokenApiRow, PoolApiRow, PoolDetailApi, PoolHistoryPoint, PoolTicksApi, RangeKey, TokenDetailApi, TokenRow, TxRow } from './types'
-import { normalizePool, normalizeTokenRow, normalizeTx, RANGES, rangeFrom, toCandles, toSeries, type RangeConfig } from './transforms'
+import { sumRecentVolume } from './poolFilters'
+import { normalizePool, normalizeTokenRow, withNativeEthRow, normalizeTx, RANGES, rangeFrom, toCandles, toSeries, type RangeConfig } from './transforms'
 
 /** Explore polls every 10 s (spec: 10 to 15 s). */
 export const EXPLORE_REFRESH_MS = 10_000
@@ -27,7 +28,7 @@ export function useExploreTokenRows(range: RangeKey) {
     queryKey: ['api', 'explore', 'tokens', 'rows', range],
     queryFn: async ({ signal }) => {
       const body = await apiGet<unknown>('/explore/tokens', { sort: 'volume', order: 'desc', range }, { signal })
-      return asList<ExploreTokenApiRow>(body, 'tokens').map(normalizeTokenRow).filter((r): r is TokenRow => r !== null)
+      return withNativeEthRow(asList<ExploreTokenApiRow>(body, 'tokens').map(normalizeTokenRow).filter((r): r is TokenRow => r !== null))
     },
     refetchInterval: EXPLORE_REFRESH_MS,
     staleTime: 5_000,
@@ -179,4 +180,24 @@ export function usePoolTicks(address: string | undefined, enabled: boolean) {
     refetchInterval: EXPLORE_REFRESH_MS * 3,
     retry: 0,
   })
+}
+
+/**
+ * 30-day volume per pool, summed client-side from each pool's daily history (the list endpoint only has
+ * 24h/7d). Returns a map keyed by lower-cased pool address; missing entries are still loading.
+ */
+export function usePools30dVolume(addresses: readonly string[]) {
+  const results = useQueries({
+    queries: addresses.map((address) => ({
+      queryKey: ['api', 'pools', address, 'history', 'day'],
+      queryFn: async ({ signal }: { signal: AbortSignal }) => asList<PoolHistoryPoint>(await apiGet<unknown>(`/pools/${address}/history`, { interval: 'day' }, { signal }), 'history'),
+      staleTime: 60_000,
+      retry: 0,
+    })),
+  })
+  const out: Record<string, number | null> = {}
+  results.forEach((r, i) => {
+    if (r.data) out[addresses[i]!.toLowerCase()] = sumRecentVolume(r.data, 30)
+  })
+  return out
 }
