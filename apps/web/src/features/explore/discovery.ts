@@ -117,8 +117,13 @@ export interface VaultCard {
 export function normalizeVault(v: unknown): VaultCard | null {
   if (!v || typeof v !== 'object') return null
   const o = v as Record<string, unknown>
-  const token = (o.token && typeof o.token === 'object' ? o.token : null) as Record<string, unknown> | null
-  const symbol = String(token?.symbol ?? o.symbol ?? o.underlying ?? '')
+  // the API returns the underlying token as `asset`; older shapes used `token`
+  const tokenField = o.asset ?? o.token
+  const token = (tokenField && typeof tokenField === 'object' ? tokenField : null) as Record<string, unknown> | null
+  // show the underlying asset like Uniswap ("USDT", "ETH"), not the vault share symbol; the WETH
+  // vault takes native ETH deposits, so it is presented as ETH
+  const rawSymbol = String(token?.symbol ?? o.symbol ?? o.underlying ?? '')
+  const symbol = rawSymbol === 'WETH' ? 'ETH' : rawSymbol
   const address = typeof o.address === 'string' ? o.address : typeof o.vault === 'string' ? (o.vault as string) : null
   const id = String(o.slug ?? o.id ?? address ?? '')
   if (!id || !symbol) return null

@@ -35,12 +35,8 @@ export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
   return (
     <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="explore-page">
       <ExploreStats />
-      {tab === 'tokens' && (
-        <>
-          <TrendingRow />
-          <EarnRow />
-        </>
-      )}
+      {(tab === 'tokens' || tab === 'pools' || tab === 'transactions') && <TrendingRow />}
+      {tab === 'tokens' && <EarnRow />}
       <div className="flex flex-col gap-4">
         <ExploreSectionTabs<ExploreTab>
           value={tab}

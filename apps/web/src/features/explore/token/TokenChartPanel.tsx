@@ -122,7 +122,7 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
         heightClass="h-[300px]"
         footer={
           <ChartControls
-            left={<SegmentedTabs size="md" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}
+            left={<div className="rounded-xl border border-border p-1"><SegmentedTabs size="sm" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} /></div>}
             right={
               <>
                 {mode === 'price' && (
