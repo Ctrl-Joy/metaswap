@@ -123,6 +123,7 @@ const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key'
 await run('forge', ['build'], contractsDir)
 await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
 if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
+if (existsSync(join(contractsDir, 'script/DeployStage5.s.sol'))) await run('forge', forgeScript('script/DeployStage5.s.sol'), contractsDir)
 await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
 await run('node', ['packages/sdk/scripts/sync.mjs'], root)
 if (historyDays > 0) await run('npx', ['tsx', 'scripts/market.ts', '--history'], root)
