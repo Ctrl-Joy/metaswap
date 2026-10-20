@@ -192,6 +192,13 @@ All JSON, amounts as decimal strings in base units unless suffixed `Formatted`/`
 - `GET /accounts/:address/balances` → token balances + USD values (portfolio)
 - `GET /quote?tokenIn&tokenOut&amount&type=EXACT_INPUT|EXACT_OUTPUT&slippageBps&recipient&deadline&protocols=v2,v3,mixed`
   → `{ route: [[{ type:"v2"|"v3", pool, tokenIn, tokenOut, fee }]], amountIn, amountOut, amountOutMin|amountInMax, priceImpactBps, gasEstimate, gasUsd, routeString, methodParameters: { to: UniversalRouter, calldata, value }, permit2: { required, spender, ... } }`
+  `permit2.required` is true when the user's Permit2 allowance for the router is missing,
+  insufficient or expiring; the quote then includes `permitData: { domain, types, values }`
+  (an EIP-712 `PermitSingle` for spender = UniversalRouter) for the wallet to sign. ERC20 → Permit2
+  `approve` (max) is a separate on-chain step the web app does first when needed.
+- `POST /swap` body `{ quote, permitSignature? }` → `{ methodParameters: { to, calldata, value }, gasEstimate }`
+  — rebuilds UniversalRouter calldata, prepending a `PERMIT2_PERMIT` command when a signature is
+  supplied (mirrors Uniswap's Trading API `/quote` → `/swap`). Quotes carry an `id` and expire after 30s.
   Routing: enumerate all V2+V3 pools, paths up to 3 hops, optional split across up to 3 routes,
   quote V2 with exact reserve math and V3 via `QuoterV2` (eth_call), pick best net-of-gas.
 - MetaSwapX: `POST /x/orders` (encoded signed order + signature) → validates & stores,

@@ -15,3 +15,9 @@ Source: protocol research. Uniswap's v3 factory constructor only enables 500/300
 ## 2026-10-20 — UniversalRouter swap inputs omit `minHopPriceX36`
 Source: protocol research. Recent Uniswap UniversalRouter versions append a per-hop min-price array to
 V2/V3 swap inputs. MetaSwap uses the classic encoding without it (see `docs/analysis/protocol.md`).
+
+## 2026-10-20 — MetaSwapX Permit2 witness type string uses sorted EIP-712 order (router & MetaSwapX contracts)
+UniswapX's `ExclusiveDutchOrderLib.PERMIT2_ORDER_TYPE` lists `ExclusiveDutchOrder(...)` before `DutchOutput(...)`.
+MetaSwap lists referenced types alphabetically (`DutchOutput`, `ExclusiveDutchOrder`, `OrderInfo`,
+`TokenPermissions`), which is what viem/ethers/alloy `signTypedData` produce, so the web app can sign orders with
+plain `signTypedData`. Exact strings: `packages/contracts/README.md` ("MetaSwapX & Router").
