@@ -24,3 +24,6 @@ test-results/
 
 # sdk generated (rebuilt by npm run sdk:sync)
 packages/sdk/src/generated/
+
+# local dev runtime (anvil log etc.)
+.dev/

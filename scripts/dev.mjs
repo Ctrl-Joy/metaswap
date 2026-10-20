@@ -7,7 +7,7 @@
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, openSync } from 'node:fs'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,17 +26,33 @@ function log(msg) {
   console.log(`\x1b[35m[dev]\x1b[0m ${msg}`)
 }
 
+// Runs a step asynchronously. A synchronous spawn would block the event loop, so long-running
+// children (anvil) could not have their stdout drained; anvil then blocks on a full pipe and
+// stops answering RPC mid-deploy.
 function run(cmd, cmdArgs, cwd) {
   log(`${cmd} ${cmdArgs.join(' ')}`)
-  const res = spawnSync(cmd, cmdArgs, { cwd, env, stdio: 'inherit', shell: process.platform === 'win32' })
-  if (res.status !== 0) {
-    log(`failed: ${cmd} (exit ${res.status})`)
-    shutdown(1)
-  }
+  return new Promise((resolveRun) => {
+    const child = spawn(cmd, cmdArgs, { cwd, env, stdio: 'inherit', shell: process.platform === 'win32' })
+    child.on('exit', (code) => {
+      if (code !== 0) {
+        log(`failed: ${cmd} (exit ${code})`)
+        shutdown(1)
+      }
+      resolveRun()
+    })
+  })
 }
 
-function start(name, cmd, cmdArgs, cwd) {
-  log(`starting ${name}`)
+function start(name, cmd, cmdArgs, cwd, { logFile } = {}) {
+  log(`starting ${name}${logFile ? ` (log: ${logFile})` : ''}`)
+  if (logFile) {
+    mkdirSync(dirname(logFile), { recursive: true })
+    const out = openSync(logFile, 'w')
+    const child = spawn(cmd, cmdArgs, { cwd, env, stdio: ['ignore', out, out], shell: process.platform === 'win32' })
+    child.on('exit', (code) => log(`${name} exited (${code})`))
+    children.push(child)
+    return child
+  }
   const child = spawn(cmd, cmdArgs, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' })
   const prefix = `\x1b[36m[${name}]\x1b[0m `
   child.stdout.on('data', (d) => process.stdout.write(prefix + d.toString().replace(/\n(?=.)/g, `\n${prefix}`)))
@@ -78,18 +94,20 @@ if (await rpcReady(500)) {
   process.exit(1)
 }
 
-start('anvil', 'anvil', ['--chain-id', '31337', '--block-time', '1', '--accounts', '10', '--balance', '10000', '--port', '8545'], root)
+start('anvil', 'anvil', ['--chain-id', '31337', '--block-time', '1', '--accounts', '10', '--balance', '10000', '--port', '8545'], root, {
+  logFile: join(root, '.dev/anvil.log'),
+})
 if (!(await rpcReady())) {
   log('anvil did not start')
   shutdown(1)
 }
 
 const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
-run('forge', ['build'], contractsDir)
-run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
-if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
-run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
-run('node', ['packages/sdk/scripts/sync.mjs'], root)
+await run('forge', ['build'], contractsDir)
+await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
+if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
+await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
+await run('node', ['packages/sdk/scripts/sync.mjs'], root)
 log('chain ready: contracts deployed, pools seeded, sdk synced')
 
 if (!args.has('--chain-only')) {
