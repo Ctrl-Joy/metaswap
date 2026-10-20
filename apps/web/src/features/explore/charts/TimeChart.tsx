@@ -46,11 +46,20 @@ type Props = {
 type AnySeries = ISeriesApi<'Area'> | ISeriesApi<'Line'> | ISeriesApi<'Histogram'> | ISeriesApi<'Candlestick'>
 
 /** #rrggbb to rgba(); other colour formats pass through unchanged. */
-function withAlpha(hex: string, alpha: number): string {
+export function withAlpha(hex: string, alpha: number): string {
   const m = /^#([0-9a-f]{6})$/i.exec(hex)
   if (!m) return hex
   const v = parseInt(m[1]!, 16)
   return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${alpha})`
+}
+
+/**
+ * Period trend colour, as Uniswap draws it: success green when the period ended at or above where it
+ * started, critical red when it fell. Fewer than two points falls back to the accent colour.
+ */
+export function trendColor(data: ReadonlyArray<{ value: number }>, palette: ChartPalette): string {
+  if (data.length < 2) return palette.accent
+  return data[data.length - 1]!.value >= data[0]!.value ? palette.success : palette.critical
 }
 
 function chartOptions(p: ChartPalette, formatValue: (v: number) => string) {
@@ -63,16 +72,17 @@ function chartOptions(p: ChartPalette, formatValue: (v: number) => string) {
       fontSize: 12,
       attributionLogo: false,
     },
+    // Dotted grid (dots, no solid lines), as on Uniswap's price charts.
     grid: {
-      vertLines: { visible: false },
-      horzLines: { color: p.grid, style: LineStyle.Dotted },
+      vertLines: { visible: true, color: p.dot, style: LineStyle.Dotted },
+      horzLines: { visible: true, color: p.dot, style: LineStyle.Dotted },
     },
     rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.08 } },
     timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
     crosshair: {
       mode: CrosshairMode.Normal,
       vertLine: { color: p.text3, style: LineStyle.Dashed, width: 1 as const, labelVisible: false },
-      horzLine: { color: p.text3, style: LineStyle.Dashed, width: 1 as const, labelVisible: true },
+      horzLine: { visible: false, labelVisible: false },
     },
     handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     handleScale: false,
@@ -81,30 +91,78 @@ function chartOptions(p: ChartPalette, formatValue: (v: number) => string) {
 }
 
 /**
- * The one lightweight-charts wrapper for explore (line/area, bars, candles). It follows the theme
- * palette, resizes with its container (autoSize), and reports the crosshair as a value/date readout.
+ * The one lightweight-charts wrapper for every chart in MetaSwap (explore, token, pool, portfolio and
+ * launches). Line and area charts take the period trend colour with a gradient fill, the grid is dotted,
+ * the last point pulses, and the crosshair reports a value and date readout to the parent. Candles use
+ * green and red bodies, and bars highlight the hovered bar. It follows the theme and resizes with its
+ * container (autoSize).
  */
 export function TimeChart(props: Props) {
   const { className, formatValue, onHover, testId, ariaLabel, kind } = props
   const data = props.data
   const hostRef = useRef<HTMLDivElement>(null)
+  const dotRef = useRef<HTMLSpanElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<AnySeries | null>(null)
   const hoverRef = useRef(onHover)
   const fmtRef = useRef(formatValue)
+  const palette = useChartPalette()
+  const trend = trendColor(data as ReadonlyArray<{ value: number }>, palette)
+
   const volumeByTime = useMemo(() => {
     const m = new Map<number, number>()
     if (kind === 'candles') for (const c of data as CandlePoint[]) m.set(c.time, c.volumeUsd)
     return m
   }, [data, kind])
   const volumeRef = useRef(volumeByTime)
-  const palette = useChartPalette()
+  const barValues = useRef(new Map<number, number>())
+  const barHover = useRef<number | null>(null)
+  const lastPoint = useRef<{ time: number; value: number } | null>(null)
+  const kindRef = useRef(kind)
 
   useEffect(() => {
     hoverRef.current = onHover
     fmtRef.current = formatValue
     volumeRef.current = volumeByTime
+    kindRef.current = kind
   })
+
+  /** Position the pulsing dot on the last data point (DOM update, no re-render). */
+  const placeDot = () => {
+    const dot = dotRef.current
+    const chart = chartRef.current
+    const s = seriesRef.current
+    const last = lastPoint.current
+    if (!dot) return
+    if (!chart || !s || !last || (kindRef.current !== 'area' && kindRef.current !== 'line')) {
+      dot.style.display = 'none'
+      return
+    }
+    const x = chart.timeScale().timeToCoordinate(last.time as UTCTimestamp)
+    const y = s.priceToCoordinate(last.value)
+    if (x === null || y === null) {
+      dot.style.display = 'none'
+      return
+    }
+    dot.style.display = 'block'
+    dot.style.left = `${x}px`
+    dot.style.top = `${y}px`
+  }
+
+  /** Bars: the hovered bar is drawn at full accent, the others stay at reduced opacity. */
+  const highlightBar = (time: number | null, p: ChartPalette) => {
+    const s = seriesRef.current as ISeriesApi<'Histogram'> | null
+    if (!s || kindRef.current !== 'bar') return
+    const prev = barHover.current
+    if (prev === time) return
+    if (prev !== null && barValues.current.has(prev)) {
+      s.update({ time: prev as UTCTimestamp, value: barValues.current.get(prev)!, color: withAlpha(p.accent, 0.4) })
+    }
+    if (time !== null && barValues.current.has(time)) {
+      s.update({ time: time as UTCTimestamp, value: barValues.current.get(time)!, color: p.accent })
+    }
+    barHover.current = time
+  }
 
   // Create (or re-create on kind/theme change) the chart and its series.
   useEffect(() => {
@@ -126,23 +184,29 @@ export function TimeChart(props: Props) {
     } else if (kind === 'bar') {
       series = chart.addSeries(HistogramSeries, { color: palette.accent, priceFormat, priceLineVisible: false, lastValueVisible: false })
     } else if (kind === 'line') {
-      series = chart.addSeries(LineSeries, { color: palette.accent, lineWidth: 2, priceFormat, crosshairMarkerRadius: 4 })
+      series = chart.addSeries(LineSeries, { color: palette.accent, lineWidth: 2, priceFormat, crosshairMarkerRadius: 4, priceLineVisible: false, lastValueVisible: false })
     } else {
       series = chart.addSeries(AreaSeries, {
         lineColor: palette.accent,
-        topColor: withAlpha(palette.accent, 0.32),
+        topColor: withAlpha(palette.accent, 0.25),
         bottomColor: withAlpha(palette.accent, 0),
         lineWidth: 2,
         priceFormat,
         crosshairMarkerRadius: 4,
+        priceLineVisible: false,
+        lastValueVisible: false,
       })
     }
     seriesRef.current = series
+    chart.timeScale().subscribeVisibleLogicalRangeChange(placeDot)
+    const ro = new ResizeObserver(() => placeDot())
+    ro.observe(host)
 
     chart.subscribeCrosshairMove((param: MouseEventParams<Time>) => {
       const cb = hoverRef.current
-      if (!cb) return
       const s = seriesRef.current
+      if (kindRef.current === 'bar') highlightBar(param.time && param.point ? Number(param.time) : null, palette)
+      if (!cb) return
       if (!param.time || !param.point || !s) {
         cb(null)
         return
@@ -157,37 +221,64 @@ export function TimeChart(props: Props) {
         const c = d as CandlestickData<Time>
         cb({ time, value: c.close, open: c.open, high: c.high, low: c.low, close: c.close, volumeUsd: volumeRef.current.get(time) })
       } else {
-        cb({ time, value: (d as LineData<Time>).value ?? null })
+        cb({ time, value: (d as LineData<Time> | HistogramData<Time>).value ?? null })
       }
     })
 
     return () => {
+      ro.disconnect()
       chart.remove()
       chartRef.current = null
       seriesRef.current = null
+      barHover.current = null
     }
-    // data is applied by the effect below; the chart itself only changes with kind or theme.
+    // Data is applied by the effect below; the chart itself only changes with kind or theme.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, palette])
 
-  // Apply data to the current series and fit the time scale.
+  // Apply data to the current series (colour follows the period trend) and fit the time scale.
   useEffect(() => {
     const s = seriesRef.current
     const chart = chartRef.current
     if (!s || !chart) return
+    barHover.current = null
     if (props.kind === 'candles') {
       ;(s as ISeriesApi<'Candlestick'>).setData(
         props.data.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })),
       )
+      lastPoint.current = null
     } else if (props.kind === 'bar') {
-      ;(s as ISeriesApi<'Histogram'>).setData(props.data.map((p): HistogramData<Time> => ({ time: p.time as UTCTimestamp, value: p.value, color: withAlpha(palette.accent, 0.85) })))
+      barValues.current = new Map(props.data.map((p) => [p.time, p.value]))
+      ;(s as ISeriesApi<'Histogram'>).setData(props.data.map((p): HistogramData<Time> => ({ time: p.time as UTCTimestamp, value: p.value, color: palette.accent })))
+      lastPoint.current = null
     } else {
+      const tc = trendColor(props.data, palette)
+      ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).applyOptions(
+        props.kind === 'area'
+          ? { lineColor: tc, topColor: withAlpha(tc, 0.25), bottomColor: withAlpha(tc, 0) }
+          : { color: tc },
+      )
       ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).setData(props.data.map((p): LineData<Time> => ({ time: p.time as UTCTimestamp, value: p.value })))
+      lastPoint.current = props.data.length ? props.data[props.data.length - 1]! : null
     }
     chart.timeScale().fitContent()
+    requestAnimationFrame(placeDot)
     // `data` identity drives updates; `props` is read for the discriminant.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, kind, palette])
 
-  return <div ref={hostRef} data-testid={testId} aria-label={ariaLabel} role="img" className={cn('relative w-full', className)} />
+  return (
+    <div className={cn('relative w-full', className)}>
+      <div ref={hostRef} data-testid={testId} aria-label={ariaLabel} role="img" className="size-full" />
+      {(kind === 'area' || kind === 'line') && (
+        <>
+          <style>{'@media (prefers-reduced-motion: no-preference) { @keyframes ms-chart-pulse { 0% { transform: scale(1); opacity: 0.55 } 80%, 100% { transform: scale(3.2); opacity: 0 } } }'}</style>
+          <span ref={dotRef} aria-hidden data-testid="chart-last-dot" className="pointer-events-none absolute z-[1] hidden size-2.5 -translate-x-1/2 -translate-y-1/2" style={{ display: 'none' }}>
+            <span className="absolute inset-0 rounded-full motion-reduce:hidden" style={{ background: trend, animation: 'ms-chart-pulse 1.8s ease-out infinite' }} />
+            <span className="absolute inset-0 rounded-full ring-2 ring-surface-1" style={{ background: trend }} />
+          </span>
+        </>
+      )}
+    </div>
+  )
 }

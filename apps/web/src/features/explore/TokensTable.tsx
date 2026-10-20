@@ -1,23 +1,19 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ChevronDown, Search, Smile, TrendingUp, LayoutGrid } from 'lucide-react'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
-import { PercentChange, SegmentedTabs, SortTh, Table, TableSkeleton, Td, Th, THead, Tr, TokenLogo, Usd } from '@/components/ui'
+import { Badge, PercentChange, Popover, SortTh, Table, TableSkeleton, Td, Th, THead, Tr, TokenLogo, Usd } from '@/components/ui'
 import { CHAIN_SLUG } from '@/config'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { Sparkline } from './charts/SvgCharts'
 import { ApiErrorState } from './ExploreStates'
-import { filterTokenRows, sortRows, type SortDir, type TokenChip } from './transforms'
+import { useTrendingTokens } from './discoveryApi'
+import { CATEGORY_LABEL, MORE_CATEGORIES, PRIMARY_CATEGORIES, matchesCategory, parseCategory, tokenBadges, type TokenCategory } from './discovery'
+import { filterTokenRows, sortRows, type SortDir } from './transforms'
 import type { RangeKey, TokenRow } from './types'
 
 type SortKey = 'rank' | 'price' | 'change1h' | 'change24h' | 'fdv' | 'volume'
-
-const CHIPS: Array<{ value: TokenChip; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'stablecoins', label: 'Stablecoins' },
-  { value: 'wrapped', label: 'Wrapped' },
-]
 
 const RANGE_OPTIONS: Array<{ value: RangeKey; label: string }> = [
   { value: '1H', label: '1H' },
@@ -28,13 +24,19 @@ const RANGE_OPTIONS: Array<{ value: RangeKey; label: string }> = [
   { value: 'ALL', label: 'All time' },
 ]
 
+const CHIP_ICON: Partial<Record<TokenCategory, typeof TrendingUp>> = {
+  trending: TrendingUp,
+  gainers: TrendingUp,
+  memes: Smile,
+}
+
 /** URL of a token's detail page. Native ETH uses the NATIVE sentinel in URLs. */
 export function tokenHref(address: string): string {
   const path = address.toLowerCase() === NATIVE_ADDRESS.toLowerCase() ? 'NATIVE' : address
   return `/explore/tokens/${CHAIN_SLUG}/${path}`
 }
 
-/** Sortable, searchable token list with chips and a volume time-range dropdown. */
+/** Sortable, searchable token list. The category chip lives in `?category=` so links can deep-link to it. */
 export function TokensTable({
   rows,
   isLoading,
@@ -51,12 +53,26 @@ export function TokensTable({
   onRangeChange: (r: RangeKey) => void
 }) {
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const category = parseCategory(params.get('category'))
+  const [moreOpen, setMoreOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [chip, setChip] = useState<TokenChip>('all')
+  const trending = useTrendingTokens()
+  const trendingSet = useMemo(() => new Set((trending.data ?? []).map((t) => t.address.toLowerCase())), [trending.data])
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'volume', dir: 'desc' })
+  // Top Gainers sorts by 24h change unless the user picked another column.
+  const effectiveSort = category === 'gainers' && sort.key === 'volume' ? { key: 'change24h' as SortKey, dir: 'desc' as SortDir } : sort
+
+  const setCategory = (c: TokenCategory) => {
+    const next = new URLSearchParams(params)
+    if (c === 'all') next.delete('category')
+    else next.set('category', c)
+    setParams(next, { replace: true })
+  }
 
   const visible = useMemo(() => {
-    const filtered = filterTokenRows(rows ?? [], { query, chip })
+    const inCategory = (rows ?? []).filter((r) => matchesCategory(r, category, trendingSet))
+    const filtered = filterTokenRows(inCategory, { query })
     const getter: Record<SortKey, (r: TokenRow) => number | string | null> = {
       rank: (r) => (rows ?? []).indexOf(r),
       price: (r) => r.priceUsd,
@@ -65,18 +81,83 @@ export function TokensTable({
       fdv: (r) => r.fdvUsd,
       volume: (r) => r.volumeUsd,
     }
-    return sortRows(filtered, getter[sort.key], sort.key === 'rank' ? 'asc' : sort.dir)
-  }, [rows, query, chip, sort])
+    return sortRows(filtered, getter[effectiveSort.key], effectiveSort.key === 'rank' ? 'asc' : effectiveSort.dir)
+  }, [rows, query, category, trendingSet, effectiveSort])
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }))
 
   if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load tokens" />
 
+  const moreActive = MORE_CATEGORIES.some((c) => c.value === category)
+
   return (
     <div className="flex flex-col gap-4" data-testid="tokens-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedTabs items={CHIPS.map((c) => ({ value: c.value, label: c.label, testId: `chip-${c.value}` }))} value={chip} onChange={setChip} size="sm" ariaLabel="Token filter" className="flex-wrap" />
+        <div role="tablist" aria-label="Token categories" className="flex flex-wrap items-center gap-1">
+          {PRIMARY_CATEGORIES.map((c) => {
+            const Icon = CHIP_ICON[c.value]
+            const active = category === c.value
+            return (
+              <button
+                key={c.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-testid={`chip-${c.value}`}
+                onClick={() => setCategory(c.value)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150',
+                  active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
+                )}
+              >
+                {Icon && <Icon size={14} aria-hidden />}
+                {c.label}
+              </button>
+            )
+          })}
+          <Popover
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+            align="start"
+            trigger={
+              <button
+                type="button"
+                data-testid="chip-more"
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150',
+                  moreActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
+                )}
+              >
+                <LayoutGrid size={14} aria-hidden />
+                {moreActive ? CATEGORY_LABEL[category] : 'More'}
+                <ChevronDown size={14} aria-hidden />
+              </button>
+            }
+            className="w-[200px] p-2"
+          >
+            <ul role="menu" className="flex flex-col">
+              {MORE_CATEGORIES.map((c) => (
+                <li key={c.value} role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid={`more-${c.value}`}
+                    onClick={() => {
+                      setCategory(c.value)
+                      setMoreOpen(false)
+                    }}
+                    className={cn('flex w-full rounded-xl px-3 py-2 text-left text-body-2 hover:bg-surface-2-hover', category === c.value && 'font-semibold text-text-1')}
+                  >
+                    {c.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Popover>
+        </div>
         <div className="flex items-center gap-2">
           <label className="relative flex items-center">
             <span className="sr-only">Volume window</span>
@@ -112,11 +193,11 @@ export function TokensTable({
         <THead>
           <Th className="sticky left-0 z-[2] w-12 bg-surface-2">#</Th>
           <Th className="sticky left-12 z-[2] bg-surface-2">Token</Th>
-          <SortTh label="Price" active={sort.key === 'price'} direction={sort.dir} onClick={() => toggleSort('price')} />
-          <SortTh label="1H" active={sort.key === 'change1h'} direction={sort.dir} onClick={() => toggleSort('change1h')} />
-          <SortTh label="1D" active={sort.key === 'change24h'} direction={sort.dir} onClick={() => toggleSort('change24h')} />
-          <SortTh label="FDV" active={sort.key === 'fdv'} direction={sort.dir} onClick={() => toggleSort('fdv')} />
-          <SortTh label={`Volume ${RANGE_OPTIONS.find((o) => o.value === range)?.label ?? ''}`} active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggleSort('volume')} />
+          <SortTh label="Price" active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
+          <SortTh label="1H" active={effectiveSort.key === 'change1h'} direction={effectiveSort.dir} onClick={() => toggleSort('change1h')} />
+          <SortTh label="1D" active={effectiveSort.key === 'change24h'} direction={effectiveSort.dir} onClick={() => toggleSort('change24h')} />
+          <SortTh label="FDV" active={effectiveSort.key === 'fdv'} direction={effectiveSort.dir} onClick={() => toggleSort('fdv')} />
+          <SortTh label={`Volume ${RANGE_OPTIONS.find((o) => o.value === range)?.label ?? ''}`} active={effectiveSort.key === 'volume'} direction={effectiveSort.dir} onClick={() => toggleSort('volume')} />
           <Th align="right">1D chart</Th>
         </THead>
         {isLoading && !rows ? (
@@ -125,7 +206,7 @@ export function TokensTable({
           <tbody>
             <tr>
               <td colSpan={8} className="px-4 py-10 text-center text-body-2 text-text-2" data-testid="tokens-empty">
-                {rows && rows.length ? 'No tokens match this filter.' : 'No tokens are listed yet.'}
+                {rows && rows.length ? `No tokens in ${CATEGORY_LABEL[category]} right now.` : 'No tokens are listed yet.'}
               </td>
             </tr>
           </tbody>
@@ -134,14 +215,22 @@ export function TokensTable({
             {visible.map((r) => {
               const rank = (rows ?? []).indexOf(r) + 1
               const href = tokenHref(r.address)
+              const badges = tokenBadges(r)
               return (
                 <Tr key={r.address} className="group" onClick={() => navigate(href)} data-testid="token-row" data-symbol={r.symbol}>
-                  <Td className={cn('sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover')}>{rank}</Td>
-                  <Td className={cn('sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover')}>
+                  <Td className="sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover">{rank}</Td>
+                  <Td className="sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover">
                     <Link to={href} className="flex items-center gap-3 focus-visible:outline-none" onClick={(e) => e.stopPropagation()}>
                       <TokenLogo token={{ symbol: r.symbol, address: r.address }} size={28} />
                       <span className="flex min-w-0 flex-col">
-                        <span className="truncate font-semibold text-text-1">{r.name}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate font-semibold text-text-1">{r.name}</span>
+                          {badges.slice(0, 2).map((b) => (
+                            <Badge key={b} tone="neutral" className="shrink-0 !px-1.5 !py-0 text-[11px]">
+                              {b}
+                            </Badge>
+                          ))}
+                        </span>
                         <span className="text-body-4 text-text-2">{r.symbol}</span>
                       </span>
                     </Link>

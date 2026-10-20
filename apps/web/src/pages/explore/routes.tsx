@@ -10,6 +10,7 @@ const PoolDetailPage = lazy(() => import('./PoolDetailPage'))
 export const exploreRoutes: RouteObject[] = [
   { path: '/explore', element: <ExplorePage /> },
   { path: '/explore/tokens', element: <ExplorePage tab="tokens" /> },
+  { path: '/explore/auctions', element: <ExplorePage tab="auctions" /> },
   { path: '/explore/pools', element: <ExplorePage tab="pools" /> },
   { path: '/explore/transactions', element: <ExplorePage tab="transactions" /> },
   { path: '/explore/tokens/:chain/:address', element: <TokenDetailPage /> },

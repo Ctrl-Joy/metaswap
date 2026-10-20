@@ -10,6 +10,8 @@ export interface ChartPalette {
   border: string
   surface1: string
   grid: string
+  /** Dotted grid colour (subtle, like Uniswap's dot grid). */
+  dot: string
 }
 
 function readVar(name: string, fallback: string): string {
@@ -28,6 +30,7 @@ export function readChartPalette(): ChartPalette {
     border: readVar('--ms-border', '#2a2d38'),
     surface1: readVar('--ms-surface-1', '#13141a'),
     grid: readVar('--ms-skeleton', '#ffffff12'),
+    dot: readVar('--ms-border', '#2a2d38'),
   }
 }
 
