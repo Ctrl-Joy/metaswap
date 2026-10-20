@@ -205,3 +205,58 @@ export interface PositionRow {
   uncollectedFeesUsd?: number | null
   [k: string]: unknown
 }
+
+/* ------------------------------------------------------------------ Stage 5: earn + portfolio */
+
+export interface EarnVault {
+  address: Address
+  asset: ApiToken
+  symbol: string
+  name?: string
+  apyPct: number
+  tvlUsd: number | null
+  totalAssets: string
+  depositors: number
+}
+
+export interface EarnPosition {
+  vault: Address | EarnVault
+  shares: string
+  assets: string
+  valueUsd: number | null
+  depositedUsd: number | null
+  lifetimeEarningsUsd: number | null
+}
+
+export interface PortfolioToken {
+  token: ApiToken & { isNative?: boolean }
+  priceUsd: number | null
+  balance: string
+  valueUsd: number | null
+  avgCostUsd?: number | null
+  costBasisUsd?: number | null
+  unrealizedPnlUsd?: number | null
+  unrealizedPnlPct?: number | null
+  change24h?: number | null
+}
+
+export interface PortfolioNft {
+  tokenId: string
+  tokenURI?: string
+  image?: string
+  name?: string
+  pool?: Address | null
+  [k: string]: unknown
+}
+
+export interface PortfolioResponse {
+  address: Address
+  totalUsd: number
+  change24hUsd: number | null
+  change24hPct: number | null
+  tokens: PortfolioToken[]
+  pools: PositionRow[]
+  earn: EarnPosition[]
+  nfts: PortfolioNft[]
+  activity: ActivityItem[]
+}

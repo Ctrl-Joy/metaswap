@@ -7,10 +7,10 @@ import { Skeleton } from './misc'
  * Data table primitives in the explore style (ui-ux.md §8.4): rounded surface, lighter
  * header row, 56px rows with hover fill. Horizontal scroll on narrow screens.
  */
-export function Table({ className, children, minWidth = 640 }: { className?: string; children: ReactNode; minWidth?: number }) {
+export function Table({ className, children, minWidth = 640, dense }: { className?: string; children: ReactNode; minWidth?: number; /** 14px text, 12px cell padding. */ dense?: boolean }) {
   return (
-    <div className={cn('overflow-x-auto rounded-2xl border border-border bg-surface-1 scrollbar-thin', className)}>
-      <table className="w-full border-collapse text-left text-body-2" style={{ minWidth }}>
+    <div className={cn('relative w-full max-w-full overflow-x-auto rounded-2xl border border-border bg-surface-1 scrollbar-thin [contain:inline-size]', className)}>
+      <table className={cn('w-full border-collapse text-left', dense ? 'text-body-3 [&_td]:px-3 [&_th]:px-3' : 'text-body-2')} style={{ minWidth }}>
         {children}
       </table>
     </div>

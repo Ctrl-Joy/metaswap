@@ -21,6 +21,9 @@ export interface SettingsState {
   /** Prefer MetaSwapX (gasless intent orders) when available. */
   xGasless: boolean
   hideSmallBalances: boolean
+  /** Mask USD values / balances on the portfolio (eye toggle). */
+  hideBalances: boolean
+  setHideBalances: (on: boolean) => void
   setTheme: (t: ThemePref) => void
   setSlippageAuto: () => void
   setCustomSlippage: (v: string) => void
@@ -41,6 +44,8 @@ export const useSettings = create<SettingsState>()(
       routeV3: true,
       xGasless: false,
       hideSmallBalances: false,
+      hideBalances: false,
+      setHideBalances: (hideBalances) => set({ hideBalances }),
       setTheme: (theme) => set({ theme }),
       setSlippageAuto: () => set({ slippageMode: 'auto', customSlippage: '' }),
       setCustomSlippage: (customSlippage) => set({ customSlippage, slippageMode: customSlippage === '' ? 'auto' : 'custom' }),

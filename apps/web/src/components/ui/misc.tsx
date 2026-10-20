@@ -179,7 +179,7 @@ export function PercentChange({ value, className, digits = 2 }: { value: number 
   const down = value < 0
   const Icon = down ? ArrowDown : ArrowUp
   return (
-    <span className={cn('inline-flex items-center gap-0.5 tabular', up ? 'text-success' : down ? 'text-critical' : 'text-text-2', className)}>
+    <span className={cn('relative inline-flex items-center gap-0.5 tabular', up ? 'text-success' : down ? 'text-critical' : 'text-text-2', className)}>
       <Icon size={12} strokeWidth={2.5} aria-hidden />
       <span>{formatPercent(Math.abs(value), { digits })}</span>
       <span className="sr-only">{up ? 'up' : down ? 'down' : 'unchanged'}</span>

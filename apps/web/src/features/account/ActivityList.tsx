@@ -89,7 +89,7 @@ function iconFor(type: string) {
 }
 
 /** Activity = this browser's tracked txs (instant, with pending state) + the API indexer's history. */
-export function ActivityList({ address, limit }: { address: Address; limit?: number }) {
+export function ActivityList({ address, limit, types }: { address: Address; limit?: number; /** Only show these activity types (local tx types or API types). */ types?: readonly string[] }) {
   const local = useAccountTxs(address)
   const api = useAccountActivity(address)
   const rows = useMemo(() => {
@@ -102,8 +102,8 @@ export function ActivityList({ address, limit }: { address: Address; limit?: num
       const d = describeActivity(it)
       out.push({ key: h ?? `${it.type}-${it.blockNumber}-${String(it.logIndex)}`, hash: h ?? undefined, type: String(it.type), title: d.title, detail: d.detail, time: it.timestamp ? Number(it.timestamp) * 1000 : undefined, status: 'indexed', usd: (it.amountUsd as number | null | undefined) ?? null })
     }
-    return out.sort((a, b) => (b.time ?? 0) - (a.time ?? 0)).slice(0, limit ?? 100)
-  }, [local, api.data, limit])
+    return out.filter((r) => !types || types.includes(r.type)).sort((a, b) => (b.time ?? 0) - (a.time ?? 0)).slice(0, limit ?? 100)
+  }, [local, api.data, limit, types])
 
   if (api.isLoading && local.length === 0)
     return (

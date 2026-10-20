@@ -50,3 +50,22 @@ export const knownErrorsAbi = parseAbi([
   'error DeadlineBeforeEndTime()',
   'error InputAndOutputDecay()',
 ])
+
+/** ERC-4626 + MetaSwapSavingsVault extras (docs/specs/STAGE5.md §1a). */
+export const savingsVaultAbi = parseAbi([
+  'function asset() view returns (address)',
+  'function totalAssets() view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+  'function convertToAssets(uint256 shares) view returns (uint256)',
+  'function convertToShares(uint256 assets) view returns (uint256)',
+  'function maxWithdraw(address owner) view returns (uint256)',
+  'function maxRedeem(address owner) view returns (uint256)',
+  'function previewDeposit(uint256 assets) view returns (uint256)',
+  'function previewRedeem(uint256 shares) view returns (uint256)',
+  'function deposit(uint256 assets, address receiver) returns (uint256 shares)',
+  'function withdraw(uint256 assets, address receiver, address owner) returns (uint256 shares)',
+  'function redeem(uint256 shares, address receiver, address owner) returns (uint256 assets)',
+  'function depositETH(address receiver) payable returns (uint256 shares)',
+  'function withdrawETH(uint256 assets, address receiver, address owner) returns (uint256 shares)',
+  'function apyBps() view returns (uint256)',
+])

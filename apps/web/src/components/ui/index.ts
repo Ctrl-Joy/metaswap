@@ -24,3 +24,4 @@ export {
   Card,
   type TabItem,
 } from './misc'
+export { Marquee, ChartCard, TickerPill, type MarqueeProps, type ChartCardProps } from './Marquee'

@@ -7,7 +7,7 @@ import { formatUsd } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { useLaunches, useTopVerifiedLaunches, useTrendingLaunches, type LaunchStatusFilter } from './api'
 import { launchpadName, sparkValues, type LaunchRow } from './types'
-import { Marquee } from './components/Marquee'
+import { Marquee } from '@/components/ui'
 import { Countdown, formatAge, LaunchpadChip, LaunchStatusBadge, LaunchTokenLogo, ProgressBar, VerifiedMark, useNow } from './components/LaunchBits'
 
 const auctionHref = (r: LaunchRow) => `/launches/${r.auction}`

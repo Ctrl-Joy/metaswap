@@ -12,6 +12,9 @@ import type {
   TokenStats,
   XOrder,
   OrderStatus,
+  EarnVault,
+  EarnPosition,
+  PortfolioResponse,
 } from './types'
 
 // TanStack Query hooks for every read endpoint of services/api (PLAN.md "API").
@@ -50,7 +53,7 @@ export function useTokenCandles(address: Address | undefined, interval: '1m' | '
 }
 
 export function usePriceHistory(address: Address | undefined, range: '1H' | '1D' | '1W' | '1M' | '1Y') {
-  return useApiQuery<Array<{ time: number; priceUsd: number }>>(['tokens', address, 'price-history'], `/tokens/${address}/price-history`, { range }, { enabled: !!address })
+  return useApiQuery<Array<{ time: number; priceUsd: number }>>(['tokens', address, 'price-history'], `/tokens/${address}/price-history`, { range }, { enabled: !!address, refetchInterval: 15_000 })
 }
 
 export function useExploreStats() {
@@ -120,6 +123,61 @@ export function useXOrders(swapper: Address | undefined, status?: OrderStatus) {
     queryFn: async ({ signal }) => asList<XOrder>(await apiGet<unknown>('/x/orders', { swapper, status }, { signal }), 'orders'),
     enabled: !!swapper,
     refetchInterval: 3_000,
+    retry: 0,
+  })
+}
+
+/* ------------------------------------------------------------------ Stage 5: earn + portfolio */
+
+/** GET /accounts/demo → the demo wallet shown on /portfolio when signed out (Anvil #1 fallback). */
+export function useDemoAccount() {
+  return useQuery({
+    queryKey: ['api', 'accounts', 'demo'],
+    queryFn: async ({ signal }) => (await apiGet<{ address: Address }>('/accounts/demo', undefined, { signal })).address,
+    staleTime: Infinity,
+    retry: 0,
+  })
+}
+
+export function usePortfolioQuery(address: Address | undefined) {
+  return useQuery({
+    queryKey: ['api', 'accounts', address, 'portfolio'],
+    queryFn: ({ signal }) => apiGet<PortfolioResponse>(`/accounts/${address}/portfolio`, undefined, { signal }),
+    enabled: !!address,
+    refetchInterval: 10_000,
+    retry: 0,
+  })
+}
+
+export type PortfolioRange = '1H' | '1D' | '1W' | '1M' | '1Y' | 'ALL'
+
+export function usePortfolioHistory(address: Address | undefined, range: PortfolioRange) {
+  return useQuery({
+    queryKey: ['api', 'accounts', address, 'portfolio-history', range],
+    queryFn: async ({ signal }) => asList<{ time: number; valueUsd: number }>(await apiGet<unknown>(`/accounts/${address}/portfolio/history`, { range }, { signal }), 'history', 'points'),
+    enabled: !!address,
+    staleTime: 10_000,
+    refetchInterval: 12_000,
+    placeholderData: (prev) => prev,
+    retry: 0,
+  })
+}
+
+export function useEarnVaults() {
+  return useQuery({
+    queryKey: ['api', 'earn', 'vaults'],
+    queryFn: async ({ signal }) => asList<EarnVault>(await apiGet<unknown>('/earn/vaults', undefined, { signal }), 'vaults'),
+    refetchInterval: 15_000,
+    retry: 0,
+  })
+}
+
+export function useAccountEarn(address: Address | undefined) {
+  return useQuery({
+    queryKey: ['api', 'accounts', address, 'earn'],
+    queryFn: async ({ signal }) => asList<EarnPosition>(await apiGet<unknown>(`/accounts/${address}/earn`, undefined, { signal }), 'positions', 'earn'),
+    enabled: !!address,
+    refetchInterval: 10_000,
     retry: 0,
   })
 }

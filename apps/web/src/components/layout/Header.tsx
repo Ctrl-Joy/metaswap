@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, BookOpen } from 'lucide-react'
+import { ChevronDown, Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, BookOpen, PiggyBank, Rocket } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
 import { Button, IconButton, Identicon, Popover, Spinner, Switch } from '@/components/ui'
@@ -16,13 +16,18 @@ import { SearchModal } from './SearchModal'
 export const NAV_ITEMS = [
   { to: '/swap', label: 'Trade', match: ['/swap', '/limit', '/send', '/buy'] },
   { to: '/explore', label: 'Explore', match: ['/explore'] },
+  { to: '/launches', label: 'Launches', match: ['/launches'], beta: true },
   { to: '/positions', label: 'Pool', match: ['/positions'] },
   { to: '/portfolio', label: 'Portfolio', match: ['/portfolio'] },
   // `wide`: shown inline only from xl (1280px); between lg and xl they live in the product menu
   // and mobile nav so the Connect button never overflows the header.
   { to: '/metaswapx', label: 'MetaSwapX', match: ['/metaswapx'], wide: true },
   { to: '/metachain', label: 'MetaChain', match: ['/metachain'], wide: true },
-] as const satisfies ReadonlyArray<{ to: string; label: string; match: readonly string[]; wide?: boolean }>
+] as const satisfies ReadonlyArray<{ to: string; label: string; match: readonly string[]; wide?: boolean; beta?: boolean }>
+
+function BetaBadge() {
+  return <span className="ml-1.5 rounded-md bg-accent-tint px-1.5 py-0.5 align-middle text-[11px] leading-none font-semibold text-accent">Beta</span>
+}
 
 function useActive() {
   const { pathname } = useLocation()
@@ -52,6 +57,7 @@ export function Header() {
               )}
             >
               {item.label}
+              {'beta' in item && item.beta && <BetaBadge />}
             </NavLink>
           ))}
         </nav>
@@ -88,6 +94,8 @@ function ProductMenu() {
       >
         <MenuSection title="Products">
           <MenuLink to="/swap" icon={<ArrowLeftRight size={18} />} title="MetaSwap" subtitle="Swap, pool and explore" />
+          <MenuLink to="/earn" icon={<PiggyBank size={18} />} title="Earn" subtitle="Savings vaults, no lockup" />
+          <MenuLink to="/launches" icon={<Rocket size={18} />} title="Launches" subtitle="Token auctions (beta)" />
           <MenuLink to="/metaswapx" icon={<Zap size={18} />} title="MetaSwapX" subtitle="Gasless intent orders" />
           <MenuLink to="/metachain" icon={<Layers size={18} />} title="MetaChain" subtitle="The planned MetaSwap chain" />
         </MenuSection>
@@ -178,7 +186,7 @@ function NetworkPill() {
   return (
     <Link
       to="/metachain"
-      className="mr-1 hidden h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-body-3 font-medium text-text-2 transition-colors hover:text-text-1 tablet:inline-flex"
+      className="mr-1 hidden h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-body-3 font-medium text-text-2 transition-colors hover:text-text-1 tablet:inline-flex lg:hidden xl:inline-flex"
       title="MetaChain Devnet (chain 31337)"
     >
       <span className="size-2 rounded-full bg-success" aria-hidden />
@@ -236,7 +244,7 @@ function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
             </Dialog.Close>
           </div>
           <nav aria-label="Mobile" className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => (
+            {[...NAV_ITEMS.slice(0, 5), { to: '/earn', label: 'Earn', match: ['/earn'] } as const, ...NAV_ITEMS.slice(5)].map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -244,6 +252,7 @@ function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
                 className={cn('rounded-xl px-3 py-3 text-body-1 font-medium', isActive(item.match) ? 'bg-surface-2 text-text-1' : 'text-text-2 hover:bg-surface-2')}
               >
                 {item.label}
+                {'beta' in item && item.beta && <BetaBadge />}
               </NavLink>
             ))}
           </nav>

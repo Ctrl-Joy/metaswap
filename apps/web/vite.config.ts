@@ -10,7 +10,13 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    // Playwright writes traces/screenshots under apps/web; watching them made Vite full-reload pages mid-test.
+    watch: { ignored: ['**/test-results*/**', '**/playwright-report/**', '**/e2e/screenshots/**', '**/dist/**'] },
+  },
   preview: { host: '127.0.0.1', port: 5173 },
   build: {
     target: 'es2022',

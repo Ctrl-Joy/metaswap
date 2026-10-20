@@ -73,11 +73,15 @@ test('routes render: 404, explore, positions and metachain', async ({ page }) =>
 test.describe('mobile 375px', () => {
   test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true })
   test('swap page smoke: no horizontal scroll, menu and bottom-sheet modal work', async ({ page }) => {
-    for (const path of ['/swap', '/limit', '/send', '/buy', '/portfolio', '/metaswapx', '/metachain']) {
+    for (const path of ['/swap', '/limit', '/send', '/buy', '/portfolio', '/portfolio/tokens', '/earn', '/metaswapx', '/metachain']) {
       await page.goto(path)
       await page.waitForLoadState('domcontentloaded')
-      const sw = await page.evaluate(() => document.documentElement.scrollWidth)
-      expect(sw, `horizontal overflow on ${path}`).toBeLessThanOrEqual(375)
+      await page.waitForTimeout(path.startsWith('/portfolio') ? 2500 : 300)
+      // body hides x-overflow, so measure <main> (scroll containers clip their own content)
+      await page.locator('main').waitFor()
+      const sw = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.querySelector('main')?.scrollWidth ?? 0))
+      const culprit = sw > 375 ? await page.evaluate(() => "cw=" + document.documentElement.clientWidth + " " + Array.from(document.querySelectorAll("body *")).filter((e) => { const s = getComputedStyle(e); const p = e.parentElement; const ps = p ? getComputedStyle(p) : null; return (e as HTMLElement).offsetWidth > 380 && (!ps || ps.overflowX === "visible") && s.position !== "fixed" }).slice(0, 6).map((e) => e.tagName + "." + String((e as HTMLElement).className).slice(0, 70) + "=" + (e as HTMLElement).offsetWidth).join(" | ")) : ""
+      expect(sw, `horizontal overflow on ${path}: ${culprit}`).toBeLessThanOrEqual(375)
     }
     await page.goto('/swap')
     await page.getByTestId('mobile-menu-button').click()
@@ -92,3 +96,18 @@ test.describe('mobile 375px', () => {
     expect(box!.width).toBeGreaterThanOrEqual(370) // bottom sheet spans the screen
   })
 })
+
+for (const width of [1024, 1100, 1280, 1440])
+  test(`header fits at ${width}px (Launches visible, Connect on screen)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/swap')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect(nav.getByRole('link', { name: /Launches/ })).toBeVisible()
+    const connect = page.getByTestId('connect-button')
+    await expect(connect).toBeVisible()
+    const box = (await connect.boundingBox())!
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    const navBox = (await nav.boundingBox())!
+    expect(navBox.x + navBox.width).toBeLessThan(box.x)
+  })
