@@ -62,6 +62,12 @@ export function trendColor(data: ReadonlyArray<{ value: number }>, palette: Char
   return data[data.length - 1]!.value >= data[0]!.value ? palette.success : palette.critical
 }
 
+const DOT_GRID = (color: string): React.CSSProperties => ({
+  backgroundImage: `radial-gradient(circle, ${color} 1px, transparent 1.4px)`,
+  backgroundSize: '18px 18px',
+  backgroundPosition: '0 0',
+})
+
 function chartOptions(p: ChartPalette, formatValue: (v: number) => string) {
   return {
     autoSize: true,
@@ -72,10 +78,10 @@ function chartOptions(p: ChartPalette, formatValue: (v: number) => string) {
       fontSize: 12,
       attributionLogo: false,
     },
-    // Dotted grid (dots, no solid lines), as on Uniswap's price charts.
+    // No line grid: the plot sits on a CSS dot matrix (see DOT_GRID), like Uniswap's charts.
     grid: {
-      vertLines: { visible: true, color: p.dot, style: LineStyle.Dotted },
-      horzLines: { visible: true, color: p.dot, style: LineStyle.Dotted },
+      vertLines: { visible: false },
+      horzLines: { visible: false },
     },
     rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.08 } },
     timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
@@ -269,7 +275,9 @@ export function TimeChart(props: Props) {
 
   return (
     <div className={cn('relative w-full', className)}>
-      <div ref={hostRef} data-testid={testId} aria-label={ariaLabel} role="img" className="size-full" />
+      {/* Uniswap-style dot matrix behind the plot area (right edge leaves room for the price axis). */}
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 right-16" style={DOT_GRID(palette.dot)} />
+      <div ref={hostRef} data-testid={testId} aria-label={ariaLabel} role="img" className="relative size-full" />
       {(kind === 'area' || kind === 'line') && (
         <>
           <style>{'@media (prefers-reduced-motion: no-preference) { @keyframes ms-chart-pulse { 0% { transform: scale(1); opacity: 0.55 } 80%, 100% { transform: scale(3.2); opacity: 0 } } }'}</style>
