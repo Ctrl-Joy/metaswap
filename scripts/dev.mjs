@@ -8,7 +8,8 @@
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, openSync, readdirSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -80,7 +81,67 @@ async function rpcReady(timeoutMs = 20_000) {
   return false
 }
 
+// ---------- PostgreSQL + TimescaleDB (portable, no service) ----------
+// The API uses DATABASE_URL from services/api/.env. When portable PostgreSQL binaries are present
+// (PG_BIN, default C:\Users\bikal\Tools\pgsql\bin) the launcher creates the cluster in .dev/pgdata
+// on first run, starts it, and stops it on exit. The cluster persists across launches; the API
+// resets its own schema when it sees a new chain.
+const pgBin = process.env.PG_BIN ?? 'C:\\Users\\bikal\\Tools\\pgsql\\bin'
+const pgData = join(root, '.dev', 'pgdata')
+const apiEnvFile = join(root, 'services/api/.env')
+let pgStarted = false
+
+function pgExe(name) {
+  return join(pgBin, process.platform === 'win32' ? `${name}.exe` : name)
+}
+
+async function ensurePostgres() {
+  if (!existsSync(pgExe('pg_ctl'))) {
+    log(`PostgreSQL not found at ${pgBin} (set PG_BIN); the API falls back to its default database`)
+    return
+  }
+  const envText = existsSync(apiEnvFile) ? readFileSync(apiEnvFile, 'utf8') : ''
+  let password = /^PGSUPERPASSWORD=(.+)$/m.exec(envText)?.[1]?.trim()
+  if (!existsSync(join(pgData, 'PG_VERSION'))) {
+    log('initialising PostgreSQL cluster in .dev/pgdata')
+    if (!password) {
+      password = randomBytes(18).toString('base64url')
+      appendFileSync(apiEnvFile, `\n# Local PostgreSQL superuser (dev only)\nPGSUPERPASSWORD=${password}\n`)
+    }
+    const pwFile = join(root, '.dev', 'pgpw.tmp')
+    mkdirSync(join(root, '.dev'), { recursive: true })
+    writeFileSync(pwFile, password)
+    const init = spawnSync(pgExe('initdb'), ['-D', pgData, '-U', 'metaswap', `--pwfile=${pwFile}`, '-A', 'scram-sha-256', '-E', 'UTF8', '--locale=C'], { stdio: 'ignore' })
+    rmSync(pwFile, { force: true })
+    if (init.status !== 0) {
+      log('initdb failed')
+      shutdown(1)
+    }
+    appendFileSync(
+      join(pgData, 'postgresql.conf'),
+      "\n# MetaSwap local dev\nlisten_addresses = '127.0.0.1'\nport = 5432\nshared_preload_libraries = 'timescaledb'\ntimescaledb.telemetry_level = off\nmax_connections = 50\nshared_buffers = 256MB\n",
+    )
+  }
+  if (!/^DATABASE_URL=/m.test(readFileSync(apiEnvFile, 'utf8'))) {
+    appendFileSync(apiEnvFile, `DATABASE_URL=postgres://metaswap:${password}@127.0.0.1:5432/metaswap\n`)
+  }
+  const status = spawnSync(pgExe('pg_ctl'), ['-D', pgData, 'status'], { stdio: 'ignore' })
+  if (status.status !== 0) {
+    log('starting PostgreSQL + TimescaleDB on 127.0.0.1:5432')
+    const res = spawnSync(pgExe('pg_ctl'), ['-D', pgData, '-l', join(root, '.dev', 'postgres.log'), '-w', 'start'], { stdio: 'ignore' })
+    if (res.status !== 0) {
+      log('PostgreSQL failed to start (see .dev/postgres.log)')
+      shutdown(1)
+    }
+    pgStarted = true
+  }
+  const psql = (db, sql) => spawnSync(pgExe('psql'), ['-h', '127.0.0.1', '-U', 'metaswap', '-d', db, '-qtAc', sql], { env: { ...env, PGPASSWORD: password }, encoding: 'utf8' })
+  if (!psql('postgres', "SELECT 1 FROM pg_database WHERE datname='metaswap'").stdout.includes('1')) psql('postgres', 'CREATE DATABASE metaswap')
+  psql('metaswap', 'CREATE EXTENSION IF NOT EXISTS timescaledb')
+}
+
 function shutdown(code = 0) {
+  if (pgStarted) spawnSync(pgExe('pg_ctl'), ['-D', pgData, '-m', 'fast', 'stop'], { stdio: 'ignore' })
   for (const child of children) {
     if (child.exitCode !== null) continue
     if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
@@ -111,7 +172,10 @@ if (existsSync(anvilTmp)) {
 // Start the chain's clock in the past so scripts/market.ts --history can replay HISTORY_DAYS of hourly
 // trading up to "now" — every chart range then has real data. HISTORY_DAYS=0 disables it.
 const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
-const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545']
+// --prune-history: keep only recent states in memory and persist none to disk. Without it anvil
+// writes every historical state under ~/.foundry/anvil/tmp — tens of GB for a replayed month plus a
+// live market. Blocks, receipts and logs are kept, which is all the indexer needs.
+const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512']
 if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
 start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
 if (!(await rpcReady())) {
@@ -130,6 +194,7 @@ if (historyDays > 0) await run('npx', ['tsx', 'scripts/market.ts', '--history'],
 log('chain ready: contracts deployed, pools seeded, sdk synced' + (historyDays > 0 ? `, ${historyDays}d history generated` : ''))
 
 if (!args.has('--chain-only')) {
+  await ensurePostgres()
   if (existsSync(join(root, 'services/api/package.json'))) start('api', 'npm', ['run', 'dev', '-w', '@metaswap/api'], root)
   if (!args.has('--no-market') && process.env.MARKET_LIVE !== '0') start('market', 'npx', ['tsx', 'scripts/market.ts', '--live'], root)
   if (!args.has('--no-web') && existsSync(join(root, 'apps/web/package.json'))) start('web', 'npm', ['run', 'dev', '-w', '@metaswap/web'], root)
