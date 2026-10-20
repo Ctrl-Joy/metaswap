@@ -32,6 +32,10 @@ const CONTRACTS = {
   universalRouterAbi: 'MetaSwapUniversalRouter',
   exclusiveDutchOrderReactorAbi: 'ExclusiveDutchOrderReactor',
   swapRouter02ExecutorAbi: 'SwapRouter02Executor',
+  savingsVaultAbi: 'MetaSwapSavingsVault',
+  launchpadAbi: 'MetaSwapLaunchpad',
+  launchAuctionAbi: 'LaunchAuction',
+  launchTokenAbi: 'LaunchToken',
 }
 
 function findArtifact(name) {

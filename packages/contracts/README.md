@@ -172,3 +172,38 @@ only by the whitelisted filler. `callbackData = abi.encode(address[] approveToSw
 bytes[] swapRouter02Calls)`; the calls run through `SwapRouter02.multicall(type(uint256).max, calls)` (V3
 `exactInputSingle`/`exactInput`… or V2 `swapExactTokensForTokens`…, with recipient = the executor). Surplus stays in the
 executor; owner can `withdrawERC20`, `withdrawETH`, `unwrapWETH`.
+
+## Earn & Launches (`src/x/earn`, `src/x/launch`, router & MetaSwapX contracts, Stage 5)
+
+`script/DeployStage5.s.sol` (after DeployX, before Seed) deploys three `MetaSwapSavingsVault`s (meUSDT 478 bps,
+meUSDC 441 bps, meETH 157 bps; reserves 5M mUSDT / 5M mUSDC / 600 WETH) and two `MetaSwapLaunchpad`s
+("MetaSwap Launchpad", "Devnet Pad"), then merges `contracts.Launchpad`, `contracts.DevnetPad` and
+`vaults: [{address, asset, symbol, apyBps}]` into `deployments/31337.json`.
+
+**Vault** (ERC-4626): share price = `index()` (ray, starts at 1e27, grows at `ratePerSecond = ln(1+apy)/year`);
+`totalAssets() = totalSupply × index`; yield is paid from `rewardReserve()`; `maxWithdraw`/`maxRedeem` are capped by
+the vault balance. `setApy(bps)` (owner), `fundReserve(amount)`, `depositETH(receiver)`,
+`withdrawETH(assets, receiver, owner)` (WETH vault only). Events: ERC-4626 `Deposit`/`Withdraw`,
+`RateUpdated(uint256)`, `ReserveFunded(uint256)`.
+
+**Launches.** Prices (`floorPrice`, `tickSize`, `maxPrice`, `clearingPrice`) are *whole quote per whole token × 1e18*
+regardless of quote decimals (0.05 mUSDC = 5e16). Amounts are base units; launch tokens have 18 decimals.
+`tokens = quote × 1e36 / (price × 10^quoteDecimals)`. `AuctionStatus`: 0 Upcoming, 1 Active, 2 Ended, 3 Launched,
+4 Failed. Bid ids are global per auction (0,1,2,…).
+
+- Launchpad: `createLaunch(LaunchParams)` → `(token, auction)` (msg.sender = creator), `setVerified`,
+  `verified(auction)`, `isLaunch(auction)`, `allLaunches()`, `launchCount()`, `name()`. Events
+  `LaunchCreated(token indexed, auction indexed, creator indexed, name, symbol)`, `VerifiedSet(auction indexed, bool)`.
+  Validation errors are `InvalidParams(uint8 code)` (1 name, 2 supply, 3 auctionSupplyBps, 4 liquidityBps, 5 quote,
+  6 price, 7 time, 8 poolFee). A `startTime` in the past is clamped to now.
+- Auction: `bid(amount, maxPrice)`, `bidETH(maxPrice)` (WETH quote), `settle()`, `claim(bidId)` (anyone; pays the
+  bidder), `claimAll()`. Views `status()`, `clearingPrice()`, `priceLevels()` (ascending), `bidsOf(addr)` →
+  `BidInfo{id,bidder,amount,maxPrice,native,claimed}[]`, `previewClaim(bidId)` → `(tokens, refund)`, `totalBids()`
+  (count), `totalCommitted()`, `raised()` (committed; after settle = actual proceeds), `thresholdProgressBps()`,
+  `fdvAtFloor()` (quote base units), `params()`, `token()`, `pool()`, `lpTokenId()`, `creator()`, `auctionSupply()`,
+  `reserveSupply()`, `demandAt(price)`. Events `BidPlaced`, `Settled`, `Claimed` as in STAGE5.md.
+- Clearing: walking levels from the top, the first level p where demand at ≥ p buys ≥ auctionSupply. If the bids
+  strictly above p already buy it, the price is `demandAbove / supply` rounded **up** to the tick (those bids fill
+  fully and level p is refunded). Bids above the clearing price spend their whole amount at the clearing price,
+  bids at it fill pro-rata (rest refunded), bids below are refunded. Unsold auction tokens and unused reserved tokens
+  go to the creator; so does the part of the raise not used for liquidity. The LP NFT stays in the auction.

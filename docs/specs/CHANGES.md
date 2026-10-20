@@ -55,3 +55,15 @@ UniswapX's `ExclusiveDutchOrderLib.PERMIT2_ORDER_TYPE` lists `ExclusiveDutchOrde
 MetaSwap lists referenced types alphabetically (`DutchOutput`, `ExclusiveDutchOrder`, `OrderInfo`,
 `TokenPermissions`), which is what viem/ethers/alloy `signTypedData` produce, so the web app can sign orders with
 plain `signTypedData`. Exact strings: `packages/contracts/README.md` ("MetaSwapX & Router").
+
+## 2026-10-21 — Stage 5 contracts: details beyond STAGE5.md (router & MetaSwapX contracts)
+- Price unit: whole quote per whole token × 1e18, decimal-agnostic (0.05 mUSDC = 5e16). `fdvAtFloor()` is returned in quote base units.
+- `totalBids()` = number of bids. `raised()` = quote committed until settlement, then the actual proceeds at the
+  clearing price; `totalCommitted()` is always the committed sum. Launch requires proceeds > 0 and ≥ threshold.
+- When the bids above a level already buy the whole supply, the clearing price falls between two levels:
+  `demandAbove / supply`, rounded up to the tick.
+- Leftover tokens (unsold auction supply + reserve not used for the LP) and the non-LP proceeds go to the creator.
+- `bidETH` bids are refunded in ETH; ERC20 bids in the quote token. `claim(bidId)` can be called by anyone and pays the bidder.
+- Extras: `previewClaim`, `bidsOf` returning `BidInfo` structs, `demandAt`, `lpTokenId`, and a launchpad
+  `VerifiedSet(address indexed auction, bool verified)` event. Launchpad validation reverts are `InvalidParams(uint8 code)`.
+  These keep the launchpad under EIP-170 (156 bytes of margin).
