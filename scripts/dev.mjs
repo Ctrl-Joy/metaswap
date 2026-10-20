@@ -4,6 +4,7 @@
 //   node scripts/dev.mjs              anvil → DeployAMM → DeployX → Seed → sdk sync → api → web
 //   node scripts/dev.mjs --chain-only anvil + deploy + seed + sync, then keep anvil running
 //   node scripts/dev.mjs --no-web     everything except the web dev server
+//   node scripts/dev.mjs --no-market  no live market simulator (scripts/market.ts --live)
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
@@ -94,10 +95,10 @@ if (await rpcReady(500)) {
   process.exit(1)
 }
 
-// Start the chain's clock in the past so scripts/history.ts can replay HISTORY_DAYS of hourly
+// Start the chain's clock in the past so scripts/market.ts --history can replay HISTORY_DAYS of hourly
 // trading up to "now" — every chart range then has real data. HISTORY_DAYS=0 disables it.
 const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
-const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '10', '--balance', '10000', '--port', '8545']
+const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545']
 if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
 start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
 if (!(await rpcReady())) {
@@ -111,11 +112,12 @@ await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
 if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
 await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
 await run('node', ['packages/sdk/scripts/sync.mjs'], root)
-if (historyDays > 0) await run('npx', ['tsx', 'scripts/history.ts'], root)
+if (historyDays > 0) await run('npx', ['tsx', 'scripts/market.ts', '--history'], root)
 log('chain ready: contracts deployed, pools seeded, sdk synced' + (historyDays > 0 ? `, ${historyDays}d history generated` : ''))
 
 if (!args.has('--chain-only')) {
   if (existsSync(join(root, 'services/api/package.json'))) start('api', 'npm', ['run', 'dev', '-w', '@metaswap/api'], root)
+  if (!args.has('--no-market') && process.env.MARKET_LIVE !== '0') start('market', 'npx', ['tsx', 'scripts/market.ts', '--live'], root)
   if (!args.has('--no-web') && existsSync(join(root, 'apps/web/package.json'))) start('web', 'npm', ['run', 'dev', '-w', '@metaswap/web'], root)
 }
 log('running — Ctrl+C to stop')

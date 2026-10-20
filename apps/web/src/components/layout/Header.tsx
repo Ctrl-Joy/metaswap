@@ -18,9 +18,11 @@ export const NAV_ITEMS = [
   { to: '/explore', label: 'Explore', match: ['/explore'] },
   { to: '/positions', label: 'Pool', match: ['/positions'] },
   { to: '/portfolio', label: 'Portfolio', match: ['/portfolio'] },
-  { to: '/metaswapx', label: 'MetaSwapX', match: ['/metaswapx'] },
-  { to: '/metachain', label: 'MetaChain', match: ['/metachain'] },
-] as const
+  // `wide`: shown inline only from xl (1280px); between lg and xl they live in the product menu
+  // and mobile nav so the Connect button never overflows the header.
+  { to: '/metaswapx', label: 'MetaSwapX', match: ['/metaswapx'], wide: true },
+  { to: '/metachain', label: 'MetaChain', match: ['/metachain'], wide: true },
+] as const satisfies ReadonlyArray<{ to: string; label: string; match: readonly string[]; wide?: boolean }>
 
 function useActive() {
   const { pathname } = useLocation()
@@ -45,6 +47,7 @@ export function Header() {
               to={item.to}
               className={cn(
                 'rounded-xl px-3 py-2 text-body-1 font-medium transition-colors',
+                'wide' in item && item.wide && 'hidden xl:block',
                 isActive(item.match) ? 'text-text-1' : 'text-text-2 hover:text-text-1',
               )}
             >
