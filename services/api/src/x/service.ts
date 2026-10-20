@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { EventEmitter } from 'node:events'
 import { bytesToBigInt, getAddress, isAddress, isHex, recoverTypedDataAddress, zeroAddress, type Address, type Hex } from 'viem'
 import { erc20Abi, permit2Abi } from '../abis'
 import { HttpError, addr, lc, tokenJson, type Context, type TokenInfo } from '../context'
@@ -47,6 +48,9 @@ interface OrderRow {
 }
 
 export class XService {
+  /** 'order' (orderJson) whenever an order is submitted or changes status (WebSocket topic x:orders) */
+  readonly events = new EventEmitter()
+
   constructor(
     private ctx: Context,
     private indexer: Indexer,
@@ -196,7 +200,7 @@ export class XService {
       throw new HttpError(400, 'encodedOrder is not a valid ExclusiveDutchOrder encoding')
     }
     const hash = orderHash(order)
-    if (this.ctx.db.get('SELECT hash FROM x_orders WHERE hash = ?', lc(hash))) throw new HttpError(409, 'Order already submitted', { orderHash: hash })
+    if (await this.ctx.db.get('SELECT hash FROM x_orders WHERE hash = ?', lc(hash))) throw new HttpError(409, 'Order already submitted', { orderHash: hash })
     const reactor = addr(this.ctx, 'ExclusiveDutchOrderReactor')
     const permit2 = addr(this.ctx, 'Permit2')
     const errors: string[] = []
@@ -223,7 +227,7 @@ export class XService {
     if (bal < order.input.endAmount) throw new HttpError(400, 'Swapper balance is below the order input')
     if (allowance < order.input.endAmount) throw new HttpError(400, 'Swapper has not approved Permit2 for the input token')
 
-    this.ctx.db.insert('x_orders', {
+    await this.ctx.db.insert('x_orders', {
       hash: lc(hash),
       swapper: lc(order.info.swapper),
       reactor: lc(order.info.reactor),
@@ -243,11 +247,13 @@ export class XService {
       created_at: now,
       updated_at: now,
     })
-    return this.get(hash)
+    const out = await this.get(hash)
+    this.events.emit('order', out)
+    return out
   }
 
-  openOrders(): { row: OrderRow; order: ExclusiveDutchOrder }[] {
-    return this.ctx.db.all<OrderRow>("SELECT * FROM x_orders WHERE status = 'open' ORDER BY created_at").map((row) => ({ row, order: decodeOrder(row.encoded_order as Hex) }))
+  async openOrders(): Promise<{ row: OrderRow; order: ExclusiveDutchOrder }[]> {
+    return (await this.ctx.db.all<OrderRow>("SELECT * FROM x_orders WHERE status = 'open' ORDER BY created_at")).map((row) => ({ row, order: decodeOrder(row.encoded_order as Hex) }))
   }
 
   private refreshing = false
@@ -269,20 +275,27 @@ export class XService {
   /** Move open orders to filled / cancelled (nonce used without a fill) / expired. */
   async refreshStatuses(now?: number) {
     const ts = now ?? (await this.chainNow())
-    for (const { row, order } of this.openOrders()) {
-      const fill = this.ctx.db.get<{ tx_hash: string; block: number; filler: string }>('SELECT tx_hash, block, filler FROM fills WHERE order_hash = ?', row.hash)
+    const changed: string[] = []
+    for (const { row, order } of await this.openOrders()) {
+      const fill = await this.ctx.db.get<{ tx_hash: string; block: number; filler: string }>('SELECT tx_hash, block, filler FROM fills WHERE order_hash = ?', row.hash)
       if (fill) {
-        this.ctx.db.run("UPDATE x_orders SET status = 'filled', fill_tx = ?, fill_block = ?, filler = ?, updated_at = ? WHERE hash = ?", fill.tx_hash, fill.block, fill.filler, ts, row.hash)
+        await this.ctx.db.run("UPDATE x_orders SET status = 'filled', fill_tx = ?, fill_block = ?, filler = ?, updated_at = ? WHERE hash = ?", fill.tx_hash, fill.block, fill.filler, ts, row.hash)
+        changed.push(row.hash)
         continue
       }
       if (await this.isNonceUsed(order.info.swapper, order.info.nonce).catch(() => false)) {
         // re-check fills: the indexer may not have seen the fill block yet
         if (this.indexer.indexedBlock < this.indexer.headBlock) continue
-        this.ctx.db.run("UPDATE x_orders SET status = 'cancelled', updated_at = ? WHERE hash = ?", ts, row.hash)
+        await this.ctx.db.run("UPDATE x_orders SET status = 'cancelled', updated_at = ? WHERE hash = ?", ts, row.hash)
+        changed.push(row.hash)
         continue
       }
-      if (row.deadline < ts) this.ctx.db.run("UPDATE x_orders SET status = 'expired', updated_at = ? WHERE hash = ?", ts, row.hash)
+      if (row.deadline < ts) {
+        await this.ctx.db.run("UPDATE x_orders SET status = 'expired', updated_at = ? WHERE hash = ?", ts, row.hash)
+        changed.push(row.hash)
+      }
     }
+    for (const h of changed) this.events.emit('order', await this.get(h))
   }
 
   rowJson(row: OrderRow, now: number) {
@@ -319,12 +332,12 @@ export class XService {
   }
 
   async get(hash: string) {
-    const row = this.ctx.db.get<OrderRow>('SELECT * FROM x_orders WHERE hash = ?', lc(hash))
+    const row = await this.ctx.db.get<OrderRow>('SELECT * FROM x_orders WHERE hash = ?', lc(hash))
     if (!row) throw new HttpError(404, 'Order not found')
     return this.rowJson(row, this.indexer.indexedTimestamp || Math.floor(Date.now() / 1000))
   }
 
-  list(q: { swapper?: string; status?: string; limit?: string }) {
+  async list(q: { swapper?: string; status?: string; limit?: string }) {
     const where: string[] = []
     const params: string[] = []
     if (q.swapper) {
@@ -338,7 +351,7 @@ export class XService {
       params.push(...statuses)
     }
     const limit = Math.min(Number(q.limit ?? 100) || 100, 500)
-    const rows = this.ctx.db.all<OrderRow>(`SELECT * FROM x_orders ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at DESC LIMIT ${limit}`, ...params)
+    const rows = await this.ctx.db.all<OrderRow>(`SELECT * FROM x_orders ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at DESC LIMIT ${limit}`, ...params)
     const now = this.indexer.indexedTimestamp || Math.floor(Date.now() / 1000)
     return rows.map((r) => this.rowJson(r, now))
   }

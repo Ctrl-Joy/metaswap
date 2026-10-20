@@ -198,7 +198,7 @@ describe.skipIf(!available)('Stage 5: earn, launches, discovery, portfolio', () 
 
   it('portfolio: demo wallet, tokens with P/L, NFTs and a history consistent with the current value', async () => {
     const demo = (await h.get('/accounts/demo')).body.address
-    expect(demo).toBe('0x70997970C51812dc3A010C7d01b50e0d17dc79C8')
+    expect(demo).toBe('0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199')
     const pf = (await h.get(`/accounts/${demo}/portfolio`)).body
     expect(pf.totalUsd).toBeGreaterThan(0)
     expect(pf.tokens.length).toBeGreaterThan(0)
@@ -223,6 +223,15 @@ describe.skipIf(!available)('Stage 5: earn, launches, discovery, portfolio', () 
     expect(Math.abs(month.at(-1).valueUsd - pf.totalUsd) / pf.totalUsd).toBeLessThan(0.01)
     for (const p of month) expect(p.valueUsd).toBeGreaterThan(0)
     if (month[0].time < month.at(-1).time - 20 * 86400) {
+      // the demo wallet built by market.ts --history: a small realistic portfolio
+      expect(pf.totalUsd).toBeGreaterThan(1_500)
+      expect(pf.totalUsd).toBeLessThan(6_000)
+      expect(pf.pools.length).toBeGreaterThan(0)
+      expect(pf.earn.length).toBeGreaterThan(0)
+      const acts = (await h.get(`/accounts/${demo}/activity?limit=500`)).body as { type: string }[]
+      expect(acts.some((x) => x.type === 'bid')).toBe(true)
+      expect(acts.some((x) => x.type === 'claim')).toBe(true)
+      expect(acts.some((x) => x.type === 'earn-deposit')).toBe(true)
       // values move with prices over the month (not a flat line)
       expect(new Set(month.map((p: { valueUsd: number }) => Math.round(p.valueUsd))).size).toBeGreaterThan(10)
     }

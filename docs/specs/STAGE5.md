@@ -142,8 +142,10 @@ events, and launched tokens and pools join the token and pool sets automatically
   - `nfts`: V3 position NFTs with `tokenURI` image data URIs
   - `activity`: recent
 - `GET /accounts/:a/portfolio/history?range=1H|1D|1W|1M|1Y|ALL` → `[{ time, valueUsd }]`.
-  Compute it from balances at historical blocks: `eth_getBalance` plus a Multicall of `balanceOf`
-  at ~60–120 bucket boundaries, × historical prices. Cache it.
+  Event-sourced, with no historical node state (anvil runs with `--prune-history`): start from the
+  current on-chain holdings and walk back through indexed events (ERC20/WETH/vault-share/LP
+  transfers, V3 Increase/DecreaseLiquidity, ETH from tx values and unwraps) to each of ~60–120
+  bucket boundaries, then value them at that bucket's indexed prices. Cached per indexed block.
 - `GET /accounts/demo` → `{ address }` of the demo wallet (Anvil #1) for the signed-out portfolio.
 
 ## 4. Web (`apps/web`)

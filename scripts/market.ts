@@ -17,7 +17,9 @@
 // mode keeps adding small bids to Active auctions and settles/claims auctions as they end.
 //
 // Trades come from Anvil accounts #10–#14 (dev.mjs starts anvil with 20 unlocked accounts); bids
-// also come from #15–#19 and the demo wallet #1. The Dev wallet/e2e accounts #0, #2–#4 and the
+// also come from #15–#18. #19 is the demo wallet (GET /accounts/demo): a small (~$2–5k) realistic
+// portfolio built during the replay — a few tokens, one V3 position, an Earn deposit and one launch
+// bid — that keeps acting every 1–3 minutes in live mode. The Dev wallet/e2e accounts #0–#4 and the
 // filler (#9) are never touched (#0 only signs launchpad owner calls). Local devnet only.
 //
 // Env: METASWAP_RPC (default http://127.0.0.1:8545), METASWAP_DEPLOYMENT_FILE (default: the synced sdk copy).
@@ -37,6 +39,7 @@ import {
   DEVNET_RPC_URL,
   deployment as sdkDeployment,
   metachainDevnet,
+  nonfungiblePositionManagerAbi,
   swapRouter02Abi,
   testErc20Abi,
   v2PairAbi,
@@ -65,7 +68,7 @@ const contractAddress = (name: keyof typeof deployment.contracts): Address => {
 
 // Anvil default-mnemonic accounts
 const OWNER: Address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' // #0 deployer = launchpad owner
-const DEMO: Address = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' // #1 demo wallet
+const DEMO: Address = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199' // #19 demo wallet (services/api DEMO_ADDRESS)
 const TRADERS: Address[] = [
   '0xBcd4042DE499D14e55001CcbB24a551F3b954096', // #10
   '0x71bE63f3384f5fb98995898A86B02Fb2426c5788', // #11
@@ -78,7 +81,6 @@ const EXTRA_BIDDERS: Address[] = [
   '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', // #16
   '0xbDA5747bFD65F08deb54cb465eB87D40e51B197E', // #17
   '0xdD2FD4581271e230360230F9337D5c0430Bf44C0', // #18
-  '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', // #19
 ]
 const CREATORS = EXTRA_BIDDERS
 // Per-trader working capital. Enough to steer deep pools for a month, small enough that
@@ -552,10 +554,9 @@ async function placeBids(l: LiveLaunch, now: number, fraction: number, small = f
     const budget = small ? 200 + rand() * 4800 : (l.demandUsd * fraction) / bids
     if (budget < 1) continue
     if (!small) l.demandUsd -= budget
-    // traders bid big; #15–#19 and the demo wallet bid smaller amounts
-    const r = rand()
-    const bidder = r < 0.6 ? pick(TRADERS) : r < 0.85 ? pick(EXTRA_BIDDERS) : DEMO
-    const usdAmount = bidder === DEMO ? Math.min(budget, 2_000 + rand() * 3_000) : budget
+    // traders bid big; #15–#18 bid too (the demo wallet places its own single bid)
+    const bidder = rand() < 0.65 ? pick(TRADERS) : pick(EXTRA_BIDDERS)
+    const usdAmount = budget
     const amount = BigInt(Math.max(1, Math.round((usdAmount / usd[l.quoteSymbol]) * 10 ** l.quoteDecimals)))
     // max price: floor … ~2.5× floor, skewed low, on the tick grid
     const k = 10n + BigInt(Math.floor(15 * rand() * rand()))
@@ -683,18 +684,186 @@ async function earnActivity(day: number, weth: Address) {
       await earnDeposit(t, v('meUSDT'), 1_000_000 + i * 300_000, weth)
       await earnDeposit(t, v('meETH'), 600_000 + i * 150_000, weth)
     }
-    await earnDeposit(DEMO, v('meUSDC'), 25_000, weth)
-    await earnDeposit(DEMO, v('meETH'), 15_000, weth)
   } else if (day === 9) {
-    await earnDeposit(DEMO, v('meUSDT'), 12_000, weth)
     await earnDeposit(TRADERS[1], v('meUSDC'), 2_000_000, weth)
   } else if (day === 15) {
     await earnWithdrawPart(TRADERS[2], v('meUSDC'), 0.4)
     await earnDeposit(TRADERS[3], v('meETH'), 900_000, weth)
   } else if (day === 21) {
-    await earnWithdrawPart(DEMO, v('meUSDC'), 0.2)
     await earnDeposit(TRADERS[4], v('meUSDT'), 1_200_000, weth)
   }
+}
+
+// ---------- demo wallet (#19) ----------
+// A believable small portfolio: ETH, WETH, mUSDC, META, mARB, a WETH/mUSDC V3 position, a meUSDC
+// deposit and one bid on the MANGO launch (claimed when it settles). Everything it holds comes
+// from its own on-chain actions after an initial balance, so the API's event-sourced history is exact.
+const DEMO_START_ETH = parseEther('1.3')
+const demoRand = (() => {
+  let x = Number(process.env.DEMO_SEED ?? (MODE === 'live' ? Date.now() % 2 ** 31 : 7))
+  return () => {
+    x = (Math.imul(x ^ (x >>> 15), 1 | x) + 0x6d2b79f5) | 0
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
+  }
+})()
+const demo = { ready: false, bidPlaced: false, tokenId: null as bigint | null, approved: new Set<string>() }
+
+const sym = (s: string) => tokens.find((t) => t.symbol === s)!
+const demoPool = (a: string, b: string) => {
+  const [x, y] = [a.toLowerCase(), b.toLowerCase()]
+  return v3Pools.filter((p) => !p.meme && ((p.token0.toLowerCase() === x && p.token1.toLowerCase() === y) || (p.token0.toLowerCase() === y && p.token1.toLowerCase() === x))).sort((p, q) => q.fee - p.fee)[0]
+}
+const toRaw = (symbol: string, usdAmount: number) => BigInt(Math.floor((usdAmount / usd[symbol]) * 10 ** sym(symbol).decimals))
+
+async function demoApprove(token: Address, spender: Address) {
+  const k = `${token}:${spender}`.toLowerCase()
+  if (demo.approved.has(k)) return
+  const allowance = (await pub.readContract({ address: token, abi: testErc20Abi, functionName: 'allowance', args: [DEMO, spender] })) as bigint
+  if (allowance < maxUint256 / 2n) await sendWait(DEMO, token, { abi: testErc20Abi, functionName: 'approve', args: [spender, maxUint256] })
+  demo.approved.add(k)
+}
+
+/** Wrap ETH so the demo holds at least `amount` WETH. */
+async function demoWrap(weth: Address, amount: bigint) {
+  const bal = await balanceOf(weth, DEMO)
+  if (bal < amount) await sendWait(DEMO, weth, { abi: weth9Abi, functionName: 'deposit', args: [] }, amount - bal)
+}
+
+/** Swap `usdAmount` of one token for another through their V3 pool (both must pair with WETH or each other). */
+async function demoSwap(router: Address, from: string, to: string, usdAmount: number) {
+  const a = sym(from)
+  const b = sym(to)
+  const pool = demoPool(a.address, b.address)
+  if (!pool) return false
+  const amountIn = toRaw(from, usdAmount)
+  if (amountIn === 0n || (await balanceOf(a.address, DEMO)) < amountIn) return false
+  await demoApprove(a.address, router)
+  await sendWait(DEMO, router, {
+    abi: swapRouter02Abi,
+    functionName: 'exactInputSingle',
+    args: [{ tokenIn: a.address, tokenOut: b.address, fee: pool.fee, recipient: DEMO, amountIn, amountOutMinimum: 0n, sqrtPriceLimitX96: 0n }],
+  })
+  return true
+}
+
+async function demoSetup(router: Address, weth: Address) {
+  const bal = await pub.getBalance({ address: DEMO })
+  // a fresh chain gives every dev account 10,000 ETH; the demo starts with a small, realistic stack
+  if (bal > parseEther('100')) await rpc('anvil_setBalance', [DEMO, '0x' + DEMO_START_ETH.toString(16)])
+  await demoWrap(weth, toRaw('WETH', 1_750))
+  await demoSwap(router, 'WETH', 'mUSDC', 950)
+  await demoSwap(router, 'WETH', 'META', 300)
+  await demoSwap(router, 'WETH', 'mARB', 200)
+  // one V3 position: WETH/mUSDC 0.3%, about ±20% around the current price
+  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
+  const pool = demoPool(sym('WETH').address, sym('mUSDC').address)
+  if (npm && pool) {
+    const slot = (await pub.readContract({ address: pool.address, abi: v3PoolAbi, functionName: 'slot0' })) as readonly [bigint, number, ...unknown[]]
+    const spacing = pool.fee === 500 ? 10 : pool.fee === 3000 ? 60 : pool.fee === 100 ? 1 : 200
+    const tick = Number(slot[1])
+    const lower = Math.floor((tick - 1800) / spacing) * spacing
+    const upper = Math.ceil((tick + 1800) / spacing) * spacing
+    const isWeth0 = pool.token0.toLowerCase() === sym('WETH').address.toLowerCase()
+    const wethAmt = toRaw('WETH', 160)
+    const usdcAmt = toRaw('mUSDC', 160)
+    await demoApprove(sym('WETH').address, npm)
+    await demoApprove(sym('mUSDC').address, npm)
+    const r = await sendWait(
+      DEMO,
+      npm,
+      {
+        abi: nonfungiblePositionManagerAbi,
+        functionName: 'mint',
+        args: [
+          {
+            token0: pool.token0,
+            token1: pool.token1,
+            fee: pool.fee,
+            tickLower: lower,
+            tickUpper: upper,
+            amount0Desired: isWeth0 ? wethAmt : usdcAmt,
+            amount1Desired: isWeth0 ? usdcAmt : wethAmt,
+            amount0Min: 0n,
+            amount1Min: 0n,
+            recipient: DEMO,
+            deadline: 2n ** 40n,
+          },
+        ],
+      },
+      0n,
+      DEPLOY_GAS,
+    )
+    for (const l of r.logs) {
+      try {
+        const ev = decodeEventLog({ abi: nonfungiblePositionManagerAbi, data: l.data, topics: l.topics })
+        if (ev.eventName === 'IncreaseLiquidity') demo.tokenId = (ev.args as { tokenId: bigint }).tokenId
+      } catch {}
+    }
+  }
+  demo.ready = true
+  log('demo wallet ready')
+}
+
+/** The demo's single launch bid (MANGO, a WETH auction that graduates). */
+async function demoBid(now: number) {
+  if (demo.bidPlaced) return
+  const l = live.find((x) => x.plan?.symbol === 'MANGO')
+  if (!l || now < l.startTime || Number((await pub.getBlock()).timestamp) + 4 >= l.endTime) return
+  demo.bidPlaced = true
+  const amount = toRaw('WETH', 140)
+  await sendWait(DEMO, l.auction, { abi: auctionAbi, functionName: 'bidETH', args: [l.tick * 14n] }, amount)
+}
+
+async function demoEarn(weth: Address, deposit: boolean, usdAmount: number) {
+  const vault = (deployment.vaults ?? []).find((v) => v.symbol === 'meUSDC')
+  if (!vault) return false
+  if (!deposit) {
+    await earnWithdrawPart(DEMO, vault, 0.05 + demoRand() * 0.1)
+    return true
+  }
+  const amount = toRaw('mUSDC', usdAmount)
+  if ((await balanceOf(vault.asset, DEMO)) < amount) return false
+  await demoApprove(vault.asset, vault.address)
+  await sendWait(DEMO, vault.address, { abi: vaultAbi, functionName: 'deposit', args: [amount, DEMO] })
+  void weth
+  return true
+}
+
+/** Collect the V3 position's fees ("claim"). */
+async function demoCollect() {
+  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
+  if (!npm || demo.tokenId === null) return false
+  const max = 2n ** 128n - 1n
+  await sendWait(DEMO, npm, { abi: nonfungiblePositionManagerAbi, functionName: 'collect', args: [{ tokenId: demo.tokenId, recipient: DEMO, amount0Max: max, amount1Max: max }] })
+  return true
+}
+
+/** One small action: a trade, an Earn deposit/withdrawal, or a fee claim ($5–60). */
+async function demoAct(router: Address, weth: Address) {
+  if (!demo.ready) return
+  const size = 5 + demoRand() * 55
+  const r = demoRand()
+  let done = false
+  if (r < 0.2) {
+    await demoWrap(weth, toRaw('WETH', size))
+    done = await demoSwap(router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
+  } else if (r < 0.5) done = await demoSwap(router, pick(['mUSDC', 'META', 'mARB']), 'WETH', size)
+  else if (r < 0.65) done = await demoSwap(router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
+  else if (r < 0.8) done = await demoEarn(weth, true, size)
+  else if (r < 0.9) done = await demoEarn(weth, false, 0)
+  else done = await demoCollect()
+  // fall back to a plain trade so every slot produces visible activity
+  if (!done) await demoSwap(router, 'WETH', 'mUSDC', size)
+  if (MODE === 'live') log(`demo wallet acted (${size.toFixed(0)})`)
+}
+
+/** Live mode: find the demo's V3 position again (restarts) from its NFTs. */
+async function demoDiscover() {
+  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
+  if (!npm) return
+  const n = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'balanceOf', args: [DEMO] })) as bigint
+  if (n > 0n) demo.tokenId = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'tokenOfOwnerByIndex', args: [DEMO, n - 1n] })) as bigint
+  demo.ready = true
 }
 
 // ---------- modes ----------
@@ -718,12 +887,13 @@ async function runHistory(router: Address, weth: Address) {
   await rpc('evm_setIntervalMining', [0])
   await rpc('evm_setAutomine', [true])
   await topUpTraders(router, weth)
-  for (const b of [...EXTRA_BIDDERS, DEMO]) {
+  for (const b of EXTRA_BIDDERS) {
     const bal = await pub.getBalance({ address: b })
     if (bal < parseEther('1000')) await rpc('anvil_setBalance', [b, '0x' + parseEther('10000').toString(16)])
   }
   const hasStage5 = Boolean(deployment.contracts.Launchpad && deployment.contracts.DevnetPad)
   if (!hasStage5) log('no launchpads in the deployment: skipping launches and earn')
+  await demoSetup(router, weth)
   const lastDay = -1
   let doneDay = lastDay
 
@@ -743,7 +913,11 @@ async function runHistory(router: Address, weth: Address) {
       if (day !== doneDay) {
         doneDay = day
         await earnActivity(day, weth)
+        if (day === 1) await demoEarn(weth, true, 320)
       }
+      // the demo acts about once a day, at a random hour
+      if (day >= 1 && demoRand() < 1 / 24) await demoAct(router, weth)
+      await demoBid(Number((await pub.getBlock()).timestamp))
       const blockTs = Number((await pub.getBlock()).timestamp)
       for (const plan of LAUNCHES) {
         if (live.some((l) => l.plan === plan)) continue
@@ -825,8 +999,11 @@ async function runLive(router: Address, weth: Address) {
   if (deployment.contracts.Launchpad) await discoverLaunches(router).catch((e) => log(`launch discovery failed: ${(e as Error).message.split('\n')[0]}`))
   await topUpTraders(router, weth)
   await loadCurrentPrices()
+  await demoDiscover().catch(() => {})
   log(`trading every ${LIVE_INTERVAL_SECONDS}s from ETH $${usd.WETH.toFixed(2)}; ${live.length} launches tracked — Ctrl+C to stop`)
   let last = Date.now()
+  const demoNext = () => Date.now() + (60 + demoRand() * 120) * 1000
+  let demoAt = demoNext()
   for (let step = 1; ; step++) {
     await new Promise((r) => setTimeout(r, LIVE_INTERVAL_SECONDS * 1000))
     const now = Date.now()
@@ -842,6 +1019,10 @@ async function runLive(router: Address, weth: Address) {
         if (l.settled) continue
         if (ts >= l.endTime) await settleAndClaim(l, router)
         else await placeBids(l, ts, 0, true)
+      }
+      if (Date.now() >= demoAt) {
+        demoAt = demoNext()
+        await demoAct(router, weth)
       }
     } catch (err) {
       // the chain may be restarting; keep going

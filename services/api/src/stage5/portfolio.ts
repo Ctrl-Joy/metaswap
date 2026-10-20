@@ -9,8 +9,8 @@ import type { Router } from '../routing/router'
 import type { Earn } from './earn'
 import { costBasis, historyBuckets, priceToNumber, type Inflow } from './math'
 
-/** Anvil account #1 — the public demo wallet shown on the signed-out portfolio. */
-export const DEMO_ADDRESS = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as const
+/** Anvil account #19 — the demo wallet shown on the signed-out portfolio (built and kept active by scripts/market.ts). */
+export const DEMO_ADDRESS = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199' as const
 const ETH_KEY = 'eth'
 const DAY = 86400
 
@@ -47,7 +47,7 @@ export class Portfolio {
    * V3 position NFTs owned at that block (→ principal at the pool price then). Calls that fail
    * (e.g. a token deployed later) count as zero.
    */
-  async holdings(owner: Address, blockNumber: bigint, opts: { pools?: boolean } = {}): Promise<{ wallet: Holdings; earn: Holdings; pools: Holdings }> {
+  async holdings(owner: Address, blockNumber: bigint): Promise<{ wallet: Holdings; earn: Holdings; pools: Holdings }> {
     const wallet: Holdings = new Map()
     const earn: Holdings = new Map()
     const pools: Holdings = new Map()
@@ -64,42 +64,6 @@ export class Portfolio {
     for (const v of vaults) {
       calls.push({ target: getAddress(v.address), callData: encodeFunctionData({ abi: vaultAbi, functionName: 'balanceOf', args: [owner] }), decode: (d) => shares.set(lc(v.address), decodeFunctionResult({ abi: vaultAbi, functionName: 'balanceOf', data: d })) })
     }
-    // V2 LP: pairs the account ever received
-    const o = lc(owner)
-    const block = Number(blockNumber)
-    const v2 = new Map<string, { bal?: bigint; supply?: bigint; r0?: bigint; r1?: bigint }>()
-    const v3: { tokenId: bigint; pos?: readonly [bigint, Address, Address, Address, number, number, number, bigint, bigint, bigint, bigint, bigint] }[] = []
-    if (opts.pools !== false) {
-      for (const r of this.ctx.db.all<{ token: string }>("SELECT DISTINCT token FROM transfers WHERE to_addr = ? AND block <= ? AND token IN (SELECT address FROM pools WHERE version = 'v2')", o, block)) {
-        const st: { bal?: bigint; supply?: bigint; r0?: bigint; r1?: bigint } = {}
-        v2.set(r.token, st)
-        const target = getAddress(r.token)
-        calls.push({ target, callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'balanceOf', args: [owner] }), decode: (d) => (st.bal = decodeFunctionResult({ abi: v2PairAbi, functionName: 'balanceOf', data: d })) })
-        calls.push({ target, callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'totalSupply' }), decode: (d) => (st.supply = decodeFunctionResult({ abi: v2PairAbi, functionName: 'totalSupply', data: d })) })
-        calls.push({
-          target,
-          callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'getReserves' }),
-          decode: (d) => {
-            const [a, b] = decodeFunctionResult({ abi: v2PairAbi, functionName: 'getReserves', data: d })
-            st.r0 = a
-            st.r1 = b
-          },
-        })
-      }
-      const owned = this.ctx.db
-        .all<{ token_id: string; to_addr: string }>(
-          'SELECT token_id, to_addr FROM nft_transfers t WHERE block <= ? AND (block, log_index) = (SELECT block, log_index FROM nft_transfers u WHERE u.token_id = t.token_id AND u.block <= ? ORDER BY block DESC, log_index DESC LIMIT 1)',
-          block,
-          block,
-        )
-        .filter((r) => r.to_addr === o)
-      const npm = addr(this.ctx, 'NonfungiblePositionManager')
-      for (const r of owned) {
-        const item: (typeof v3)[number] = { tokenId: BigInt(r.token_id) }
-        v3.push(item)
-        calls.push({ target: npm, callData: encodeFunctionData({ abi: npmAbi, functionName: 'positions', args: [item.tokenId] }), decode: (d) => (item.pos = decodeFunctionResult({ abi: npmAbi, functionName: 'positions', data: d }) as never) })
-      }
-    }
     await this.run(calls, blockNumber)
 
     // round 2: vault assets, v3 pool prices
@@ -109,32 +73,7 @@ export class Portfolio {
       if (s === 0n) continue
       calls2.push({ target: getAddress(v.address), callData: encodeFunctionData({ abi: vaultAbi, functionName: 'convertToAssets', args: [s] }), decode: (d) => add(earn, lc(v.asset), decodeFunctionResult({ abi: vaultAbi, functionName: 'convertToAssets', data: d })) })
     }
-    const slot = new Map<string, bigint>()
-    const v3PoolOf = (t0: string, t1: string, fee: number) => [...this.indexer.pools.values()].find((p) => p.version === 'v3' && p.token0 === lc(t0) && p.token1 === lc(t1) && p.fee === fee)
-    for (const item of v3) {
-      if (!item.pos || item.pos[7] === 0n) continue
-      const pool = v3PoolOf(item.pos[2], item.pos[3], Number(item.pos[4]))
-      if (!pool || slot.has(pool.address)) continue
-      slot.set(pool.address, 0n)
-      calls2.push({ target: getAddress(pool.address), callData: encodeFunctionData({ abi: v3PoolAbi, functionName: 'slot0' }), decode: (d) => slot.set(pool.address, decodeFunctionResult({ abi: v3PoolAbi, functionName: 'slot0', data: d })[0]) })
-    }
     await this.run(calls2, blockNumber)
-    for (const [pair, st] of v2) {
-      if (!st.bal || !st.supply || st.r0 === undefined || st.r1 === undefined) continue
-      const p = this.indexer.pools.get(pair)
-      if (!p) continue
-      add(pools, p.token0, (st.bal * st.r0) / st.supply)
-      add(pools, p.token1, (st.bal * st.r1) / st.supply)
-    }
-    for (const item of v3) {
-      if (!item.pos || item.pos[7] === 0n) continue
-      const pool = v3PoolOf(item.pos[2], item.pos[3], Number(item.pos[4]))
-      const sqrt = pool ? slot.get(pool.address) : undefined
-      if (!pool || !sqrt) continue
-      const { amount0, amount1 } = getAmountsForLiquidity(sqrt, Number(item.pos[5]), Number(item.pos[6]), item.pos[7])
-      add(pools, pool.token0, amount0)
-      add(pools, pool.token1, amount1)
-    }
     return { wallet, earn, pools }
   }
 
@@ -160,71 +99,74 @@ export class Portfolio {
     return key === ETH_KEY ? lc(addr(this.ctx, 'WETH9')) : key
   }
 
-  /** USD value of holdings using price lookups (`at` = unix seconds, or undefined for live prices). */
-  usd(h: Holdings, at?: number): number {
-    let total = 0
-    for (const [k, v] of h) {
-      if (v === 0n) continue
-      const p = at === undefined ? this.analytics.priceUsd(this.priceKey(k)) : this.analytics.priceAt(this.priceKey(k), at)
-      if (p === null) continue
-      total += (Number(v) / 10 ** this.decimalsOf(k)) * p
-    }
-    return total
-  }
-
   /** Inflows of one asset into the account, valued at the USD price when they arrived. */
-  inflows(owner: string, key: string, genesisEth: bigint): Inflow[] {
+  async inflows(owner: string, key: string, genesisEth: bigint, ctx: { first: number; auctions: Map<string, { clearing_price: string; quote: string | null }> }): Promise<Inflow[]> {
     const o = lc(owner)
     const priceKey = this.priceKey(key)
     const dec = this.decimalsOf(key)
-    const out: Inflow[] = []
-    const at = (amount: string | bigint, ts: number, price?: number | null) =>
-      out.push({ qty: Number(BigInt(amount)) / 10 ** dec, priceUsd: price !== undefined ? price : this.analytics.priceAt(priceKey, ts) })
+    const raw: { amount: string | bigint; ts: number; quote?: { token: string; clearing: string } }[] = []
     if (key === ETH_KEY) {
-      const first = this.ctx.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM blocks')?.t ?? 0
-      if (genesisEth > 0n) at(genesisEth, Number(first))
-      for (const r of this.ctx.db.all<{ value: string; timestamp: number }>('SELECT value, timestamp FROM native_transfers WHERE to_addr = ?', o)) at(r.value, Number(r.timestamp))
-      // ETH paid out by unwraps the account triggered (router UNWRAP_WETH or direct withdraw)
-      for (const r of this.ctx.db.all<{ amount: string; timestamp: number }>("SELECT amount, timestamp FROM weth_events WHERE type = 'unwrap' AND origin = ?", o)) at(r.amount, Number(r.timestamp))
-      return out
-    }
-    const auctions = new Map(
-      this.ctx.db
-        .all<{ auction: string; clearing_price: string; quote: string | null }>("SELECT s.auction, s.clearing_price, json_extract(l.params_json, '$.quoteToken') AS quote FROM settlements s JOIN launches l ON l.auction = s.auction")
-        .map((r) => [r.auction, r]),
-    )
-    for (const r of this.ctx.db.all<{ amount: string; timestamp: number; from_addr: string }>('SELECT amount, timestamp, from_addr FROM transfers WHERE token = ? AND to_addr = ?', key, o)) {
-      const auction = auctions.get(r.from_addr)
-      if (auction && auction.quote) {
+      if (genesisEth > 0n) raw.push({ amount: genesisEth, ts: ctx.first })
+      const [nat, unwraps] = await Promise.all([
+        this.ctx.db.all<{ value: string; timestamp: number }>('SELECT value, timestamp FROM native_transfers WHERE to_addr = ?', o),
+        // ETH paid out by unwraps the account triggered (router UNWRAP_WETH or direct withdraw)
+        this.ctx.db.all<{ amount: string; timestamp: number }>("SELECT amount, timestamp FROM weth_events WHERE type = 'unwrap' AND origin = ?", o),
+      ])
+      for (const r of nat) raw.push({ amount: r.value, ts: Number(r.timestamp) })
+      for (const r of unwraps) raw.push({ amount: r.amount, ts: Number(r.timestamp) })
+    } else {
+      for (const r of await this.ctx.db.all<{ amount: string; timestamp: number; from_addr: string }>('SELECT amount, timestamp, from_addr FROM transfers WHERE token = ? AND to_addr = ?', key, o)) {
+        const auction = ctx.auctions.get(r.from_addr)
         // tokens claimed from a launch auction cost the clearing price
-        const q = this.analytics.priceAt(auction.quote, Number(r.timestamp))
-        at(r.amount, Number(r.timestamp), q === null ? null : priceToNumber(BigInt(auction.clearing_price)) * q)
-      } else at(r.amount, Number(r.timestamp))
+        raw.push({ amount: r.amount, ts: Number(r.timestamp), quote: auction?.quote ? { token: auction.quote, clearing: auction.clearing_price } : undefined })
+      }
+      if (key === lc(addr(this.ctx, 'WETH9'))) {
+        for (const r of await this.ctx.db.all<{ amount: string; timestamp: number }>("SELECT amount, timestamp FROM weth_events WHERE type = 'wrap' AND account = ?", o)) raw.push({ amount: r.amount, ts: Number(r.timestamp) })
+      }
     }
-    if (key === lc(addr(this.ctx, 'WETH9'))) {
-      for (const r of this.ctx.db.all<{ amount: string; timestamp: number }>("SELECT amount, timestamp FROM weth_events WHERE type = 'wrap' AND account = ?", o)) at(r.amount, Number(r.timestamp))
-    }
-    return out
+    if (!raw.length) return []
+    const ts = raw.map((r) => r.ts)
+    const book = await this.analytics.priceBook([priceKey, ...raw.filter((r) => r.quote).map((r) => r.quote!.token)], Math.min(...ts), Math.max(...ts))
+    return raw.map((r) => {
+      const qty = Number(BigInt(r.amount)) / 10 ** dec
+      if (r.quote) {
+        const q = book(r.quote.token, r.ts)
+        return { qty, priceUsd: q === null ? null : priceToNumber(BigInt(r.quote.clearing)) * q }
+      }
+      return { qty, priceUsd: book(priceKey, r.ts) }
+    })
   }
 
   async portfolio(address: string) {
     const owner = this.owner(address)
     const block = await this.ctx.client.getBlockNumber({ cacheTime: 0 })
     const [h, positions, earn, genesis] = await Promise.all([
-      this.holdings(owner, block, { pools: false }),
+      this.holdings(owner, block),
       this.accounts.positions(owner),
       this.earn.account(owner),
       this.genesisEth(owner),
     ])
     const native = this.indexer.tokens.native()
-    const tokens = [native, ...this.tokenSet()]
-      .map((t) => {
+    const inflowCtx = {
+      first: Number((await this.ctx.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM blocks'))?.t ?? 0),
+      auctions: new Map(
+        (
+          await this.ctx.db.all<{ auction: string; clearing_price: string; quote: string | null }>(
+            `SELECT s.auction, s.clearing_price, ${this.ctx.db.jsonField('l.params_json', 'quoteToken')} AS quote FROM settlements s JOIN launches l ON l.auction = s.auction`,
+          )
+        ).map((r) => [r.auction, r]),
+      ),
+    }
+    const held = [native, ...this.tokenSet()].filter((t) => (h.wallet.get(t.isNative ? ETH_KEY : lc(t.address)) ?? 0n) > 0n)
+    const tokens = (
+      await Promise.all(
+        held.map(async (t) => {
         const key = t.isNative ? ETH_KEY : lc(t.address)
         const raw = h.wallet.get(key) ?? 0n
-        if (raw === 0n) return null
         const balance = Number(raw) / 10 ** t.decimals
         const priceUsd = this.analytics.priceUsd(this.priceKey(key))
-        const cb = costBasis(this.inflows(owner, key, genesis), balance, priceUsd)
+        const [inflows, change24h] = await Promise.all([this.inflows(owner, key, genesis, inflowCtx), this.analytics.tokenStatsChange24h(this.priceKey(key))])
+        const cb = costBasis(inflows, balance, priceUsd)
         return {
           token: tokenJson(this.ctx, t),
           priceUsd,
@@ -235,12 +177,12 @@ export class Portfolio {
           costBasisUsd: cb.costBasisUsd,
           unrealizedPnlUsd: cb.unrealizedPnlUsd,
           unrealizedPnlPct: cb.unrealizedPnlPct,
-          change24h: this.analytics.tokenStatsChange24h(this.priceKey(key)),
+          change24h,
           tags: this.analytics.tagsFor(t.address),
         }
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
+        }),
+      )
+    ).sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
     const pools = positions.positions.map((p) => {
       const fees = 'uncollectedFees' in p ? p.uncollectedFees : null
       const status = p.version === 'v2' ? 'in-range' : p.closed ? 'closed' : p.inRange ? 'in-range' : 'out-of-range'
@@ -273,7 +215,7 @@ export class Portfolio {
       earn,
       earnLifetimeEarningsUsd: earn.reduce((a, e) => a + (e.lifetimeEarningsUsd ?? 0), 0),
       nfts: await this.nfts(owner),
-      activity: this.accounts.activity(owner, 20),
+      activity: await this.accounts.activity(owner, 20),
     }
   }
 
@@ -286,12 +228,12 @@ export class Portfolio {
     const o = lc(owner)
     const nowBal = await this.ctx.client.getBalance({ address: owner })
     let delta = 0n
-    for (const r of this.ctx.db.all<{ from_addr: string; to_addr: string | null; value: string }>('SELECT from_addr, to_addr, value FROM tx_values WHERE from_addr = ? OR to_addr = ?', o, o)) {
+    for (const r of await this.ctx.db.all<{ from_addr: string; to_addr: string | null; value: string }>('SELECT from_addr, to_addr, value FROM tx_values WHERE from_addr = ? OR to_addr = ?', o, o)) {
       const v = BigInt(r.value)
       if (r.to_addr === o) delta += v
       if (r.from_addr === o) delta -= v
     }
-    for (const r of this.ctx.db.all<{ amount: string }>("SELECT amount FROM weth_events WHERE type = 'unwrap' AND origin = ?", o)) delta += BigInt(r.amount)
+    for (const r of await this.ctx.db.all<{ amount: string }>("SELECT amount FROM weth_events WHERE type = 'unwrap' AND origin = ?", o)) delta += BigInt(r.amount)
     const g = nowBal - delta
     return g > 0n ? g : 0n
   }
@@ -306,7 +248,7 @@ export class Portfolio {
   async history(address: string, range = '1D') {
     const owner = this.owner(address)
     const now = this.analytics.now()
-    const first = this.ctx.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM blocks')?.t
+    const first = (await this.ctx.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM blocks'))?.t
     if (first === null || first === undefined) return []
     let buckets: number[]
     try {
@@ -329,7 +271,7 @@ export class Portfolio {
     const o = lc(owner)
     const now = this.analytics.now()
     const block = await this.ctx.client.getBlockNumber({ cacheTime: 0 })
-    const [cur, positions, vaults] = await Promise.all([this.holdings(owner, block, { pools: false }), this.accounts.positions(owner), this.earn.vaults()])
+    const [cur, positions, vaults] = await Promise.all([this.holdings(owner, block), this.accounts.positions(owner), this.earn.vaults()])
     // ---- current balances (raw) ----
     const bal = new Map<string, bigint>(cur.wallet)
     const shares = new Map<string, bigint>()
@@ -347,7 +289,7 @@ export class Portfolio {
     // ---- deltas (block, ts, apply(sign)) ----
     type Ev = { block: number; ts: number; key: string; kind: 'bal' | 'share' | 'lp' | 'supply'; delta: bigint }
     const evs: Ev[] = []
-    for (const r of this.ctx.db.all<{ block: number; timestamp: number; token: string; from_addr: string; to_addr: string; amount: string }>(
+    for (const r of await this.ctx.db.all<{ block: number; timestamp: number; token: string; from_addr: string; to_addr: string; amount: string }>(
       'SELECT block, timestamp, token, from_addr, to_addr, amount FROM transfers WHERE from_addr = ? OR to_addr = ?',
       o,
       o,
@@ -363,7 +305,7 @@ export class Portfolio {
     for (const pair of pairs) {
       if (!lpSupply.has(pair)) lpSupply.set(pair, this.indexer.pools.get(pair)?.lpSupply ?? 0n)
       if (!lp.has(pair)) lp.set(pair, 0n)
-      for (const r of this.ctx.db.all<{ block: number; timestamp: number; from_addr: string; to_addr: string; amount: string }>(
+      for (const r of await this.ctx.db.all<{ block: number; timestamp: number; from_addr: string; to_addr: string; amount: string }>(
         "SELECT block, timestamp, from_addr, to_addr, amount FROM transfers WHERE token = ? AND (from_addr = '0x0000000000000000000000000000000000000000' OR to_addr = '0x0000000000000000000000000000000000000000')",
         pair,
       )) {
@@ -372,10 +314,10 @@ export class Portfolio {
       }
     }
     // WETH wraps/unwraps by the account itself (WETH9 emits Deposit/Withdrawal, not Transfer)
-    for (const r of this.ctx.db.all<{ block: number; timestamp: number; type: string; amount: string }>('SELECT block, timestamp, type, amount FROM weth_events WHERE account = ?', o))
+    for (const r of await this.ctx.db.all<{ block: number; timestamp: number; type: string; amount: string }>('SELECT block, timestamp, type, amount FROM weth_events WHERE account = ?', o))
       evs.push({ block: Number(r.block), ts: Number(r.timestamp), key: weth, kind: 'bal', delta: r.type === 'wrap' ? BigInt(r.amount) : -BigInt(r.amount) })
     // ETH: value sent/received by top-level txs, plus ETH paid out by unwraps the account triggered
-    for (const r of this.ctx.db.all<{ block: number; timestamp: number; from_addr: string; to_addr: string | null; value: string }>(
+    for (const r of await this.ctx.db.all<{ block: number; timestamp: number; from_addr: string; to_addr: string | null; value: string }>(
       'SELECT block, timestamp, from_addr, to_addr, value FROM tx_values WHERE from_addr = ? OR to_addr = ?',
       o,
       o,
@@ -384,20 +326,22 @@ export class Portfolio {
       const d = (r.to_addr === o ? v : 0n) - (r.from_addr === o ? v : 0n)
       if (d !== 0n) evs.push({ block: Number(r.block), ts: Number(r.timestamp), key: ETH_KEY, kind: 'bal', delta: d })
     }
-    for (const r of this.ctx.db.all<{ block: number; timestamp: number; amount: string }>("SELECT block, timestamp, amount FROM weth_events WHERE type = 'unwrap' AND origin = ?", o))
+    for (const r of await this.ctx.db.all<{ block: number; timestamp: number; amount: string }>("SELECT block, timestamp, amount FROM weth_events WHERE type = 'unwrap' AND origin = ?", o))
       evs.push({ block: Number(r.block), ts: Number(r.timestamp), key: ETH_KEY, kind: 'bal', delta: BigInt(r.amount) })
     evs.sort((a, b) => b.block - a.block)
 
     // ---- V3: liquidity per currently-owned position over time ----
-    const v3 = positions.v3.map((p) => {
-      const events = this.ctx.db.all<{ timestamp: number; type: string; liquidity: string | null }>(
-        "SELECT timestamp, type, liquidity FROM nft_events WHERE token_id = ? AND type IN ('increase','decrease') ORDER BY block, log_index",
-        p.tokenId,
-      )
-      const ownedSince = this.ctx.db.get<{ timestamp: number }>('SELECT timestamp FROM nft_transfers WHERE token_id = ? AND to_addr = ? ORDER BY block DESC LIMIT 1', p.tokenId, o)?.timestamp ?? 0
-      const pool = p.pool ? this.indexer.pools.get(lc(p.pool)) : undefined
-      return { p, events, ownedSince: Number(ownedSince), pool }
-    })
+    const v3 = await Promise.all(
+      positions.v3.map(async (p) => {
+        const events = await this.ctx.db.all<{ timestamp: number; type: string; liquidity: string | null }>(
+          "SELECT timestamp, type, liquidity FROM nft_events WHERE token_id = ? AND type IN ('increase','decrease') ORDER BY block, log_index",
+          p.tokenId,
+        )
+        const ownedSince = (await this.ctx.db.get<{ timestamp: number }>('SELECT timestamp FROM nft_transfers WHERE token_id = ? AND to_addr = ? ORDER BY block DESC LIMIT 1', p.tokenId, o))?.timestamp ?? 0
+        const pool = p.pool ? this.indexer.pools.get(lc(p.pool)) : undefined
+        return { p, events, ownedSince: Number(ownedSince), pool }
+      }),
+    )
 
     // ---- vault share → asset ratio over time (index grows at the APY) ----
     const ratio = new Map<string, { now: number; rate: number; asset: string; decimals: number }>()
@@ -407,7 +351,38 @@ export class Portfolio {
       ratio.set(lc(v.address), { now: total > 0 ? assets / total : 1, rate: Math.log(1 + v.apyBps / 10_000) / (365 * DAY), asset: lc(v.asset.address), decimals: v.asset.decimals })
     }
 
-    const priceAt = (key: string, t: number, live: boolean) => (live ? this.analytics.priceUsd(this.priceKey(key)) : this.analytics.priceAt(this.priceKey(key), t))
+    // one query per token / pool for the whole window, then synchronous lookups per bucket
+    const tMin = Math.min(...times)
+    const tMax = Math.max(...times)
+    const priceTokens = new Set<string>()
+    for (const k of bal.keys()) priceTokens.add(this.priceKey(k))
+    for (const r of ratio.values()) priceTokens.add(r.asset)
+    for (const pair of lp.keys()) {
+      const pool = this.indexer.pools.get(pair)
+      if (pool) priceTokens.add(pool.token0).add(pool.token1)
+    }
+    for (const x of v3) if (x.pool) priceTokens.add(x.pool.token0).add(x.pool.token1)
+    const book = await this.analytics.priceBook([...priceTokens], tMin, tMax)
+    const snapBook = async (pool: string, col: string, extra = '') => {
+      const [seed, rows] = await Promise.all([
+        this.ctx.db.get<Record<string, unknown>>(`SELECT timestamp, ${col} FROM pool_snapshots WHERE pool = ? AND timestamp < ? ${extra} ORDER BY block DESC LIMIT 1`, pool, tMin),
+        this.ctx.db.all<Record<string, unknown>>(`SELECT timestamp, ${col} FROM pool_snapshots WHERE pool = ? AND timestamp >= ? AND timestamp <= ? ${extra} ORDER BY block`, pool, tMin, tMax),
+      ])
+      const pts = seed ? [seed, ...rows] : rows
+      return (t: number) => {
+        let found: Record<string, unknown> | undefined
+        for (const r of pts) {
+          if (Number(r.timestamp) > t) break
+          found = r
+        }
+        return found
+      }
+    }
+    const lpSnaps = new Map<string, Awaited<ReturnType<typeof snapBook>>>()
+    for (const pair of lp.keys()) lpSnaps.set(pair, await snapBook(pair, 'reserve0, reserve1'))
+    const v3Snaps = new Map<string, Awaited<ReturnType<typeof snapBook>>>()
+    for (const x of v3) if (x.pool && !v3Snaps.has(x.pool.address)) v3Snaps.set(x.pool.address, await snapBook(x.pool.address, 'price0', 'AND price0 IS NOT NULL'))
+    const priceAt = (key: string, t: number, live: boolean) => (live ? this.analytics.priceUsd(this.priceKey(key)) : book(this.priceKey(key), t))
     const human = (key: string, raw: bigint) => Number(raw) / 10 ** this.decimalsOf(key)
     const valueAt = (t: number, live: boolean) => {
       let total = 0
@@ -429,7 +404,7 @@ export class Portfolio {
         if (!pool || l <= 0n || supply <= 0n) continue
         const snap = live
           ? { reserve0: pool.reserve0.toString(), reserve1: pool.reserve1.toString() }
-          : this.ctx.db.get<{ reserve0: string; reserve1: string }>('SELECT reserve0, reserve1 FROM pool_snapshots WHERE pool = ? AND timestamp <= ? ORDER BY block DESC LIMIT 1', pair, t)
+          : (lpSnaps.get(pair)?.(t) as { reserve0: string; reserve1: string } | undefined)
         if (!snap) continue
         const a0 = (BigInt(snap.reserve0) * l) / supply
         const a1 = (BigInt(snap.reserve1) * l) / supply
@@ -448,7 +423,7 @@ export class Portfolio {
         let sqrt: bigint | null = null
         if (live) sqrt = x.pool.sqrtPriceX96
         else {
-          const snap = this.ctx.db.get<{ price0: number | null }>('SELECT price0 FROM pool_snapshots WHERE pool = ? AND timestamp <= ? AND price0 IS NOT NULL ORDER BY block DESC LIMIT 1', x.pool.address, t)
+          const snap = v3Snaps.get(x.pool.address)?.(t) as { price0: number | null } | undefined
           if (snap?.price0) {
             const d0 = this.decimalsOf(x.pool.token0)
             const d1 = this.decimalsOf(x.pool.token1)

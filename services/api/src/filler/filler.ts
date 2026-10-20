@@ -130,7 +130,7 @@ export class Filler {
     try {
       do {
         this.pending = false
-        for (const { row, order } of this.x.openOrders()) {
+        for (const { row, order } of await this.x.openOrders()) {
           if (this.inflight.has(row.hash)) continue
           await this.tryFill(row.hash, order, row.encoded_order as Hex, row.signature as Hex).catch((e) =>
             this.record({ orderHash: row.hash, at: Date.now(), status: 'failed', reason: (e as Error).message.split('\n')[0] }),

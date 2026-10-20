@@ -45,7 +45,9 @@ export class Accounts {
     const block = await this.ctx.client.getBlockNumber({ cacheTime: 0 })
     const res = await this.router.multicall(calls, block)
     const weth = lc(addr(this.ctx, 'WETH9'))
-    const rows = [this.indexer.tokens.native(), ...tokens].map((t, i) => {
+    const all = [this.indexer.tokens.native(), ...tokens]
+    const changes = await Promise.all(all.map((t) => this.analytics.tokenStatsChange24h(t.address)))
+    const rows = all.map((t, i) => {
       const r = res[i]
       const raw = r.success ? (decodeFunctionResult({ abi: erc20Abi, functionName: 'balanceOf', data: r.returnData }) as bigint) : 0n
       const priceUsd = this.indexer.prices.get(t.isNative ? weth : lc(t.address)) ?? null
@@ -56,7 +58,7 @@ export class Accounts {
         balanceFormatted: formatted,
         priceUsd,
         valueUsd: priceUsd === null ? null : formatted * priceUsd,
-        change24h: this.analytics.tokenStatsChange24h(t.address),
+        change24h: changes[i],
       }
     })
     return {
@@ -72,19 +74,20 @@ export class Accounts {
     const o = lc(owner)
     const block = await this.ctx.client.getBlockNumber({ cacheTime: 0 })
     // V2: pairs the account ever received LP tokens for → live balanceOf
-    const pairs = this.ctx.db
-      .all<{ token: string }>("SELECT DISTINCT token FROM transfers WHERE to_addr = ? AND token IN (SELECT address FROM pools WHERE version = 'v2')", o)
-      .map((r) => r.token)
+    const pairs = (await this.ctx.db.all<{ token: string }>("SELECT DISTINCT token FROM transfers WHERE to_addr = ? AND token IN (SELECT address FROM pools WHERE version = 'v2')", o)).map((r) => r.token)
     const v2Calls = pairs.flatMap((p) => [
       { target: getAddress(p), callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'balanceOf', args: [owner] }) },
       { target: getAddress(p), callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'totalSupply' }) },
       { target: getAddress(p), callData: encodeFunctionData({ abi: v2PairAbi, functionName: 'getReserves' }) },
     ])
     // V3: NFTs whose latest transfer went to the account
-    const tokenIds = this.ctx.db
-      .all<{ token_id: string; to_addr: string }>(
-        'SELECT token_id, to_addr FROM nft_transfers t WHERE (block, log_index) = (SELECT block, log_index FROM nft_transfers u WHERE u.token_id = t.token_id ORDER BY block DESC, log_index DESC LIMIT 1)',
+    // V3: NFTs whose latest transfer went to the account (candidates: every NFT it ever received)
+    const tokenIds = (
+      await this.ctx.db.all<{ token_id: string; to_addr: string }>(
+        'SELECT token_id, to_addr FROM nft_transfers t WHERE token_id IN (SELECT token_id FROM nft_transfers WHERE to_addr = ?) AND NOT EXISTS (SELECT 1 FROM nft_transfers u WHERE u.token_id = t.token_id AND (u.block > t.block OR (u.block = t.block AND u.log_index > t.log_index)))',
+        o,
       )
+    )
       .filter((r) => r.to_addr === o)
       .map((r) => BigInt(r.token_id))
     const npm = addr(this.ctx, 'NonfungiblePositionManager')
@@ -171,16 +174,16 @@ export class Accounts {
     return { address: owner, blockNumber: block.toString(), v2, v3, positions: [...v3, ...v2] }
   }
 
-  activity(address: string, limit = 100) {
+  async activity(address: string, limit = 100) {
     const owner = account(address)
     const o = lc(owner)
     const items: Record<string, unknown>[] = []
     const txWithEvents = new Set<string>()
-    for (const r of this.ctx.db.all<Record<string, string | number | null>>('SELECT x.*, p.token0, p.token1, p.fee FROM swaps x JOIN pools p ON p.address = x.pool WHERE x.origin = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+    for (const r of await this.ctx.db.all<Record<string, string | number | null>>('SELECT x.*, p.token0, p.token1, p.fee FROM swaps x JOIN pools p ON p.address = x.pool WHERE x.origin = ? ORDER BY block DESC LIMIT ?', o, limit)) {
       txWithEvents.add(r.tx_hash as string)
       items.push(this.analytics.swapTx(r))
     }
-    for (const r of this.ctx.db.all<Record<string, string | number | null>>(
+    for (const r of await this.ctx.db.all<Record<string, string | number | null>>(
       "SELECT x.*, p.token0, p.token1, p.fee FROM liquidity_events x JOIN pools p ON p.address = x.pool WHERE x.origin = ? AND (x.amount0 != '0' OR x.amount1 != '0') ORDER BY block DESC LIMIT ?",
       o,
       limit,
@@ -188,19 +191,19 @@ export class Accounts {
       txWithEvents.add(r.tx_hash as string)
       items.push(this.analytics.liqTx(r))
     }
-    for (const r of this.ctx.db.all<Record<string, string | number>>("SELECT * FROM nft_events WHERE origin = ? AND type = 'collect' ORDER BY block DESC LIMIT ?", o, limit)) {
+    for (const r of await this.ctx.db.all<Record<string, string | number>>("SELECT * FROM nft_events WHERE origin = ? AND type = 'collect' ORDER BY block DESC LIMIT ?", o, limit)) {
       if (txWithEvents.has(r.tx_hash as string)) continue
       txWithEvents.add(r.tx_hash as string)
       items.push({ type: 'collect', txHash: r.tx_hash, blockNumber: Number(r.block), logIndex: Number(r.log_index), timestamp: Number(r.timestamp), tokenId: r.token_id, amount0: r.amount0, amount1: r.amount1 })
     }
-    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM weth_events WHERE origin = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+    for (const r of await this.ctx.db.all<Record<string, string | number>>('SELECT * FROM weth_events WHERE origin = ? ORDER BY block DESC LIMIT ?', o, limit)) {
       if (txWithEvents.has(r.tx_hash as string)) continue
       items.push({ type: r.type, txHash: r.tx_hash, blockNumber: Number(r.block), logIndex: Number(r.log_index), timestamp: Number(r.timestamp), amount: r.amount, token: tokenJson(this.ctx, this.indexer.tokens.getSync(addr(this.ctx, 'WETH9'))!) })
     }
     // plain token sends/receives (skip transfers that are part of swaps/liquidity/fills)
-    const fillTxs = new Set(this.ctx.db.all<{ tx_hash: string }>('SELECT tx_hash FROM fills WHERE swapper = ?', o).map((r) => r.tx_hash))
+    const fillTxs = new Set((await this.ctx.db.all<{ tx_hash: string }>('SELECT tx_hash FROM fills WHERE swapper = ?', o)).map((r) => r.tx_hash))
     const skipAddrs = new Set([...this.indexer.pools.keys(), ...this.indexer.vaults, ...this.indexer.auctions, lc(addr(this.ctx, 'UniversalRouter')), lc(this.ctx.deployment.contracts.Permit2 ?? '0x'), lc(this.ctx.deployment.contracts.NonfungiblePositionManager ?? '0x')])
-    for (const r of this.ctx.db.all<Record<string, string | number>>(
+    for (const r of await this.ctx.db.all<Record<string, string | number>>(
       'SELECT * FROM transfers WHERE (from_addr = ? OR to_addr = ?) AND token NOT IN (SELECT address FROM pools) ORDER BY block DESC LIMIT ?',
       o,
       o,
@@ -223,7 +226,7 @@ export class Accounts {
         amountUsd: this.usd(r.token as string, BigInt(r.amount as string)),
       })
     }
-    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM native_transfers WHERE from_addr = ? OR to_addr = ? ORDER BY block DESC LIMIT ?', o, o, limit)) {
+    for (const r of await this.ctx.db.all<Record<string, string | number>>('SELECT * FROM native_transfers WHERE from_addr = ? OR to_addr = ? ORDER BY block DESC LIMIT ?', o, o, limit)) {
       const v = BigInt(r.value as string)
       items.push({
         type: r.from_addr === o ? 'send' : 'receive',
@@ -238,7 +241,7 @@ export class Accounts {
       })
     }
     // Stage 5: earn deposits/withdrawals, launch bids and claims
-    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM earn_events WHERE owner = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+    for (const r of await this.ctx.db.all<Record<string, string | number>>('SELECT * FROM earn_events WHERE owner = ? ORDER BY block DESC LIMIT ?', o, limit)) {
       const v = vaultsOf(this.ctx.deployment).find((x) => lc(x.address) === r.vault)
       items.push({
         type: r.type === 'deposit' ? 'earn-deposit' : 'earn-withdraw',
@@ -251,9 +254,10 @@ export class Accounts {
         amountUsd: v ? this.usd(v.asset, BigInt(r.assets as string)) : null,
       })
     }
-    const launchMeta = (auction: string) => this.ctx.db.get<{ symbol: string; name: string; token: string; quote: string | null }>("SELECT symbol, name, token, json_extract(params_json, '$.quoteToken') AS quote FROM launches WHERE auction = ?", auction)
-    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM bids WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
-      const m = launchMeta(r.auction as string)
+    const launchMeta = (auction: string) =>
+      this.ctx.db.get<{ symbol: string; name: string; token: string; quote: string | null }>(`SELECT symbol, name, token, ${this.ctx.db.jsonField('params_json', 'quoteToken')} AS quote FROM launches WHERE auction = ?`, auction)
+    for (const r of await this.ctx.db.all<Record<string, string | number>>('SELECT * FROM bids WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+      const m = await launchMeta(r.auction as string)
       items.push({
         type: 'bid',
         txHash: r.tx_hash,
@@ -268,8 +272,8 @@ export class Accounts {
         amountUsd: m?.quote ? this.usd(m.quote, BigInt(r.amount as string)) : null,
       })
     }
-    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM claims WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
-      const m = launchMeta(r.auction as string)
+    for (const r of await this.ctx.db.all<Record<string, string | number>>('SELECT * FROM claims WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+      const m = await launchMeta(r.auction as string)
       items.push({
         type: 'claim',
         txHash: r.tx_hash,
@@ -283,7 +287,7 @@ export class Accounts {
         refund: m?.quote ? this.amt(m.quote, BigInt(r.refund as string)) : null,
       })
     }
-    for (const ord of this.x.list({ swapper: owner, limit: String(limit) })) {
+    for (const ord of await this.x.list({ swapper: owner, limit: String(limit) })) {
       items.push({ type: 'order', txHash: ord.fillTx, blockNumber: ord.fillBlock ?? null, logIndex: 0, timestamp: ord.fillBlock ? ord.updatedAt : ord.createdAt, order: ord })
     }
     return items.sort((a, b) => Number(b.timestamp) - Number(a.timestamp) || Number(b.logIndex ?? 0) - Number(a.logIndex ?? 0)).slice(0, limit)

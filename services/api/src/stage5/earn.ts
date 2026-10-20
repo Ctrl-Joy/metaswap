@@ -45,8 +45,8 @@ export class Earn {
   }
 
   /** Distinct addresses holding vault shares (from indexed share transfers). */
-  depositors(vault: string): number {
-    const rows = this.ctx.db.all<{ to_addr: string; from_addr: string; amount: string }>('SELECT from_addr, to_addr, amount FROM transfers WHERE token = ?', lc(vault))
+  async depositors(vault: string): Promise<number> {
+    const rows = await this.ctx.db.all<{ to_addr: string; from_addr: string; amount: string }>('SELECT from_addr, to_addr, amount FROM transfers WHERE token = ?', lc(vault))
     const bal = new Map<string, bigint>()
     for (const r of rows) {
       bal.set(r.to_addr, (bal.get(r.to_addr) ?? 0n) + BigInt(r.amount))
@@ -61,6 +61,7 @@ export class Earn {
     const vs = this.vaultList()
     if (!vs.length) return []
     const data = await this.readAll([{ fn: 'totalAssets' }, { fn: 'totalSupply' }, { fn: 'apyBps' }])
+    const depositors = await Promise.all(vs.map((v) => this.depositors(v.address)))
     return vs.map((v, i) => {
       const [totalAssets, totalSupply, apy] = data[i]
       const asset = this.assetToken(v)
@@ -77,7 +78,7 @@ export class Earn {
         totalAssetsFormatted: Number(assets) / 10 ** asset.decimals,
         totalShares: (totalSupply ?? 0n).toString(),
         tvlUsd: price === null ? null : (Number(assets) / 10 ** asset.decimals) * price,
-        depositors: this.depositors(v.address),
+        depositors: depositors[i],
       }
     })
   }
@@ -106,7 +107,7 @@ export class Earn {
     for (let i = 0; i < vs.length; i++) {
       const v = vs[i]
       const asset = this.assetToken(v)
-      const events = this.ctx.db.all<{ type: string; assets: string; timestamp: number }>('SELECT type, assets, timestamp FROM earn_events WHERE vault = ? AND owner = ? ORDER BY block, log_index', lc(v.address), lc(owner))
+      const events = await this.ctx.db.all<{ type: string; assets: string; timestamp: number }>('SELECT type, assets, timestamp FROM earn_events WHERE vault = ? AND owner = ? ORDER BY block, log_index', lc(v.address), lc(owner))
       if (shares[i] === 0n && events.length === 0) continue
       const assets = shares[i] === 0n ? 0n : (assetsRes[i][0] ?? 0n)
       let deposited = 0n
@@ -114,7 +115,7 @@ export class Earn {
       let depositedUsd = 0
       for (const e of events) {
         const amt = BigInt(e.assets)
-        const usd = (Number(amt) / 10 ** asset.decimals) * (this.analytics.priceAt(asset.address, Number(e.timestamp)) ?? 0)
+        const usd = (Number(amt) / 10 ** asset.decimals) * ((await this.analytics.priceAt(asset.address, Number(e.timestamp))) ?? 0)
         if (e.type === 'deposit') {
           deposited += amt
           depositedUsd += usd

@@ -15,6 +15,7 @@ import { STABLE_SYMBOLS, TokenRegistry, hasDeployment, lc, type Context } from '
 import { launchParamsAbi } from '../abis'
 import { computeUsdPrices, poolTvlUsd, swapVolumeUsd, type PricingPool } from '../pricing/prices'
 import { sqrtPriceToPrice } from '../lib/v3math'
+import { WriteBatch } from '../db'
 
 export interface PoolInfo {
   address: string // lower-case
@@ -129,23 +130,32 @@ export class Indexer extends EventEmitter {
     return JSON.stringify(['schema-s5', this.ctx.deployment.blockNumber, c.V2Factory, c.V3Factory, c.NonfungiblePositionManager, c.WETH9, c.ExclusiveDutchOrderReactor ?? null, c5.Launchpad ?? null, c5.DevnetPad ?? null])
   }
 
-  loadState() {
+  async loadState() {
+    // read everything first, then swap the in-memory state synchronously (requests never see it half-built)
+    const [tokenRows, rows, launchRows, priceRows, ib, its] = await Promise.all([
+      this.db.all<{ address: string; symbol: string; name: string; decimals: number }>('SELECT * FROM tokens'),
+      this.db.all<Record<string, unknown>>('SELECT p.*, s.reserve0, s.reserve1, s.sqrt_price, s.tick, s.liquidity, s.lp_supply FROM pools p LEFT JOIN pool_state s ON s.address = p.address'),
+      this.db.all<{ auction: string; token: string }>('SELECT auction, token FROM launches'),
+      this.db.all<{ token: string; price: number }>(
+        'SELECT p.token, p.price FROM price_points p JOIN (SELECT token, MAX(block) AS b FROM price_points GROUP BY token) q ON q.token = p.token AND q.b = p.block',
+      ),
+      this.db.getMeta('indexedBlock'),
+      this.db.getMeta('indexedTimestamp'),
+    ])
     this.pools.clear()
     this.prices.clear()
     this.decimals.clear()
     this.trackedTokens.clear()
     this.tokens.clear()
+    for (const t of tokenRows) this.tokens.remember(t)
     for (const t of this.ctx.deployment.tokens) {
       this.decimals.set(lc(t.address), t.decimals)
       this.trackedTokens.add(lc(t.address))
     }
-    for (const t of this.db.all<{ address: string; decimals: number }>('SELECT address, decimals FROM tokens')) {
+    for (const t of tokenRows) {
       this.decimals.set(t.address, Number(t.decimals))
       this.trackedTokens.add(t.address)
     }
-    const rows = this.db.all<Record<string, unknown>>(
-      'SELECT p.*, s.reserve0, s.reserve1, s.sqrt_price, s.tick, s.liquidity, s.lp_supply FROM pools p LEFT JOIN pool_state s ON s.address = p.address',
-    )
     for (const r of rows) {
       this.pools.set(String(r.address), {
         address: String(r.address),
@@ -176,28 +186,26 @@ export class Indexer extends EventEmitter {
       this.trackedTokens.add(lc(v.address))
     }
     for (const p of launchpadsOf(this.ctx.deployment)) this.launchpads.add(lc(p.address))
-    for (const r of this.db.all<{ auction: string; token: string }>('SELECT auction, token FROM launches')) {
+    for (const r of launchRows) {
       this.auctions.add(r.auction)
       this.launchedTokens.add(r.token)
       this.trackedTokens.add(r.token)
     }
-    for (const r of this.db.all<{ token: string; price: number }>(
-      'SELECT token, price FROM price_points p WHERE block = (SELECT MAX(block) FROM price_points q WHERE q.token = p.token)',
-    )) {
+    for (const r of priceRows) {
       this.prices.set(r.token, r.price)
     }
-    const ib = this.db.getMeta('indexedBlock')
     this.indexedBlock = ib === undefined ? -1 : Number(ib)
-    this.indexedTimestamp = Number(this.db.getMeta('indexedTimestamp') ?? 0)
+    this.indexedTimestamp = Number(its ?? 0)
   }
 
   async start() {
     if (this.running) return
     this.running = true
-    if (this.db.getMeta('deploymentKey') !== this.deploymentKey()) {
-      this.db.resetChainData()
+    await this.db.init()
+    if ((await this.db.getMeta('deploymentKey')) !== this.deploymentKey()) {
+      await this.db.resetChainData()
     }
-    this.loadState()
+    await this.loadState()
     const loop = async () => {
       if (!this.running) return
       try {
@@ -249,10 +257,10 @@ export class Indexer extends EventEmitter {
 
   private async checkReorg(head: number) {
     if (this.indexedBlock < 0) {
-      if (this.db.getMeta('deploymentKey') !== this.deploymentKey()) this.db.setMeta('deploymentKey', this.deploymentKey())
+      if ((await this.db.getMeta('deploymentKey')) !== this.deploymentKey()) await this.db.setMeta('deploymentKey', this.deploymentKey())
       return
     }
-    const stored = this.db.get<{ hash: string }>('SELECT hash FROM blocks WHERE number = ?', this.indexedBlock)
+    const stored = await this.db.get<{ hash: string }>('SELECT hash FROM blocks WHERE number = ?', this.indexedBlock)
     let ok = false
     if (head >= this.indexedBlock && stored) {
       const b = await this.ctx.client.getBlock({ blockNumber: BigInt(this.indexedBlock) })
@@ -260,7 +268,7 @@ export class Indexer extends EventEmitter {
     }
     if (ok) return
     // find the newest stored block that is still canonical
-    const candidates = this.db.all<{ number: number; hash: string }>(
+    const candidates = await this.db.all<{ number: number; hash: string }>(
       'SELECT number, hash FROM blocks WHERE number <= ? ORDER BY number DESC LIMIT ?',
       Math.min(this.indexedBlock, head),
       this.ctx.config.reorgDepth,
@@ -269,38 +277,38 @@ export class Indexer extends EventEmitter {
       const b = await this.ctx.client.getBlock({ blockNumber: BigInt(c.number) }).catch(() => null)
       if (b && b.hash === c.hash) {
         console.warn(`[indexer] reorg detected; rolling back to block ${c.number}`)
-        this.rollbackTo(c.number)
+        await this.rollbackTo(c.number)
         this.emit('reorg', c.number)
         return
       }
     }
     console.warn('[indexer] chain changed (restart/reset); rebuilding index from scratch')
-    this.db.resetChainData()
-    this.db.setMeta('deploymentKey', this.deploymentKey())
-    this.loadState()
+    await this.db.resetChainData()
+    await this.db.setMeta('deploymentKey', this.deploymentKey())
+    await this.loadState()
     this.emit('reset')
   }
 
   /** Delete everything above `block` and rebuild in-memory pool state by replaying stored state. */
-  private rollbackTo(block: number) {
+  private async rollbackTo(block: number) {
     const tables = ['swaps', 'liquidity_events', 'transfers', 'weth_events', 'nft_transfers', 'nft_events', 'fills', 'price_points', 'pool_snapshots', 'earn_events', 'bids', 'claims']
-    this.db.tx(() => {
-      for (const t of tables) this.db.run(`DELETE FROM ${t} WHERE block > ?`, block)
-      this.db.run('DELETE FROM native_transfers WHERE block > ?', block)
-      this.db.run('DELETE FROM tx_values WHERE block > ?', block)
-      this.db.run('DELETE FROM blocks WHERE number > ?', block)
-      this.db.run('DELETE FROM pools WHERE created_block > ?', block)
-      this.db.run('DELETE FROM launches WHERE created_block > ?', block)
-      this.db.run('DELETE FROM settlements WHERE block > ?', block)
-      this.db.run("UPDATE x_orders SET status = 'open', fill_tx = NULL, fill_block = NULL, filler = NULL WHERE fill_block > ?", block)
-      // pool_state reflects the old head; rebuild it from the newest snapshot at or below `block`
-      this.db.run('DELETE FROM pool_state')
-      this.db.setMeta('indexedBlock', String(block))
-    })
-    this.loadState()
+    const w = new WriteBatch()
+    for (const t of tables) w.run(`DELETE FROM ${t} WHERE block > ?`, block)
+    w.run('DELETE FROM native_transfers WHERE block > ?', block)
+    w.run('DELETE FROM tx_values WHERE block > ?', block)
+    w.run('DELETE FROM blocks WHERE number > ?', block)
+    w.run('DELETE FROM pools WHERE created_block > ?', block)
+    w.run('DELETE FROM launches WHERE created_block > ?', block)
+    w.run('DELETE FROM settlements WHERE block > ?', block)
+    w.run("UPDATE x_orders SET status = 'open', fill_tx = NULL, fill_block = NULL, filler = NULL WHERE fill_block > ?", block)
+    // pool_state reflects the old head; rebuild it from the newest snapshot at or below `block`
+    w.run('DELETE FROM pool_state')
+    w.setMeta('indexedBlock', String(block))
+    await this.db.write(w)
+    await this.loadState()
     // replay reserves from snapshots (exact: snapshots are written after every change)
     for (const p of this.pools.values()) {
-      const s = this.db.get<{ reserve0: string; reserve1: string }>(
+      const s = await this.db.get<{ reserve0: string; reserve1: string }>(
         'SELECT reserve0, reserve1 FROM pool_snapshots WHERE pool = ? ORDER BY block DESC LIMIT 1',
         p.address,
       )
@@ -314,6 +322,8 @@ export class Indexer extends EventEmitter {
   }
 
   private needsRefresh = false
+  /** writes of the range being processed (applied atomically at the end of processRange) */
+  private w = new WriteBatch()
 
   private async refreshPoolsFromChain(blockNumber?: bigint) {
     for (const p of this.pools.values()) {
@@ -413,17 +423,18 @@ export class Indexer extends EventEmitter {
       arr.push(l)
     }
     const fills: { orderHash: string; txHash: string; block: number; filler: string }[] = []
+    const w = (this.w = new WriteBatch())
     try {
-      this.db.tx(() => {
+      {
         for (const block of blocks) {
           const n = Number(block.number)
           const blockLogs = (byBlock.get(n) ?? []).sort((a, b) => a.logIndex - b.logIndex)
           this.processBlock(block, blockLogs, fills, launchMeta)
         }
         const last = blocks[blocks.length - 1]
-        this.db.insert('blocks', { number: Number(last.number), hash: last.hash!, timestamp: Number(last.timestamp) }, 'REPLACE')
+        w.insert('blocks', { number: Number(last.number), hash: last.hash!, timestamp: Number(last.timestamp) }, 'REPLACE')
         for (const p of this.pools.values()) {
-          this.db.insert(
+          w.insert(
             'pool_state',
             {
               address: p.address,
@@ -438,19 +449,19 @@ export class Indexer extends EventEmitter {
             'REPLACE',
           )
         }
-        this.db.setMeta('indexedBlock', String(to))
-        this.db.setMeta('indexedTimestamp', String(Number(last.timestamp)))
-        // prune block hashes we no longer need for reorg checks (keep ones with activity)
-      })
+        w.setMeta('indexedBlock', String(to))
+        w.setMeta('indexedTimestamp', String(Number(last.timestamp)))
+      }
+      await this.db.write(w)
     } catch (e) {
       // in-memory state may be ahead of the DB: reload it
-      this.loadState()
+      await this.loadState()
       throw e
     }
     this.indexedBlock = to
     this.indexedTimestamp = Number(blocks[blocks.length - 1].timestamp)
     for (const f of fills) this.emit('fill', f)
-    this.emit('indexed', to, this.indexedTimestamp)
+    this.emit('indexed', to, this.indexedTimestamp, w, from)
   }
 
   private processBlock(block: FullBlock, logs: RawLog[], fills: { orderHash: string; txHash: string; block: number; filler: string }[], launchMeta = new Map<string, string | null>()) {
@@ -461,10 +472,10 @@ export class Indexer extends EventEmitter {
     for (const tx of block.transactions as Transaction[]) {
       origins.set(tx.hash, lc(tx.from))
       if (tx.value > 0n) {
-        this.db.insert('tx_values', { block: n, tx_index: Number(tx.transactionIndex), tx_hash: tx.hash, timestamp: ts, from_addr: lc(tx.from), to_addr: tx.to ? lc(tx.to) : null, value: tx.value.toString() })
+        this.w.insert('tx_values', { block: n, tx_index: Number(tx.transactionIndex), tx_hash: tx.hash, timestamp: ts, from_addr: lc(tx.from), to_addr: tx.to ? lc(tx.to) : null, value: tx.value.toString() })
       }
       if (tx.value > 0n && (tx.input === '0x' || tx.input === undefined) && tx.to) {
-        this.db.insert('native_transfers', {
+        this.w.insert('native_transfers', {
           block: n,
           tx_index: Number(tx.transactionIndex),
           tx_hash: tx.hash,
@@ -476,7 +487,7 @@ export class Indexer extends EventEmitter {
       }
     }
     if (logs.length === 0) return
-    this.db.insert('blocks', { number: n, hash: block.hash!, timestamp: ts }, 'REPLACE')
+    this.w.insert('blocks', { number: n, hash: block.hash!, timestamp: ts }, 'REPLACE')
 
     const v2Factory = lc(c.V2Factory ?? ZERO)
     const v3Factory = lc(c.V3Factory ?? ZERO)
@@ -538,7 +549,7 @@ export class Indexer extends EventEmitter {
           const to = lc(ev.args.to)
           if (from === ZERO) pool.lpSupply += ev.args.value
           if (to === ZERO) pool.lpSupply -= ev.args.value
-          this.db.insert('transfers', { ...base, token: a, from_addr: from, to_addr: to, amount: ev.args.value.toString() })
+          this.w.insert('transfers', { ...base, token: a, from_addr: from, to_addr: to, amount: ev.args.value.toString() })
         }
         continue
       }
@@ -583,44 +594,46 @@ export class Indexer extends EventEmitter {
       if (a === npm) {
         if (t0 === TOPICS.Transfer && log.topics.length === 4) {
           const ev = decodeEventLog({ abi: npmAbi, eventName: 'Transfer', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
-          this.db.insert('nft_transfers', { ...base, token_id: ev.args.tokenId.toString(), from_addr: lc(ev.args.from), to_addr: lc(ev.args.to) })
+          this.w.insert('nft_transfers', { ...base, token_id: ev.args.tokenId.toString(), from_addr: lc(ev.args.from), to_addr: lc(ev.args.to) })
         } else if (t0 === TOPICS.IncreaseLiquidity || t0 === TOPICS.DecreaseLiquidity || t0 === TOPICS.NpmCollect) {
           const ev = decodeEventLog({ abi: npmAbi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
           if (ev.eventName === 'IncreaseLiquidity' || ev.eventName === 'DecreaseLiquidity') {
-            this.db.insert('nft_events', { ...base, token_id: ev.args.tokenId.toString(), type: ev.eventName === 'IncreaseLiquidity' ? 'increase' : 'decrease', liquidity: ev.args.liquidity.toString(), amount0: ev.args.amount0.toString(), amount1: ev.args.amount1.toString(), origin })
+            this.w.insert('nft_events', { ...base, token_id: ev.args.tokenId.toString(), type: ev.eventName === 'IncreaseLiquidity' ? 'increase' : 'decrease', liquidity: ev.args.liquidity.toString(), amount0: ev.args.amount0.toString(), amount1: ev.args.amount1.toString(), origin })
           } else if (ev.eventName === 'Collect') {
-            this.db.insert('nft_events', { ...base, token_id: ev.args.tokenId.toString(), type: 'collect', liquidity: null, amount0: ev.args.amount0.toString(), amount1: ev.args.amount1.toString(), origin })
+            this.w.insert('nft_events', { ...base, token_id: ev.args.tokenId.toString(), type: 'collect', liquidity: null, amount0: ev.args.amount0.toString(), amount1: ev.args.amount1.toString(), origin })
           }
         }
         continue
       }
       if (a === weth && (t0 === TOPICS.Deposit || t0 === TOPICS.Withdrawal)) {
         const ev = decodeEventLog({ abi: weth9Abi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
-        if (ev.eventName === 'Deposit') this.db.insert('weth_events', { ...base, type: 'wrap', account: lc(ev.args.dst), origin, amount: ev.args.wad.toString() })
-        else if (ev.eventName === 'Withdrawal') this.db.insert('weth_events', { ...base, type: 'unwrap', account: lc(ev.args.src), origin, amount: ev.args.wad.toString() })
+        if (ev.eventName === 'Deposit') this.w.insert('weth_events', { ...base, type: 'wrap', account: lc(ev.args.dst), origin, amount: ev.args.wad.toString() })
+        else if (ev.eventName === 'Withdrawal') this.w.insert('weth_events', { ...base, type: 'unwrap', account: lc(ev.args.src), origin, amount: ev.args.wad.toString() })
         continue
       }
       if (this.vaults.has(a) && (t0 === TOPICS.VaultDeposit || t0 === TOPICS.VaultWithdraw)) {
         const ev = decodeEventLog({ abi: vaultAbi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
         if (ev.eventName === 'Deposit') {
-          this.db.insert('earn_events', { ...base, vault: a, type: 'deposit', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.owner), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
+          this.w.insert('earn_events', { ...base, vault: a, type: 'deposit', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.owner), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
         } else if (ev.eventName === 'Withdraw') {
-          this.db.insert('earn_events', { ...base, vault: a, type: 'withdraw', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.receiver), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
+          this.w.insert('earn_events', { ...base, vault: a, type: 'withdraw', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.receiver), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
         }
         continue
       }
       if (this.vaults.has(a) && t0 === TOPICS.Transfer && log.topics.length === 3) {
         const ev = decodeEventLog({ abi: erc20Abi, eventName: 'Transfer', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
-        this.db.insert('transfers', { ...base, token: a, from_addr: lc(ev.args.from), to_addr: lc(ev.args.to), amount: ev.args.value.toString() })
+        this.w.insert('transfers', { ...base, token: a, from_addr: lc(ev.args.from), to_addr: lc(ev.args.to), amount: ev.args.value.toString() })
         continue
       }
       if (this.launchpads.has(a) && t0 === TOPICS.LaunchCreated) {
         const ev = decodeEventLog({ abi: launchpadAbi, eventName: 'LaunchCreated', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
         const auction = lc(ev.args.auction)
         const token = lc(ev.args.token)
-        this.db.insert('launches', { auction, token, launchpad: a, creator: lc(ev.args.creator), name: ev.args.name, symbol: ev.args.symbol, created_block: n, created_ts: ts, params_json: launchMeta.get(auction) ?? null }, 'REPLACE')
+        this.w.insert('launches', { auction, token, launchpad: a, creator: lc(ev.args.creator), name: ev.args.name, symbol: ev.args.symbol, created_block: n, created_ts: ts, params_json: launchMeta.get(auction) ?? null }, 'REPLACE')
         const meta = this.tokens.getSync(token)
-        this.db.insert('tokens', { address: token, symbol: meta?.symbol ?? ev.args.symbol, name: meta?.name ?? ev.args.name, decimals: meta?.decimals ?? 18 }, 'REPLACE')
+        const tokenRow = { address: token, symbol: meta?.symbol ?? ev.args.symbol, name: meta?.name ?? ev.args.name, decimals: meta?.decimals ?? 18 }
+        this.w.insert('tokens', tokenRow, 'REPLACE')
+        this.tokens.remember(tokenRow)
         this.decimals.set(token, meta?.decimals ?? 18)
         this.auctions.add(auction)
         this.launchedTokens.add(token)
@@ -631,19 +644,19 @@ export class Indexer extends EventEmitter {
       if (this.auctions.has(a) && (t0 === TOPICS.BidPlaced || t0 === TOPICS.Settled || t0 === TOPICS.Claimed)) {
         const ev = decodeEventLog({ abi: launchAuctionAbi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
         if (ev.eventName === 'BidPlaced') {
-          this.db.insert('bids', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), amount: ev.args.amount.toString(), max_price: ev.args.maxPrice.toString() })
+          this.w.insert('bids', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), amount: ev.args.amount.toString(), max_price: ev.args.maxPrice.toString() })
         } else if (ev.eventName === 'Settled') {
-          this.db.insert('settlements', { auction: a, block: n, tx_hash: log.transactionHash!, timestamp: ts, clearing_price: ev.args.clearingPrice.toString(), raised: ev.args.raised.toString(), launched: ev.args.launched ? 1 : 0, pool: ev.args.pool === ZERO ? null : lc(ev.args.pool) }, 'REPLACE')
+          this.w.insert('settlements', { auction: a, block: n, tx_hash: log.transactionHash!, timestamp: ts, clearing_price: ev.args.clearingPrice.toString(), raised: ev.args.raised.toString(), launched: ev.args.launched ? 1 : 0, pool: ev.args.pool === ZERO ? null : lc(ev.args.pool) }, 'REPLACE')
         } else if (ev.eventName === 'Claimed') {
-          this.db.insert('claims', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), tokens: ev.args.tokens.toString(), refund: ev.args.refund.toString() })
+          this.w.insert('claims', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), tokens: ev.args.tokens.toString(), refund: ev.args.refund.toString() })
         }
         continue
       }
       if (a === reactor && t0 === TOPICS.Fill) {
         const ev = decodeEventLog({ abi: reactorAbi, eventName: 'Fill', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
         const orderHash = lc(ev.args.orderHash)
-        this.db.insert('fills', { ...base, order_hash: orderHash, filler: lc(ev.args.filler), swapper: lc(ev.args.swapper), nonce: ev.args.nonce.toString() })
-        this.db.run(
+        this.w.insert('fills', { ...base, order_hash: orderHash, filler: lc(ev.args.filler), swapper: lc(ev.args.swapper), nonce: ev.args.nonce.toString() })
+        this.w.run(
           "UPDATE x_orders SET status = 'filled', fill_tx = ?, fill_block = ?, filler = ?, updated_at = ? WHERE hash = ?",
           log.transactionHash!, n, lc(ev.args.filler), ts, orderHash,
         )
@@ -655,7 +668,7 @@ export class Indexer extends EventEmitter {
         const from = lc(ev.args.from)
         const to = lc(ev.args.to)
         const v = ev.args.value
-        this.db.insert('transfers', { ...base, token: a, from_addr: from, to_addr: to, amount: v.toString() })
+        this.w.insert('transfers', { ...base, token: a, from_addr: from, to_addr: to, amount: v.toString() })
         // v3 pool balances (TVL) follow token transfers
         for (const [addr, sign] of [[from, -1n], [to, 1n]] as const) {
           const p = this.pools.get(addr)
@@ -674,7 +687,7 @@ export class Indexer extends EventEmitter {
       const d1 = this.decimals.get(s.pool.token1) ?? 18
       const usd = swapVolumeUsd(s.amount0, s.amount1, d0, d1, this.prices.get(s.pool.token0), this.prices.get(s.pool.token1))
       const feeRate = s.pool.fee / 1e6
-      this.db.insert('swaps', { ...s.row, amount_usd: usd, fee_usd: usd === null ? null : usd * feeRate })
+      this.w.insert('swaps', { ...s.row, amount_usd: usd, fee_usd: usd === null ? null : usd * feeRate })
     }
     for (const l of pendingLiq) {
       const d0 = this.decimals.get(l.pool.token0) ?? 18
@@ -682,7 +695,7 @@ export class Indexer extends EventEmitter {
       const p0 = this.prices.get(l.pool.token0)
       const p1 = this.prices.get(l.pool.token1)
       const usd = (p0 !== undefined ? (Number(l.a0) / 10 ** d0) * p0 : 0) + (p1 !== undefined ? (Number(l.a1) / 10 ** d1) * p1 : 0)
-      this.db.insert('liquidity_events', { ...l.row, amount_usd: p0 === undefined && p1 === undefined ? null : usd })
+      this.w.insert('liquidity_events', { ...l.row, amount_usd: p0 === undefined && p1 === undefined ? null : usd })
     }
   }
 
@@ -694,9 +707,12 @@ export class Indexer extends EventEmitter {
     this.trackedTokens.add(info.token1)
     for (const t of [info.token0, info.token1]) {
       const meta = this.tokens.getSync(t)
-      if (meta) this.db.insert('tokens', { address: t, symbol: meta.symbol, name: meta.name, decimals: meta.decimals }, 'REPLACE')
+      if (meta) {
+        this.w.insert('tokens', { address: t, symbol: meta.symbol, name: meta.name, decimals: meta.decimals }, 'REPLACE')
+        this.tokens.remember({ address: t, symbol: meta.symbol, name: meta.name, decimals: meta.decimals })
+      }
     }
-    this.db.insert('pools', {
+    this.w.insert('pools', {
       address: info.address,
       version: info.version,
       token0: info.token0,
@@ -731,7 +747,7 @@ export class Indexer extends EventEmitter {
     for (const [token, price] of next) {
       const prev = this.prices.get(token)
       if (prev === undefined || Math.abs(prev - price) > Math.abs(prev) * 1e-12) {
-        this.db.insert('price_points', { token, block, timestamp: ts, price }, 'REPLACE')
+        this.w.insert('price_points', { token, block, timestamp: ts, price }, 'REPLACE')
         pricesChanged = true
       }
     }
@@ -744,7 +760,7 @@ export class Indexer extends EventEmitter {
       let price0: number | null = null
       if (p.version === 'v3' && p.sqrtPriceX96) price0 = sqrtPriceToPrice(p.sqrtPriceX96, d0, d1)
       else if (p.version === 'v2' && p.reserve0 > 0n) price0 = Number(p.reserve1) / 10 ** d1 / (Number(p.reserve0) / 10 ** d0)
-      this.db.insert(
+      this.w.insert(
         'pool_snapshots',
         { pool: p.address, block, timestamp: ts, reserve0: p.reserve0.toString(), reserve1: p.reserve1.toString(), price0, tvl_usd: tvl },
         'REPLACE',

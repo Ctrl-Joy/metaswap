@@ -62,14 +62,14 @@ export class Launches {
     private router: Router,
   ) {}
 
-  private rows(): LaunchRow[] {
+  private rows(): Promise<LaunchRow[]> {
     return this.ctx.db.all<LaunchRow>('SELECT * FROM launches ORDER BY created_block DESC')
   }
 
   private async params(r: LaunchRow): Promise<LaunchParamsJson | null> {
     if (r.params_json) return JSON.parse(r.params_json) as LaunchParamsJson
     const p = await readLaunchParams(this.ctx, r.auction)
-    if (p) this.ctx.db.run('UPDATE launches SET params_json = ? WHERE auction = ?', p, r.auction)
+    if (p) await this.ctx.db.run('UPDATE launches SET params_json = ? WHERE auction = ?', p, r.auction)
     return p ? (JSON.parse(p) as LaunchParamsJson) : null
   }
 
@@ -137,22 +137,28 @@ export class Launches {
     const quoteUsdOf = (amount: bigint) => (quoteUsd === null ? null : (Number(amount) / 10 ** qd) * quoteUsd)
     const threshold = p ? BigInt(p.launchThreshold) : 0n
     const now = this.analytics.now()
-    const settlement = this.ctx.db.get<{ timestamp: number; pool: string | null; clearing_price: string; launched: number }>('SELECT timestamp, pool, clearing_price, launched FROM settlements WHERE auction = ?', r.auction)
+    const settlement = await this.ctx.db.get<{ timestamp: number; pool: string | null; clearing_price: string; launched: number }>('SELECT timestamp, pool, clearing_price, launched FROM settlements WHERE auction = ?', r.auction)
     const launched = live.status === 'launched'
     const pool = live.pool ?? settlement?.pool ?? null
     let after: { pool: string | null; priceUsd: number | null; fdvUsd: number | null; volume24hUsd: number | null; liquidityUsd: number | null; change1h: number | null; change1d: number | null; sparkline: { time: number; priceUsd: number }[] } = { pool: null, fdvUsd: null, volume24hUsd: null, liquidityUsd: null, change1h: null, change1d: null, priceUsd: null, sparkline: [] }
     if (launched) {
       const priceUsd = this.analytics.priceUsd(r.token)
       const poolRt = pool ? this.indexer.pools.get(pool) : undefined
+      const [volume24hUsd, change1h, change1d, sparkline] = await Promise.all([
+        this.analytics.tokenVolume(r.token, now - DAY),
+        this.analytics.changeSince(r.token, 3600),
+        this.analytics.changeSince(r.token, DAY),
+        this.analytics.sparkline(r.token),
+      ])
       after = {
         pool: pool ? getAddress(pool) : null,
         priceUsd,
         fdvUsd: priceUsd === null ? null : priceUsd * supplyWhole,
-        volume24hUsd: this.analytics.tokenVolume(r.token, now - DAY),
+        volume24hUsd,
         liquidityUsd: poolRt ? this.analytics.poolTvl(poolRt) : null,
-        change1h: this.analytics.changeSince(r.token, 3600),
-        change1d: this.analytics.changeSince(r.token, DAY),
-        sparkline: this.analytics.sparkline(r.token),
+        change1h,
+        change1d,
+        sparkline,
       }
     }
     const clearing = live.clearingPrice > 0n ? live.clearingPrice : floor
@@ -193,7 +199,7 @@ export class Launches {
   }
 
   async list(q: { status?: string; launchpad?: string; verified?: string; sort?: string; order?: string; q?: string }) {
-    const rows = this.rows()
+    const rows = await this.rows()
     const live = await this.live(rows)
     let out = await Promise.all(rows.map((r) => this.rowJson(r, live.get(r.auction)!)))
     const status = (q.status ?? 'all').toLowerCase()
@@ -236,9 +242,9 @@ export class Launches {
   }
 
   async detail(auction: string, bidsOf?: string) {
-    const r = this.ctx.db.get<LaunchRow>('SELECT * FROM launches WHERE auction = ?', lc(auction))
+    const r = await this.ctx.db.get<LaunchRow>('SELECT * FROM launches WHERE auction = ?', lc(auction))
     if (!r) throw new HttpError(404, 'Unknown auction')
-    const live = await this.live(this.rows())
+    const live = await this.live(await this.rows())
     const row = await this.rowJson(r, live.get(r.auction)!)
     const p = await this.params(r)
     const quote = p ? this.indexer.tokens.getSync(p.quoteToken) : undefined
@@ -267,8 +273,9 @@ export class Launches {
             return { estimatedTokens: f.tokens.toString(), estimatedRefund: f.refund.toString() }
           }
         : null
+    const claims = new Map((await this.ctx.db.all<{ bid_id: string; tokens: string; refund: string; tx_hash: string }>('SELECT bid_id, tokens, refund, tx_hash FROM claims WHERE auction = ?', r.auction)).map((c) => [c.bid_id, c]))
     const bidJson = (b: { block: number; tx_hash: string; timestamp: number; bid_id: string; bidder: string; amount: string; max_price: string }) => {
-      const claim = this.ctx.db.get<{ tokens: string; refund: string; tx_hash: string }>('SELECT tokens, refund, tx_hash FROM claims WHERE auction = ? AND bid_id = ?', r.auction, b.bid_id)
+      const claim = claims.get(b.bid_id)
       const amount = BigInt(b.amount)
       const maxPrice = BigInt(b.max_price)
       return {
@@ -291,11 +298,11 @@ export class Launches {
         claimedRefund: claim?.refund ?? null,
       }
     }
-    const recent = this.ctx.db.all<Parameters<typeof bidJson>[0]>('SELECT * FROM bids WHERE auction = ? ORDER BY block DESC, log_index DESC LIMIT 50', r.auction).map(bidJson)
+    const recent = (await this.ctx.db.all<Parameters<typeof bidJson>[0]>('SELECT * FROM bids WHERE auction = ? ORDER BY block DESC, log_index DESC LIMIT 50', r.auction)).map(bidJson)
     let mine: ReturnType<typeof bidJson>[] | undefined
     if (bidsOf) {
       if (!isAddress(bidsOf, { strict: false })) throw new HttpError(400, 'bidsOf must be an address')
-      mine = this.ctx.db.all<Parameters<typeof bidJson>[0]>('SELECT * FROM bids WHERE auction = ? AND bidder = ? ORDER BY block DESC, log_index DESC', r.auction, lc(bidsOf)).map(bidJson)
+      mine = (await this.ctx.db.all<Parameters<typeof bidJson>[0]>('SELECT * FROM bids WHERE auction = ? AND bidder = ? ORDER BY block DESC, log_index DESC', r.auction, lc(bidsOf))).map(bidJson)
     }
     return {
       ...row,
@@ -305,7 +312,7 @@ export class Launches {
       priceLevels: levels,
       bids: recent,
       ...(mine ? { bidsOf: mine } : {}),
-      settlement: this.ctx.db.get('SELECT block, tx_hash AS txHash, timestamp, clearing_price AS clearingPrice, raised, launched, pool FROM settlements WHERE auction = ?', r.auction) ?? null,
+      settlement: (await this.ctx.db.get('SELECT block, tx_hash AS "txHash", timestamp, clearing_price AS "clearingPrice", raised, launched, pool FROM settlements WHERE auction = ?', r.auction)) ?? null,
     }
   }
 

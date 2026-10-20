@@ -2,7 +2,7 @@ import { createPublicClient, defineChain, getAddress, http, type Address, type P
 import { deployment as sdkDeployment, metachainDevnet, NATIVE_ADDRESS, type Deployment } from '@metaswap/sdk'
 import { erc20Abi } from './abis'
 import type { Config } from './config'
-import { Db } from './db'
+import { makeDb, type Db } from './db'
 
 export interface TokenInfo {
   address: Address
@@ -37,7 +37,7 @@ export function createContext(config: Config, deployment: Deployment = sdkDeploy
     pollingInterval: 500,
     cacheTime: 0,
   }) as PublicClient
-  return { config, db: db ?? new Db(config.dbPath), client, deployment, chain }
+  return { config, db: db ?? makeDb({ databaseUrl: config.databaseUrl, dbPath: config.dbPath }), client, deployment, chain }
 }
 
 export function hasDeployment(ctx: Context): boolean {
@@ -84,16 +84,20 @@ export class TokenRegistry {
       this.cache.set(key, t)
       return t
     }
-    const row = this.ctx.db.get<{ address: string; symbol: string; name: string; decimals: number }>(
-      'SELECT * FROM tokens WHERE address = ?',
-      key,
-    )
-    if (row) {
-      const t = { address: getAddress(row.address), symbol: row.symbol, name: row.name, decimals: Number(row.decimals) }
-      this.cache.set(key, t)
-      return t
-    }
-    return undefined
+    return this.indexed.get(key)
+  }
+
+  /** Tokens from the `tokens` table, kept in memory (loaded by the indexer, updated as it inserts). */
+  private indexed = new Map<string, TokenInfo>()
+
+  async load() {
+    this.indexed.clear()
+    for (const row of await this.ctx.db.all<{ address: string; symbol: string; name: string; decimals: number }>('SELECT * FROM tokens')) this.remember(row)
+  }
+
+  remember(row: { address: string; symbol: string; name: string; decimals: number }) {
+    const t = { address: getAddress(row.address), symbol: row.symbol, name: row.name, decimals: Number(row.decimals) }
+    this.indexed.set(lc(row.address), t)
   }
 
   /** Resolve by address or symbol (case-insensitive). */
@@ -115,7 +119,8 @@ export class TokenRegistry {
         this.ctx.client.readContract({ address: a, abi: erc20Abi, functionName: 'decimals' }),
       ])
       const t = { address: a, symbol, name, decimals: Number(decimals) }
-      this.ctx.db.insert('tokens', { address: lc(a), symbol, name, decimals: Number(decimals) }, 'REPLACE')
+      await this.ctx.db.insert('tokens', { address: lc(a), symbol, name, decimals: Number(decimals) }, 'REPLACE')
+      this.remember({ address: a, symbol, name, decimals: Number(decimals) })
       this.cache.set(lc(a), t)
       return t
     } catch {
@@ -132,16 +137,16 @@ export class TokenRegistry {
       seen.add(lc(t.address))
       out.push(info)
     }
-    for (const row of this.ctx.db.all<{ address: string }>('SELECT address FROM tokens')) {
-      if (seen.has(row.address)) continue
-      const info = this.getSync(row.address)
-      if (info) out.push(info)
+    for (const [key, info] of this.indexed) {
+      if (seen.has(key)) continue
+      out.push(this.getSync(key) ?? info)
     }
     return out
   }
 
   clear() {
     this.cache.clear()
+    this.indexed.clear()
   }
 }
 

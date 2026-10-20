@@ -34,6 +34,7 @@ export const SEED_TAGS: Record<string, string[]> = {
 export const TOKEN_CATEGORIES = ['all', 'trending', 'gainers', 'stablecoins', 'majors', 'defi', 'l2', 'memes', 'launched', 'wrapped']
 
 const HOUR = 3600
+const CAGG_SEC: Record<string, number> = { '1m': 60, '1h': 3600, '1d': 86400 }
 const DAY = 86400
 
 export class Analytics {
@@ -54,10 +55,13 @@ export class Analytics {
     return this.indexer.indexedTimestamp || Math.floor(Date.now() / 1000)
   }
 
-  private cached<T>(key: string, fn: () => T): T {
+  private cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const hit = this.memo.get(key)
-    if (hit && hit.block === this.indexer.indexedBlock) return hit.value as T
-    const value = fn()
+    if (hit && hit.block === this.indexer.indexedBlock) return hit.value as Promise<T>
+    const value = fn().catch((e) => {
+      this.memo.delete(key)
+      throw e
+    })
     this.memo.set(key, { block: this.indexer.indexedBlock, value })
     if (this.memo.size > 500) this.memo.clear()
     return value
@@ -78,12 +82,48 @@ export class Analytics {
     return this.indexer.prices.get(this.poolKey(address)) ?? null
   }
 
-  priceAt(token: string, time: number): number | null {
+  async priceAt(token: string, time: number): Promise<number | null> {
     const key = this.poolKey(token)
     const row =
-      this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? AND timestamp <= ? ORDER BY block DESC LIMIT 1', key, time) ??
-      this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? ORDER BY block ASC LIMIT 1', key)
+      (await this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? AND timestamp <= ? ORDER BY timestamp DESC, block DESC LIMIT 1', key, time)) ??
+      (await this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? ORDER BY timestamp ASC, block ASC LIMIT 1', key))
     return row?.price ?? null
+  }
+
+  /**
+   * Price lookups for many timestamps with one query per token: loads each token's points in
+   * [from, to] plus the last one before `from`. `at(token, t)` has priceAt's semantics (last price at
+   * or before t, else the token's first price).
+   */
+  async priceBook(tokens: string[], from: number, to: number): Promise<(token: string, t: number) => number | null> {
+    const keys = [...new Set(tokens.map((t) => this.poolKey(t)))]
+    const series = new Map<string, { t: number[]; p: number[]; first: number | null }>()
+    await Promise.all(
+      keys.map(async (key) => {
+        const [seed, rows] = await Promise.all([
+          this.db.get<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp < ? ORDER BY timestamp DESC, block DESC LIMIT 1', key, from),
+          this.db.all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp, block', key, from, to),
+        ])
+        const pts = seed ? [seed, ...rows] : rows
+        const first = seed ? null : (rows[0]?.price ?? (await this.priceAt(key, to)))
+        series.set(key, { t: pts.map((r) => Number(r.timestamp)), p: pts.map((r) => r.price), first })
+      }),
+    )
+    return (token: string, t: number) => {
+      const s = series.get(this.poolKey(token))
+      if (!s) return null
+      let lo = 0
+      let hi = s.t.length - 1
+      let idx = -1
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        if (s.t[mid] <= t) {
+          idx = mid
+          lo = mid + 1
+        } else hi = mid - 1
+      }
+      return idx >= 0 ? s.p[idx] : (s.first ?? s.p[0] ?? null)
+    }
   }
 
   async totalSupply(token: string): Promise<bigint | null> {
@@ -123,9 +163,9 @@ export class Analytics {
     return amount * price
   }
 
-  tokenVolume(token: string, since: number): number {
+  async tokenVolume(token: string, since: number): Promise<number> {
     const key = this.poolKey(token)
-    const row = this.db.get<{ v: number | null }>(
+    const row = await this.db.get<{ v: number | null }>(
       'SELECT SUM(s.amount_usd) AS v FROM swaps s JOIN pools p ON p.address = s.pool WHERE (p.token0 = ? OR p.token1 = ?) AND s.timestamp > ?',
       key,
       key,
@@ -135,43 +175,51 @@ export class Analytics {
   }
 
   /** % change of the token's USD price over the last `seconds`. */
-  changeSince(address: string, seconds: number): number | null {
-    return pctChange(this.priceUsd(address), this.priceAt(address, this.now() - seconds))
+  async changeSince(address: string, seconds: number): Promise<number | null> {
+    return pctChange(this.priceUsd(address), await this.priceAt(address, this.now() - seconds))
   }
 
-  tokenStatsChange24h(address: string): number | null {
-    return pctChange(this.priceUsd(address), this.priceAt(address, this.now() - DAY))
+  async tokenStatsChange24h(address: string): Promise<number | null> {
+    return pctChange(this.priceUsd(address), await this.priceAt(address, this.now() - DAY))
   }
 
   async tokenStats(address: string) {
     const token = this.resolveToken(address)
     const now = this.now()
     const priceUsd = this.priceUsd(token.address)
-    const supply = await this.totalSupply(token.address)
+    const [supply, p1h, p24h, volume24hUsd, volume7dUsd, high24hUsd, low24hUsd] = await Promise.all([
+      this.totalSupply(token.address),
+      this.priceAt(token.address, now - HOUR),
+      this.priceAt(token.address, now - DAY),
+      this.tokenVolume(token.address, now - DAY),
+      this.tokenVolume(token.address, now - 7 * DAY),
+      this.priceExtreme(token.address, now - DAY, 'MAX'),
+      this.priceExtreme(token.address, now - DAY, 'MIN'),
+    ])
     const fdv = priceUsd !== null && supply !== null ? (Number(supply) / 10 ** token.decimals) * priceUsd : null
     return {
       token: tokenJson(this.ctx, token),
       priceUsd,
-      change1h: pctChange(priceUsd, this.priceAt(token.address, now - HOUR)),
-      change24h: pctChange(priceUsd, this.priceAt(token.address, now - DAY)),
-      volume24hUsd: this.tokenVolume(token.address, now - DAY),
-      volume7dUsd: this.tokenVolume(token.address, now - 7 * DAY),
+      change1h: pctChange(priceUsd, p1h),
+      change24h: pctChange(priceUsd, p24h),
+      volume24hUsd,
+      volume7dUsd,
       tvlUsd: this.tokenTvl(token.address),
       fdvUsd: fdv,
       // devnet tokens have no locked/vesting supply: circulating == total
       marketCapUsd: fdv,
       totalSupply: supply?.toString() ?? null,
-      high24hUsd: this.priceExtreme(token.address, now - DAY, 'MAX'),
-      low24hUsd: this.priceExtreme(token.address, now - DAY, 'MIN'),
+      high24hUsd,
+      low24hUsd,
     }
   }
 
-  private priceExtreme(address: string, since: number, fn: 'MAX' | 'MIN'): number | null {
-    const row = this.db.get<{ v: number | null }>(`SELECT ${fn}(price) AS v FROM price_points WHERE token = ? AND timestamp > ?`, this.poolKey(address), since)
+  private async priceExtreme(address: string, since: number, fn: 'MAX' | 'MIN'): Promise<number | null> {
+    const row = await this.db.get<{ v: number | null }>(`SELECT ${fn}(price) AS v FROM price_points WHERE token = ? AND timestamp > ?`, this.poolKey(address), since)
     return row?.v ?? this.priceUsd(address)
   }
 
-  candles(address: string, interval: string, from?: number, to?: number) {
+  async candles(address: string, interval: string, from?: number, to?: number) {
     const sec = INTERVALS[interval]
     if (!sec || !['1m', '5m', '1h', '1d'].includes(interval)) throw new HttpError(400, 'interval must be 1m|5m|1h|1d')
     this.resolveToken(address)
@@ -181,11 +229,13 @@ export class Analytics {
     const start = from ?? end - defaultSpan
     // minute candles over the window, aggregated to the requested interval
     const minuteFrom = bucketStart(start, sec)
-    const points = this.db
-      .all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp >= ? AND timestamp <= ? ORDER BY block', key, minuteFrom, end)
-      .map((r) => ({ time: Number(r.timestamp), price: r.price }))
-    const prev = this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? AND timestamp < ? ORDER BY block DESC LIMIT 1', key, minuteFrom)?.price ?? null
-    const volumes = this.tokenVolumes(key, minuteFrom, end)
+    const prev = (await this.db.get<{ price: number }>('SELECT price FROM price_points WHERE token = ? AND timestamp < ? ORDER BY timestamp DESC, block DESC LIMIT 1', key, minuteFrom))?.price ?? null
+    if (this.db.kind === 'postgres') return this.candlesFromAggregates(key, interval, sec, minuteFrom, end, prev)
+    const points = (await this.db.all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp >= ? AND timestamp <= ? ORDER BY block', key, minuteFrom, end)).map((r) => ({
+      time: Number(r.timestamp),
+      price: r.price,
+    }))
+    const volumes = await this.tokenVolumes(key, minuteFrom, end)
     if (sec === 60) return buildCandles(points, volumes, 60, minuteFrom, end, prev)
     // build at minute resolution only when the window is small enough; otherwise directly
     const minutes = (end - minuteFrom) / 60
@@ -196,19 +246,57 @@ export class Analytics {
     return buildCandles(points, volumes, sec, minuteFrom, end, prev)
   }
 
-  private tokenVolumes(key: string, from: number, to: number) {
-    return this.db
-      .all<{ timestamp: number; amount_usd: number | null }>(
+  private async tokenVolumes(key: string, from: number, to: number) {
+    return (
+      await this.db.all<{ timestamp: number; amount_usd: number | null }>(
         'SELECT s.timestamp, s.amount_usd FROM swaps s JOIN pools p ON p.address = s.pool WHERE (p.token0 = ? OR p.token1 = ?) AND s.timestamp >= ? AND s.timestamp <= ?',
         key,
         key,
         from,
         to,
       )
-      .map((r) => ({ time: Number(r.timestamp), volumeUsd: r.amount_usd ?? 0 }))
+    ).map((r) => ({ time: Number(r.timestamp), volumeUsd: r.amount_usd ?? 0 }))
   }
 
-  priceHistory(address: string, range: string) {
+  /**
+   * Postgres: candles from the TimescaleDB continuous aggregates (price_ohlc_* / swap_volume_*).
+   * Each aggregate bucket becomes open/high/low/close points fed through the same builder, so the
+   * output (continuous opens, forward-filled gaps) matches the SQLite path exactly.
+   */
+  private async candlesFromAggregates(key: string, interval: string, sec: number, from: number, end: number, prev: number | null) {
+    const agg = sec >= 86400 ? '1d' : sec >= 3600 ? '1h' : '1m'
+    const aggSec = CAGG_SEC[agg]
+    // whole buckets from the aggregates; the bucket holding `end` from raw rows (it may extend past `end`)
+    const tail = bucketStart(end, aggSec)
+    const [ohlc, vols, tailPoints, tailVols] = await Promise.all([
+      this.db.all<{ bucket: number; open: number; high: number; low: number; close: number }>(
+        `SELECT bucket, open, high, low, close FROM price_ohlc_${agg} WHERE token = ? AND bucket >= ? AND bucket < ? ORDER BY bucket`,
+        key,
+        from,
+        tail,
+      ),
+      this.db.all<{ bucket: number; v: number | null }>(
+        `SELECT v.bucket, SUM(v.volume_usd) AS v FROM swap_volume_${agg} v JOIN pools p ON p.address = v.pool WHERE (p.token0 = ? OR p.token1 = ?) AND v.bucket >= ? AND v.bucket < ? GROUP BY v.bucket`,
+        key,
+        key,
+        from,
+        tail,
+      ),
+      this.db.all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp >= ? AND timestamp <= ? ORDER BY block', key, Math.max(tail, from), end),
+      this.tokenVolumes(key, Math.max(tail, from), end),
+    ])
+    const points = [
+      ...ohlc.flatMap((c) => [c.open, c.high, c.low, c.close].map((price) => ({ time: Number(c.bucket), price }))),
+      ...tailPoints.map((r) => ({ time: Number(r.timestamp), price: r.price })),
+    ]
+    const volumes = [...vols.map((v) => ({ time: Number(v.bucket), volumeUsd: v.v ?? 0 })), ...tailVols]
+    if (sec === aggSec) return buildCandles(points, volumes, sec, from, end, prev)
+    const buckets = (end - from) / aggSec
+    if (buckets <= 20_000) return aggregateCandles(buildCandles(points, volumes, aggSec, from, end, prev, 20_001), sec).slice(-2000)
+    return buildCandles(points, volumes, sec, from, end, prev)
+  }
+
+  async priceHistory(address: string, range: string) {
     const spec: Record<string, [number, number]> = {
       '1H': [HOUR, 60],
       '1D': [DAY, 300],
@@ -222,10 +310,11 @@ export class Analytics {
     return this.priceSeries(this.poolKey(address), this.now() - s[0], this.now(), s[1])
   }
 
-  private priceSeries(key: string, from: number, to: number, step: number) {
-    const points = this.db
-      .all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp <= ? ORDER BY block', key, to)
-      .map((r) => ({ time: Number(r.timestamp), value: r.price }))
+  private async priceSeries(key: string, from: number, to: number, step: number) {
+    // the last point before the window seeds the forward fill; then everything inside it
+    const before = await this.db.get<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp < ? ORDER BY timestamp DESC, block DESC LIMIT 1', key, bucketStart(from, step))
+    const inside = await this.db.all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp >= ? AND timestamp <= ? ORDER BY block', key, bucketStart(from, step), to)
+    const points = [...(before ? [before] : []), ...inside].map((r) => ({ time: Number(r.timestamp), value: r.price }))
     const series = bucketLast(points, step, from, to)
     // bucketLast forward-fills empty buckets; drop those repeats (keeping the first and last
     // point) so charts draw a line between actual price changes instead of a staircase.
@@ -238,16 +327,15 @@ export class Analytics {
     return out
   }
 
-  poolVolume(pool: string, since: number): { volume: number; fees: number } {
-    const r = this.db.get<{ v: number | null; f: number | null }>('SELECT SUM(amount_usd) AS v, SUM(fee_usd) AS f FROM swaps WHERE pool = ? AND timestamp > ?', pool, since)
+  async poolVolume(pool: string, since: number): Promise<{ volume: number; fees: number }> {
+    const r = await this.db.get<{ v: number | null; f: number | null }>('SELECT SUM(amount_usd) AS v, SUM(fee_usd) AS f FROM swaps WHERE pool = ? AND timestamp > ?', pool, since)
     return { volume: r?.v ?? 0, fees: r?.f ?? 0 }
   }
 
-  poolRow(p: PoolRuntime) {
+  async poolRow(p: PoolRuntime) {
     const now = this.now()
     const tvlUsd = this.poolTvl(p)
-    const d24 = this.poolVolume(p.address, now - DAY)
-    const d7 = this.poolVolume(p.address, now - 7 * DAY)
+    const [d24, d7] = await Promise.all([this.poolVolume(p.address, now - DAY), this.poolVolume(p.address, now - 7 * DAY)])
     const t0 = this.resolveToken(p.token0)
     const t1 = this.resolveToken(p.token1)
     return {
@@ -267,8 +355,8 @@ export class Analytics {
   }
 
   explorePools(sort = 'tvl', order = 'desc') {
-    return this.cached(`pools:${sort}:${order}`, () => {
-      const rows = [...this.indexer.pools.values()].map((p) => this.poolRow(p))
+    return this.cached(`pools:${sort}:${order}`, async () => {
+      const rows = await Promise.all([...this.indexer.pools.values()].map((p) => this.poolRow(p)))
       const key = { tvl: 'tvlUsd', volume: 'volume24hUsd', apr: 'apr', volume7d: 'volume7dUsd' }[sort] as keyof (typeof rows)[number]
       if (!key) throw new HttpError(400, 'sort must be tvl|volume|apr')
       const dir = order === 'asc' ? 1 : -1
@@ -299,9 +387,9 @@ export class Analytics {
     const tokens = this.indexer.tokens.all().filter((t) => !this.indexer.launchedTokens.has(lc(t.address)) || this.indexer.prices.has(lc(t.address)))
     const rows = await Promise.all(
       tokens.map(async (t) => {
-        const s = await this.tokenStats(t.address)
+        const [s, volumeUsd, sparkline] = await Promise.all([this.tokenStats(t.address), this.tokenVolume(t.address, since), this.sparkline(t.address)])
         // volumeUsd = volume over the requested range (volume24hUsd is always 24h)
-        return { ...s, range: range.toUpperCase(), volumeUsd: this.tokenVolume(t.address, since), tags: this.tagsFor(t.address), sparkline: this.sparkline(t.address) }
+        return { ...s, range: range.toUpperCase(), volumeUsd, tags: this.tagsFor(t.address), sparkline }
       }),
     )
     if (cat === 'trending') return rankTrending(rows.map((r) => ({ ...r, key: r.token.address })), 0, rows.length)
@@ -320,9 +408,9 @@ export class Analytics {
   }
 
   /** ~48-point price line over the last 24h (or since the first trade on a young chain). */
-  sparkline(address: string) {
+  async sparkline(address: string) {
     const key = this.poolKey(address)
-    const first = this.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM price_points WHERE token = ?', key)?.t
+    const first = (await this.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM price_points WHERE token = ?', key))?.t
     const now = this.now()
     const span = Math.max(60, Math.min(DAY, now - Number(first ?? now)))
     const step = Math.max(10, Math.ceil(span / 48))
@@ -330,8 +418,8 @@ export class Analytics {
   }
 
   /** Seconds of indexed history (first pool snapshot → now). */
-  dataSpan(): number {
-    const first = this.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM pool_snapshots')?.t
+  async dataSpan(): Promise<number> {
+    const first = (await this.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM pool_snapshots'))?.t
     return first === null || first === undefined ? 0 : this.now() - Number(first)
   }
 
@@ -343,24 +431,22 @@ export class Analytics {
     }
   }
 
-  exploreStats(requested: HistoryInterval = 'hour') {
-    const interval = effectiveInterval(requested, this.dataSpan())
-    return this.cached(`stats:${requested}:${interval}`, () => {
+  async exploreStats(requested: HistoryInterval = 'hour') {
+    const interval = effectiveInterval(requested, await this.dataSpan())
+    return this.cached(`stats:${requested}:${interval}`, async () => {
       const now = this.now()
       const pools = [...this.indexer.pools.values()]
-      const byVersion = (v: 'v2' | 'v3') => {
+      const byVersion = async (v: 'v2' | 'v3') => {
         const ps = pools.filter((p) => p.version === v)
         const tvl = ps.reduce((acc, p) => acc + (this.poolTvl(p) ?? 0), 0)
-        const vol = this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE version = ? AND timestamp > ?', v, now - DAY)?.v ?? 0
-        const vol7 = this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE version = ? AND timestamp > ?', v, now - 7 * DAY)?.v ?? 0
+        const vol = (await this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE version = ? AND timestamp > ?', v, now - DAY))?.v ?? 0
+        const vol7 = (await this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE version = ? AND timestamp > ?', v, now - 7 * DAY))?.v ?? 0
         return { tvlUsd: tvl, volume24hUsd: vol, volume7dUsd: vol7, poolCount: ps.length }
       }
-      const v2 = byVersion('v2')
-      const v3 = byVersion('v3')
+      const [v2, v3] = await Promise.all([byVersion('v2'), byVersion('v3')])
       const step = HISTORY_INTERVAL_SEC[interval]
       const span = HISTORY_WINDOW_SEC[interval]
-      const swaps = this.db
-        .all<{ timestamp: number; amount_usd: number | null; version: string }>('SELECT timestamp, amount_usd, version FROM swaps WHERE timestamp > ?', now - span)
+      const swaps = await this.db.all<{ timestamp: number; amount_usd: number | null; version: string }>('SELECT timestamp, amount_usd, version FROM swaps WHERE timestamp > ?', now - span)
       const volumeHistory = bucketSums(swaps.map((s) => ({ time: Number(s.timestamp), value: s.amount_usd ?? 0 })), step, now - span, now)
       const first = volumeHistory.findIndex((b) => b.value > 0)
       return {
@@ -373,15 +459,15 @@ export class Analytics {
         requestedInterval: requested,
         bucketSec: step,
         volumeHistory: volumeHistory.slice(Math.max(0, first)).map((b) => ({ time: b.time, volumeUsd: b.value })),
-        tvlHistory: this.tvlHistory(step, now - span, now),
-        txCount24h: this.db.get<{ c: number }>('SELECT COUNT(*) AS c FROM swaps WHERE timestamp > ?', now - DAY)?.c ?? 0,
+        tvlHistory: await this.tvlHistory(step, now - span, now),
+        txCount24h: Number((await this.db.get<{ c: number }>('SELECT COUNT(*) AS c FROM swaps WHERE timestamp > ?', now - DAY))?.c ?? 0),
       }
     })
   }
 
   /** Protocol TVL per bucket = Σ pools' last snapshot TVL at bucket end. */
-  private tvlHistory(step: number, from: number, to: number, pool?: string) {
-    const snaps = this.db.all<{ pool: string; timestamp: number; tvl_usd: number | null }>(
+  private async tvlHistory(step: number, from: number, to: number, pool?: string) {
+    const snaps = await this.db.all<{ pool: string; timestamp: number; tvl_usd: number | null }>(
       pool ? 'SELECT pool, timestamp, tvl_usd FROM pool_snapshots WHERE pool = ? ORDER BY block' : 'SELECT pool, timestamp, tvl_usd FROM pool_snapshots ORDER BY block',
       ...(pool ? [pool] : []),
     )
@@ -404,7 +490,7 @@ export class Analytics {
    * Token TVL over time: Σ over pools holding the token of (token reserve at bucket end × token
    * price at bucket end). Accepts a web range (1H..ALL) or interval/from/to.
    */
-  tokenTvlHistory(address: string, q: { range?: string; interval?: string; from?: number; to?: number }) {
+  async tokenTvlHistory(address: string, q: { range?: string; interval?: string; from?: number; to?: number }) {
     this.resolveToken(address)
     const key = this.poolKey(address)
     const now = q.to ?? this.now()
@@ -424,9 +510,11 @@ export class Analytics {
     }
     const pools = [...this.indexer.pools.values()].filter((p) => p.token0 === key || p.token1 === key)
     if (pools.length === 0) return []
-    const firstTs = this.db.get<{ t: number | null }>(
-      `SELECT MIN(timestamp) AS t FROM pool_snapshots WHERE pool IN (${pools.map(() => '?').join(',')})`,
-      ...pools.map((p) => p.address),
+    const firstTs = (
+      await this.db.get<{ t: number | null }>(
+        `SELECT MIN(timestamp) AS t FROM pool_snapshots WHERE pool IN (${pools.map(() => '?').join(',')})`,
+        ...pools.map((p) => p.address),
+      )
     )?.t
     if (firstTs === null || firstTs === undefined) return []
     const interval = effectiveInterval(requested, now - Number(firstTs))
@@ -437,10 +525,10 @@ export class Analytics {
     const events: Ev[] = []
     for (const p of pools) {
       const col = p.token0 === key ? 'reserve0' : 'reserve1'
-      for (const r of this.db.all<{ timestamp: number; block: number; r: string }>(`SELECT timestamp, block, ${col} AS r FROM pool_snapshots WHERE pool = ? ORDER BY block`, p.address))
+      for (const r of await this.db.all<{ timestamp: number; block: number; r: string }>(`SELECT timestamp, block, ${col} AS r FROM pool_snapshots WHERE pool = ? ORDER BY block`, p.address))
         events.push({ time: Number(r.timestamp), block: Number(r.block), kind: 'snap', pool: p.address, amount: Number(r.r) / 10 ** decimals })
     }
-    for (const r of this.db.all<{ timestamp: number; block: number; price: number }>('SELECT timestamp, block, price FROM price_points WHERE token = ? ORDER BY block', key))
+    for (const r of await this.db.all<{ timestamp: number; block: number; price: number }>('SELECT timestamp, block, price FROM price_points WHERE token = ? ORDER BY block', key))
       events.push({ time: Number(r.timestamp), block: Number(r.block), kind: 'price', price: r.price })
     events.sort((a, b) => a.block - b.block)
     const start = bucketStart(from, step)
@@ -460,7 +548,7 @@ export class Analytics {
     return out
   }
 
-  poolDetail(address: string) {
+  async poolDetail(address: string) {
     const p = this.indexer.pools.get(lc(address))
     if (!p) throw new HttpError(404, `Unknown pool ${address}`)
     const d0 = this.indexer.decimals.get(p.token0) ?? 18
@@ -469,9 +557,9 @@ export class Analytics {
     if (p.version === 'v3' && p.sqrtPriceX96) token0Price = sqrtPriceToPrice(p.sqrtPriceX96, d0, d1)
     else if (p.reserve0 > 0n) token0Price = Number(p.reserve1) / 10 ** d1 / (Number(p.reserve0) / 10 ** d0)
     const now = this.now()
-    const prevTvl = this.db.get<{ tvl_usd: number | null }>('SELECT tvl_usd FROM pool_snapshots WHERE pool = ? AND timestamp <= ? ORDER BY block DESC LIMIT 1', p.address, now - DAY)?.tvl_usd
-    const prevVol = this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE pool = ? AND timestamp > ? AND timestamp <= ?', p.address, now - 2 * DAY, now - DAY)?.v
-    const row = this.poolRow(p)
+    const prevTvl = (await this.db.get<{ tvl_usd: number | null }>('SELECT tvl_usd FROM pool_snapshots WHERE pool = ? AND timestamp <= ? ORDER BY block DESC LIMIT 1', p.address, now - DAY))?.tvl_usd
+    const prevVol = (await this.db.get<{ v: number | null }>('SELECT SUM(amount_usd) AS v FROM swaps WHERE pool = ? AND timestamp > ? AND timestamp <= ?', p.address, now - 2 * DAY, now - DAY))?.v
+    const row = await this.poolRow(p)
     return {
       ...row,
       tickSpacing: p.tickSpacing,
@@ -496,7 +584,7 @@ export class Analytics {
     }
   }
 
-  poolHistory(address: string, requested: HistoryInterval = 'hour') {
+  async poolHistory(address: string, requested: HistoryInterval = 'hour') {
     const p = this.indexer.pools.get(lc(address))
     if (!p) throw new HttpError(404, `Unknown pool ${address}`)
     const now = this.now()
@@ -504,12 +592,11 @@ export class Analytics {
     const step = HISTORY_INTERVAL_SEC[interval]
     const span = HISTORY_WINDOW_SEC[interval]
     const from = Math.max(now - span, p.createdTs)
-    const swaps = this.db.all<{ timestamp: number; amount_usd: number | null; fee_usd: number | null }>('SELECT timestamp, amount_usd, fee_usd FROM swaps WHERE pool = ? AND timestamp > ?', p.address, from - step)
+    const swaps = await this.db.all<{ timestamp: number; amount_usd: number | null; fee_usd: number | null }>('SELECT timestamp, amount_usd, fee_usd FROM swaps WHERE pool = ? AND timestamp > ?', p.address, from - step)
     const vol = bucketSums(swaps.map((s) => ({ time: Number(s.timestamp), value: s.amount_usd ?? 0 })), step, from, now)
     const fees = bucketSums(swaps.map((s) => ({ time: Number(s.timestamp), value: s.fee_usd ?? 0 })), step, from, now)
-    const tvl = new Map(this.tvlHistory(step, from, now, p.address).map((t) => [t.time, t.tvlUsd]))
-    const prices = this.db
-      .all<{ timestamp: number; price0: number | null }>('SELECT timestamp, price0 FROM pool_snapshots WHERE pool = ? ORDER BY block', p.address)
+    const tvl = new Map((await this.tvlHistory(step, from, now, p.address)).map((t) => [t.time, t.tvlUsd]))
+    const prices = (await this.db.all<{ timestamp: number; price0: number | null }>('SELECT timestamp, price0 FROM pool_snapshots WHERE pool = ? ORDER BY block', p.address))
       .filter((r) => r.price0 !== null)
       .map((r) => ({ time: Number(r.timestamp), value: r.price0! }))
     const price = new Map(bucketLast(prices, step, from, now).map((x) => [x.time, x.value]))
@@ -523,13 +610,13 @@ export class Analytics {
   }
 
   /** V3 liquidity distribution from indexed Mint/Burn events (exact: same deltas the pool applies). */
-  poolTicks(address: string) {
+  async poolTicks(address: string) {
     const p = this.indexer.pools.get(lc(address))
     if (!p) throw new HttpError(404, `Unknown pool ${address}`)
     if (p.version !== 'v3') throw new HttpError(400, 'ticks are only available for v3 pools')
     const net = new Map<number, bigint>()
     const gross = new Map<number, bigint>()
-    for (const e of this.db.all<{ type: string; tick_lower: number; tick_upper: number; liquidity: string }>(
+    for (const e of await this.db.all<{ type: string; tick_lower: number; tick_upper: number; liquidity: string }>(
       "SELECT type, tick_lower, tick_upper, liquidity FROM liquidity_events WHERE pool = ? AND version = 'v3' ORDER BY block, log_index",
       p.address,
     )) {
@@ -571,7 +658,7 @@ export class Analytics {
     }
   }
 
-  transactions(opts: { type?: string; token?: string; pool?: string; account?: string; limit?: number; before?: number }) {
+  async transactions(opts: { type?: string; token?: string; pool?: string; account?: string; limit?: number; before?: number }) {
     const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500)
     const out: Record<string, unknown>[] = []
     const where: string[] = []
@@ -596,7 +683,7 @@ export class Analytics {
     const w = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const types = opts.type ? opts.type.split(',') : ['swap', 'add', 'remove']
     if (types.includes('swap')) {
-      for (const r of this.db.all<Record<string, string | number | null>>(
+      for (const r of await this.db.all<Record<string, string | number | null>>(
         `SELECT x.*, p.token0, p.token1, p.fee FROM swaps x JOIN pools p ON p.address = x.pool ${w} ORDER BY x.block DESC, x.log_index DESC LIMIT ?`,
         ...params,
         limit,
@@ -606,7 +693,7 @@ export class Analytics {
     const liqTypes = types.filter((t) => t === 'add' || t === 'remove')
     if (liqTypes.length) {
       const typeClause = `x.type IN (${liqTypes.map(() => '?').join(',')}) AND (x.amount0 != '0' OR x.amount1 != '0')`
-      for (const r of this.db.all<Record<string, string | number | null>>(
+      for (const r of await this.db.all<Record<string, string | number | null>>(
         `SELECT x.*, p.token0, p.token1, p.fee FROM liquidity_events x JOIN pools p ON p.address = x.pool ${w ? `${w} AND ${typeClause}` : `WHERE ${typeClause}`} ORDER BY x.block DESC, x.log_index DESC LIMIT ?`,
         ...params,
         ...liqTypes,

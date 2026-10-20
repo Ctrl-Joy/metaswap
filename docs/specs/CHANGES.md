@@ -2,6 +2,20 @@
 
 Changes to the binding interfaces in PLAN.md, newest first.
 
+## 2026-10-21 — Backend: Postgres/TimescaleDB, WebSocket push, live demo wallet (API)
+Additive for REST clients: shapes are unchanged except the demo address.
+- **Storage:** the API uses PostgreSQL + TimescaleDB when `DATABASE_URL` is set. `npm start` reads it from `services/api/.env`. Without it, the API falls back to SQLite.
+  - Everything lives in schema `metaswap`, and migrations run in code.
+  - Hypertables: `blocks`, `swaps`, `transfers`, `price_points`, `pool_snapshots`.
+  - Candles come from continuous aggregates: `price_ohlc_1m|1h|1d` and `swap_volume_1m|1h|1d`.
+  - A new chain drops and recreates the schema.
+  - `/health` adds `database: "postgres"|"sqlite"`.
+- **WebSocket** at `ws://127.0.0.1:8787/ws`. Topics: `blocks`, `prices`, `explore`, `launches`, `x:orders`, `token:<addr>`, `pool:<addr>`, `account:<addr>`. The client contract and message shapes are in `services/api/README.md` under "WebSocket".
+- **Demo wallet:** `GET /accounts/demo` is now **Anvil #19** (`0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199`), not #1.
+  - `market.ts --history` builds it, worth ~$3.5k: ETH, WETH, mUSDC, META, mARB, a WETH/mUSDC V3 position, a meUSDC deposit, and a MANGO bid that it later claims.
+  - `--live` makes it trade, deposit or withdraw, or collect fees every 1–3 minutes.
+  - #15–#18 remain extra bidders. #1 is no longer used by `market.ts`.
+
 ## 2026-10-21 — Stage 5 API notes (API)
 All STAGE5 §3 endpoints are implemented with the specified fields. The additions below are additive (see `services/api/README.md` "Stage 5 endpoints"):
 - New endpoints: `GET /earn/vaults/:address` and `GET /accounts/:a/nfts`. `/accounts/demo` also returns `label: "Demo wallet"`.

@@ -1,8 +1,9 @@
 # @metaswap/api
 
-The MetaSwap backend. It is a Hono server on `http://127.0.0.1:8787` with four parts:
+The MetaSwap backend. It is a Hono server on `http://127.0.0.1:8787` (WebSocket push on `ws://127.0.0.1:8787/ws`) with these parts:
 
-- an **event indexer** that writes to SQLite;
+- an **event indexer** that writes to PostgreSQL + TimescaleDB (`DATABASE_URL`), or to SQLite when that is unset;
+- **real-time push** over WebSocket, published by the indexer as it commits blocks;
 - **USD pricing and analytics**;
 - a **smart order router** that returns UniversalRouter calldata with Permit2 support;
 - the **MetaSwapX** order book, plus a built-in **filler bot**.
@@ -25,7 +26,8 @@ To get a chain with contracts and seed data, run `node scripts/dev.mjs --chain-o
 | `PORT` / `HOST` | `8787` / `127.0.0.1` | |
 | `METASWAP_RPC` (alias `RPC_URL`) | `http://127.0.0.1:8545` | JSON-RPC endpoint |
 | `METASWAP_DEPLOYMENT_FILE` | – | Overrides the deployment JSON. Default order: synced `@metaswap/sdk`, then `packages/contracts/deployments/31337.json` if the sdk copy is still a placeholder. |
-| `DB_PATH` | `services/api/data/metaswap.sqlite` | SQLite file (WAL) |
+| `DATABASE_URL` | – | PostgreSQL + TimescaleDB, e.g. `postgres://user:pass@127.0.0.1:5432/metaswap`. `npm start`/`npm run dev` read it from `services/api/.env` (already-set variables win). Unset → SQLite. |
+| `DB_PATH` | `services/api/data/metaswap.sqlite` | SQLite file (WAL), used when `DATABASE_URL` is unset |
 | `INDEXER_POLL_MS` | `1000` | head polling interval |
 | `INDEXER_BATCH_SIZE` | `2000` | blocks per `eth_getLogs` during backfill |
 | `INDEXER_REORG_DEPTH` | `32` | how far back to look for a common ancestor |
@@ -41,7 +43,8 @@ To get a chain with contracts and seed data, run `node scripts/dev.mjs --chain-o
 
 ```
 src/index.ts            server entry           src/app.ts        routes + service wiring
-src/config.ts, context.ts, db.ts (schema migrations in code, PRAGMA user_version)
+src/config.ts, context.ts, db.ts (storage interface; backends in src/storage/: postgres.ts, sqlite.ts)
+src/realtime/hub.ts     WebSocket hub (/ws): topics, snapshots, publishing from the indexer
 src/abis.ts             Uniswap-compatible ABI fragments, checked against the synced sdk ABIs at startup
 src/indexer/            backfill from deployment.blockNumber, 1 s head polling, reorg/reset detection
 src/pricing/            USD prices (deepest path from stables), candles/bucketing (pure)
@@ -68,6 +71,18 @@ It also reads each block's transactions, which give the tx origin for activity a
 - At the end of every block that changes anything, it recomputes USD prices and stores `price_points` and `pool_snapshots`. Candles, volume and TVL history are aggregated from these rows when a request arrives.
 - All rows are keyed by `(block, logIndex)`, so re-indexing a range is idempotent.
 - **Reorg and chain-restart handling:** on every poll, the indexer checks the stored hash of the last indexed block. On a mismatch, it rolls back to the newest common ancestor within `INDEXER_REORG_DEPTH` and replays from there. If there is no common ancestor (for example after an Anvil restart), it rebuilds the index from scratch. A changed deployment does the same.
+
+### Storage
+
+One async interface (`src/storage/common.ts`), two backends:
+
+- **PostgreSQL + TimescaleDB** when `DATABASE_URL` is set. Everything lives in the `metaswap` schema; migrations run in code at startup (`metaswap.schema_version`).
+  - Hypertables, partitioned on the unix `timestamp` column in 7-day chunks: `blocks`, `swaps`, `transfers`, `price_points`, `pool_snapshots`.
+  - Continuous aggregates (real-time, refreshed by TimescaleDB jobs): `price_ohlc_1m|1h|1d` (first/max/min/last price per token) and `swap_volume_1m|1h|1d` (USD volume, fees and swap count per pool). `GET /tokens/:a/candles` reads them; the output is identical to the SQLite path.
+  - A new chain (changed deployment, or a restart with no common ancestor) drops and recreates the schema.
+- **SQLite** (`node:sqlite`) otherwise, so tests and fresh clones need no server. Migrations use `PRAGMA user_version`; a new chain truncates the tables.
+
+The indexer decodes a block range into a write batch and commits it in one transaction (multi-row upserts on Postgres). Reads are never blocked by a half-written range. Both backends run the same SQL (written with `?` placeholders).
 
 ### Pricing
 
@@ -176,7 +191,7 @@ Amounts are decimal strings in base units unless a field ends in `Formatted` or 
 | `GET /accounts/:a/portfolio` | `{ totalUsd, tokensUsd, earnUsd, poolsUsd, change24hUsd, change24hPct, tokens:[{ token, priceUsd, balance, balanceFormatted, valueUsd, avgCostUsd, costBasisUsd, unrealizedPnlUsd, unrealizedPnlPct, change24h, tags }], pools:[positions + status in-range\|out-of-range\|closed, feesUsd], earn, earnLifetimeEarningsUsd, nfts, activity }` |
 | `GET /accounts/:a/portfolio/history?range=1H\|1D\|1W\|1M\|1Y\|ALL` | `[{ time, valueUsd }]`: 60–122 buckets; at each, ETH + every token `balanceOf`, vault shares → assets, V2 LP and V3 positions are read **at the historical block** (one Multicall per bucket) and valued at that time's prices. The last point uses live prices, so it matches `totalUsd`. Cached 30 s |
 | `GET /accounts/:a/nfts` | V3 position NFTs `{ tokenId, contract, pool, name, image (data:image/svg+xml), tokenURI, inRange, closed }` |
-| `GET /accounts/demo` | `{ address, label }`: the demo wallet (Anvil #1) |
+| `GET /accounts/demo` | `{ address, label }`: the demo wallet (Anvil #19, built and kept active by `scripts/market.ts`: ~$2–5k of tokens, one V3 position, an Earn deposit and a launch bid; acts every 1–3 min in live mode) |
 
 How the Stage 5 values are computed:
 
@@ -240,9 +255,76 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
 # → 201 { orderHash, status:"open", resolved:{ input, outputs }, … }  → becomes "filled" when the bot fills it
 ```
 
+## WebSocket (`ws://127.0.0.1:8787/ws`)
+
+The indexer publishes after it commits each block range, so a pushed value always matches what the REST endpoint returns at that moment. Payloads reuse the REST shapes. Amounts are base-unit strings and addresses are checksummed, as in REST.
+
+**Client → server** (JSON text frames; `id` is optional and echoed back):
+
+```json
+{ "op": "subscribe",   "topics": ["blocks", "prices", "account:0xabc…"], "id": 1 }
+{ "op": "unsubscribe", "topics": ["blocks"], "id": 2 }
+{ "op": "ping", "id": 3 }
+```
+
+**Server → client:**
+
+```json
+{ "type": "hello", "indexedBlock": 1234, "indexedTimestamp": 1792300000, "topics": ["blocks", "prices", "explore", "launches", "x:orders", "token:<address>", "pool:<address>", "account:<address>"] }
+{ "type": "subscribed", "id": 1, "topics": ["blocks", "prices", "account:0xabc…"], "invalid": ["token:nope"] }
+{ "type": "unsubscribed", "id": 2, "topics": ["prices", "account:0xabc…"] }
+{ "type": "pong", "id": 3 }
+{ "type": "error", "message": "…" }
+{ "type": "event", "topic": "<topic>", "event": "<event>", "block": 1235, "data": { … }, "snapshot": true }
+```
+
+- Topic addresses are case-insensitive. The server stores them lower-case and echoes that form in `topic`.
+- `subscribed`/`unsubscribed` list the client's full current set. `invalid` lists topics that were rejected. The limit is 200 topics per connection.
+- Right after a subscribe, some topics get one event with `"snapshot": true` holding the current state: `blocks`, `prices`, `explore` (stats), `token:` (price), `pool:` (state) and `account:` (portfolio).
+- The server pings every 30 s and drops connections that do not answer. Browsers answer automatically.
+- On reconnect, re-subscribe, then refetch over REST anything you may have missed.
+
+| topic | event | `data` | when |
+|---|---|---|---|
+| `blocks` | `block` | `{ number, hash, timestamp }` | every committed range (≈ every block live) |
+| | `reorg` | `{ rolledBackTo }` | rollback after a reorg; refetch |
+| | `reset` | `{}` | new chain, index rebuilt; refetch everything |
+| `prices` | `prices` | `{ timestamp, prices: { <token>: usd } }` | only the tokens whose price changed. Native ETH = the WETH price. |
+| `explore` | `txs` | `[tx]` (same shape as `/explore/transactions`, oldest first) | new swaps / adds / removes |
+| | `stats` | `{ tvlUsd, volume24hUsd, volume7dUsd, txCount24h, v2, v3 }` (as `/explore/stats`, without the histories) | at most every 5 s |
+| `token:<addr>` | `price` | `{ token, priceUsd, timestamp }` | the token's price changed |
+| | `candle` | `{ interval: "1m", candle: { time, open, high, low, close, volumeUsd } }` | the current minute candle (upsert by `time`) |
+| | `txs` | `[tx]` in pools containing the token | new trades / liquidity |
+| `pool:<addr>` | `state` | `{ address, version, reserve0, reserve1, sqrtPriceX96, tick, liquidity, token0Price, token1Price, tvlUsd, volume24hUsd, fees24hUsd, apr }` | the pool changed |
+| | `txs` | `[tx]` | new trades / liquidity in the pool |
+| `account:<addr>` | `activity` | new items in the `/accounts/:a/activity` shape | the account appears in the range (origin, sender/receiver, bidder, depositor, …) |
+| | `balances` | `/accounts/:a/balances` | same |
+| | `positions` | `/accounts/:a/positions` | same |
+| | `portfolio` | `{ address, totalUsd, tokensUsd, earnUsd, poolsUsd, change24hUsd, change24hPct, tokens, pools, earn }` (as `/accounts/:a/portfolio`, without nfts/activity) | on activity, and at most every 5 s when prices move |
+| | `order` | MetaSwapX order (as `/x/orders/:hash`) | the account's order was submitted or changed status |
+| `launches` | `launch` | `{ auction, token, name, symbol, launchpad }` | new launch |
+| | `bid` | `{ auction, bidId, bidder, amount, maxPrice, txHash, blockNumber, timestamp }` | new bid |
+| | `update` | a `/launches` row + `previousStatus` | status change (time-based too: upcoming → active → ended) or new bids on that auction |
+| | `settled` | `{ auction, launched, clearingPrice, raised, pool, txHash }` | auction settled |
+| | `claim` | `{ auction, bidId, bidder, tokens, refund, txHash }` | bid claimed |
+| `x:orders` | `order` | MetaSwapX order (as `/x/orders/:hash`) | any order submitted or changing status (filled / expired / cancelled) |
+
+Example (browser):
+
+```js
+const ws = new WebSocket('ws://127.0.0.1:8787/ws')
+ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', topics: ['prices', `account:${address}`] }))
+ws.onmessage = (e) => {
+  const m = JSON.parse(e.data)
+  if (m.type !== 'event') return
+  if (m.topic === 'prices') updatePrices(m.data.prices)
+  else if (m.event === 'portfolio') setPortfolio(m.data)
+}
+```
+
 ## Tests
 
-- **Unit tests** (`test/unit`, 37 tests):
+- **Unit tests** (`test/unit`, 48 tests):
   - path enumeration and V3 path encoding;
   - V2 math, mid price and price impact, gas conversion, slippage;
   - the split optimiser;
@@ -252,7 +334,7 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
   - USD pricing;
   - candle and bucket aggregation;
   - TickMath.
-- **Integration tests** (`test/integration`, 13 tests): these run only when `METASWAP_RPC` (default `:8545`) has a deployment whose UniversalRouter and reactor have code. They start the API in-process with a temporary DB, use fresh `anvil_setBalance`-funded accounts, and cover:
+- **Integration tests** (`test/integration`, 19 tests): these run only when `METASWAP_RPC` (default `:8545`) has a deployment whose UniversalRouter and reactor have code. They start the API in-process with a temporary DB, use fresh `anvil_setBalance`-funded accounts, and cover:
   - a Permit2 approve + sign + `/swap` round trip;
   - ETH input (WRAP) and ETH output (UNWRAP);
   - a 2-hop swap, a split trade and an exact-output trade, each executed and checked against `amountOutMin`/`amountInMax`;
@@ -262,6 +344,11 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
   - a MetaSwapX Dutch order filled by the filler bot on-chain;
   - nonce-invalidation cancellation;
   - minute pool history, token TVL history, explore token ranges and auto-refined stats buckets.
+- **WebSocket test** (`test/integration/realtime.test.ts`): it subscribes to every topic kind, performs a wrap and a swap, and checks the block, price, token, pool, explore and account events.
+- **Both storage backends:** the suite uses SQLite by default. Set `DATABASE_URL` to run it on Postgres (use a separate database such as `metaswap_test`):
+  ```bash
+  DATABASE_URL=postgres://…/metaswap_test METASWAP_RPC=http://127.0.0.1:8555 METASWAP_DEPLOYMENT_FILE=$TEMP/ms-8555.json npx vitest run test/integration
+  ```
 - `scripts/test-chain.sh` starts a private Anvil on `:8555`, deploys and seeds it, and leaves the shared `deployments/31337.json` unchanged. Run the suite against it:
   ```bash
   METASWAP_RPC=http://127.0.0.1:8555 METASWAP_DEPLOYMENT_FILE=$TEMP/ms-8555.json npx vitest run test/integration

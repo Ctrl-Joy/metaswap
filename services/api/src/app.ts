@@ -78,7 +78,8 @@ export function createApp(s: Services) {
   })
   app.notFound((c) => c.json({ error: 'not found' }, 404))
 
-  const json = (c: HonoContext, v: unknown) => c.json(jsonSafe(v) as object)
+  // handlers may pass a value or a promise (most service calls are async)
+  const json = async (c: HonoContext, v: unknown) => c.json(jsonSafe(await v) as object)
   const requireDeployment = () => {
     if (!hasDeployment(ctx)) throw new HttpError(503, 'Contracts are not deployed (run node scripts/dev.mjs --chain-only)')
   }
@@ -102,6 +103,7 @@ export function createApp(s: Services) {
       headBlock,
       deployment: deployed ? { blockNumber: ctx.deployment.blockNumber, contracts: Object.keys(ctx.deployment.contracts).length } : null,
       indexerError: s.indexer.lastError,
+      database: ctx.db.kind,
       filler: s.filler.status(),
       networks: METACHAIN_NETWORKS,
     })

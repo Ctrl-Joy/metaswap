@@ -19,6 +19,8 @@ export interface Config {
   port: number
   rpcUrl: string
   dbPath: string
+  /** PostgreSQL + TimescaleDB connection string; SQLite at dbPath when unset */
+  databaseUrl?: string
   pollMs: number
   /** blocks per eth_getLogs during backfill */
   batchSize: number
@@ -41,6 +43,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     port: int(env.PORT, 8787),
     rpcUrl: env.METASWAP_RPC ?? env.RPC_URL ?? 'http://127.0.0.1:8545',
     dbPath: env.DB_PATH ?? resolve(API_ROOT, 'data/metaswap.sqlite'),
+    databaseUrl: env.DATABASE_URL || undefined,
     pollMs: int(env.INDEXER_POLL_MS, 1000),
     batchSize: int(env.INDEXER_BATCH_SIZE, 2000),
     reorgDepth: int(env.INDEXER_REORG_DEPTH, 32),
