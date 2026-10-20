@@ -155,6 +155,9 @@ function pendingTitle(type: TxType): string {
     case 'send': return 'Sending'
     case 'faucet': return 'Minting test tokens'
     case 'cancel-order': return 'Cancelling order'
+    case 'add-liquidity': return 'Adding liquidity'
+    case 'remove-liquidity': return 'Removing liquidity'
+    case 'collect-fees': return 'Collecting fees'
     default: return 'Transaction pending'
   }
 }
@@ -168,6 +171,9 @@ function doneTitle(type: TxType): string {
     case 'send': return 'Sent'
     case 'faucet': return 'Test tokens received'
     case 'cancel-order': return 'Order cancelled'
+    case 'add-liquidity': return 'Liquidity added'
+    case 'remove-liquidity': return 'Liquidity removed'
+    case 'collect-fees': return 'Fees collected'
     default: return 'Transaction confirmed'
   }
 }

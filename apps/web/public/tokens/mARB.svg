@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2D9CDB"/><stop offset="1" stop-color="#1B5E9A"/></linearGradient></defs>
-  <circle cx="64" cy="64" r="64" fill="url(#g)"/><circle cx="64" cy="64" r="58" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-dasharray="6 6"/>
-  <text x="64" y="64" dy=".35em" text-anchor="middle" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" font-size="36" fill="#fff" letter-spacing="-0.5">ARB</text>
+  <defs>
+    <linearGradient id="marb-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2D4466"/><stop offset="1" stop-color="#16243A"/></linearGradient>
+    <radialGradient id="marb-hl" cx="0.3" cy="0.2" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#marb-bg)"/>
+  <circle cx="64" cy="64" r="64" fill="url(#marb-hl)"/>
+  <path d="M64 24 97 43v42L64 104 31 85V43Z" fill="#fff" fill-opacity=".07" stroke="#9DCCED" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M46 88 62 46h4l16 42" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m71 64 9-22M80 88l9-23" stroke="#28A0F0" stroke-width="7" stroke-linecap="round"/>
 </svg>

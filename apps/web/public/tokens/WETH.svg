@@ -1,5 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9AA3B5"/><stop offset="1" stop-color="#5F687C"/></linearGradient></defs>
-  <circle cx="64" cy="64" r="64" fill="url(#g)"/>
-  <text x="64" y="64" dy=".35em" text-anchor="middle" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" font-size="30" fill="#fff" letter-spacing="-0.5">WETH</text>
+  <defs>
+    <linearGradient id="weth-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B2F45"/><stop offset="1" stop-color="#14161F"/></linearGradient>
+    <radialGradient id="weth-hl" cx="0.3" cy="0.2" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#weth-bg)"/>
+  <circle cx="64" cy="64" r="64" fill="url(#weth-hl)"/>
+  <g transform="translate(64 64) scale(.78) translate(-64 -64)">  <g>
+    <path d="M64 18 36 65l28 16.5L92 65Z" fill="#C9CEFF" fill-opacity=".95"/>
+    <path d="M64 18v63.5L92 65Z" fill="#8F99FF" fill-opacity=".7"/>
+    <path d="M36 70.5 64 110l28-39.5-28 16.5Z" fill="#C9CEFF" fill-opacity=".95"/>
+    <path d="M64 87v23l28-39.5Z" fill="#8F99FF" fill-opacity=".7"/>
+    <path d="M36 65l28-12.7L92 65 64 81.5Z" fill="#000" fill-opacity=".12"/>
+  </g></g>
+  <path d="M64 14a50 50 0 0 1 47 33" fill="none" stroke="#FF7AB8" stroke-width="7" stroke-linecap="round"/>
+  <path d="M64 114a50 50 0 0 1-47-33" fill="none" stroke="#FF7AB8" stroke-width="7" stroke-linecap="round"/>
+  <path d="m104 40 7 7.5 7-9.5" fill="none" stroke="#FF7AB8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m24 88-7-7.5-7 9.5" fill="none" stroke="#FF7AB8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

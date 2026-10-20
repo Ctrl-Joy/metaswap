@@ -94,9 +94,12 @@ if (await rpcReady(500)) {
   process.exit(1)
 }
 
-start('anvil', 'anvil', ['--chain-id', '31337', '--block-time', '1', '--accounts', '10', '--balance', '10000', '--port', '8545'], root, {
-  logFile: join(root, '.dev/anvil.log'),
-})
+// Start the chain's clock in the past so scripts/history.ts can replay HISTORY_DAYS of hourly
+// trading up to "now" — every chart range then has real data. HISTORY_DAYS=0 disables it.
+const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
+const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '10', '--balance', '10000', '--port', '8545']
+if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
+start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
 if (!(await rpcReady())) {
   log('anvil did not start')
   shutdown(1)
@@ -108,7 +111,8 @@ await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
 if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
 await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
 await run('node', ['packages/sdk/scripts/sync.mjs'], root)
-log('chain ready: contracts deployed, pools seeded, sdk synced')
+if (historyDays > 0) await run('npx', ['tsx', 'scripts/history.ts'], root)
+log('chain ready: contracts deployed, pools seeded, sdk synced' + (historyDays > 0 ? `, ${historyDays}d history generated` : ''))
 
 if (!args.has('--chain-only')) {
   if (existsSync(join(root, 'services/api/package.json'))) start('api', 'npm', ['run', 'dev', '-w', '@metaswap/api'], root)
