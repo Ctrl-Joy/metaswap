@@ -7,18 +7,18 @@
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --ms-bg: #0b0c10;
-  --ms-surface-1: #13141a;
-  --ms-surface-1-hover: #171820;
-  --ms-surface-2: #1a1c24;
-  --ms-surface-2-hover: #20232d;
+  --ms-bg: #131313;
+  --ms-surface-1: #131313;
+  --ms-surface-1-hover: #1b1b1b;
+  --ms-surface-2: #1f1f1f;
+  --ms-surface-2-hover: #242424;
   --ms-surface-3: #ffffff1f;
   --ms-surface-3-hover: #ffffff29;
-  --ms-surface-3-solid: #2a2d38;
-  --ms-border: #2a2d38;
-  --ms-text-1: #f2f4f8;
-  --ms-text-2: #a4aab9;
-  --ms-text-3: #6e7486;
+  --ms-surface-3-solid: #393939;
+  --ms-border: rgba(255, 255, 255, 0.12);
+  --ms-text-1: #ffffff;
+  --ms-text-2: rgba(255, 255, 255, 0.65);
+  --ms-text-3: rgba(255, 255, 255, 0.38);
   --ms-accent: #8b8cff;
   --ms-accent-fill: #5b5bf0;
   --ms-accent-hover: #7a7bff;
@@ -43,18 +43,18 @@
 
 [data-theme='light'] {
   color-scheme: light;
-  --ms-bg: #f5f6fa;
+  --ms-bg: #ffffff;
   --ms-surface-1: #ffffff;
-  --ms-surface-1-hover: #fafbfd;
-  --ms-surface-2: #f0f1f7;
-  --ms-surface-2-hover: #e8eaf3;
-  --ms-surface-3: rgba(14, 16, 32, 0.08);
-  --ms-surface-3-hover: rgba(14, 16, 32, 0.12);
-  --ms-surface-3-solid: #e4e6f0;
-  --ms-border: #dcdfea;
-  --ms-text-1: #0e1020;
-  --ms-text-2: #525869;
-  --ms-text-3: #7c8294;
+  --ms-surface-1-hover: #fcfcfc;
+  --ms-surface-2: #f9f9f9;
+  --ms-surface-2-hover: #f2f2f2;
+  --ms-surface-3: rgba(19, 19, 19, 0.08);
+  --ms-surface-3-hover: rgba(19, 19, 19, 0.12);
+  --ms-surface-3-solid: #e5e5e5;
+  --ms-border: rgba(19, 19, 19, 0.08);
+  --ms-text-1: #131313;
+  --ms-text-2: rgba(19, 19, 19, 0.63);
+  --ms-text-3: rgba(19, 19, 19, 0.35);
   --ms-accent: #4747d6;
   --ms-accent-fill: #5b5bf0;
   --ms-accent-hover: #4343c9;
