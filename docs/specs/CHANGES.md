@@ -2,6 +2,22 @@
 
 Changes to the binding interfaces in PLAN.md, newest first.
 
+## 2026-10-21 — Stage 5 API notes (API)
+All STAGE5 §3 endpoints are implemented with the specified fields. The additions below are additive (see `services/api/README.md` "Stage 5 endpoints"):
+- New endpoints: `GET /earn/vaults/:address` and `GET /accounts/:a/nfts`. `/accounts/demo` also returns `label: "Demo wallet"`.
+- Launch rows:
+  - `launchpad` is `{ address, name }`, not a bare string.
+  - Bid volume is `totalCommitted` → `bidVolumeUsd`. The contract's `totalBids()` is a count and is exposed as `bidCount`.
+  - Rows also carry `clearingFdvUsd`, `priceUsd`, `launchedAt` and `creator`.
+  - `status` also accepts `ended` (between endTime and settle).
+- `/launches/:auction` bids carry `estimatedTokens` / `estimatedRefund` while the auction is open. These mirror `previewClaim`.
+- `/explore/tokens` rows carry `tags`. `/explore/trending` rows add `trendingScore`.
+- The portfolio adds a `tokensUsd` / `earnUsd` / `poolsUsd` breakdown, where `totalUsd` is their sum. Pool value is principal; uncollected fees are reported separately.
+- Activity adds item types `earn-deposit`, `earn-withdraw`, `bid` and `claim`.
+- **History without archive state.** Portfolio history and `change24h` are rebuilt from indexed events, and nothing reads state older than the head, so anvil's `--prune-history 512` is fine. The earlier request for `--max-persisted-states` is withdrawn.
+- **Request (`packages/sdk`):** add `Launchpad` and `DevnetPad` to `ContractName`, and `vaults?: { address, asset, symbol, apyBps }[]` to `Deployment`. The API and `market.ts` read them through a cast until then. I added the four Stage 5 ABIs to `sync.mjs`'s CONTRACTS map as asked.
+- `scripts/market.ts` honours `METASWAP_RPC` and `METASWAP_DEPLOYMENT_FILE`, so it can be pointed at a private chain.
+
 ## 2026-10-20 — API: fine-grained history for explore charts (API)
 Additive; existing shapes unchanged.
 - `GET /pools/:address/history?interval=minute|hour|day` (default `hour`).

@@ -10,6 +10,9 @@ import { Indexer } from './indexer/indexer'
 import { jsonSafe } from './lib/json'
 import { QuoteService } from './routing/quote'
 import { XService } from './x/service'
+import { Earn } from './stage5/earn'
+import { Launches } from './stage5/launches'
+import { DEMO_ADDRESS, Portfolio } from './stage5/portfolio'
 import { deployment as sdkDeployment, metachainDevnet, METACHAIN_NETWORKS, type Deployment } from '@metaswap/sdk'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -36,6 +39,9 @@ export interface Services {
   x: XService
   filler: Filler
   accounts: Accounts
+  earn: Earn
+  launches: Launches
+  portfolio: Portfolio
 }
 
 export function createServices(overrides: Partial<Config> = {}, deployment?: Deployment): Services {
@@ -47,7 +53,10 @@ export function createServices(overrides: Partial<Config> = {}, deployment?: Dep
   const x = new XService(ctx, indexer, quotes)
   const filler = new Filler(ctx, indexer, quotes.router, x)
   const accounts = new Accounts(ctx, indexer, analytics, quotes.router, x)
-  return { ctx, indexer, analytics, quotes, x, filler, accounts }
+  const earn = new Earn(ctx, indexer, analytics, quotes.router)
+  const launches = new Launches(ctx, indexer, analytics, quotes.router)
+  const portfolio = new Portfolio(ctx, indexer, analytics, accounts, earn, quotes.router)
+  return { ctx, indexer, analytics, quotes, x, filler, accounts, earn, launches, portfolio }
 }
 
 function num(v: string | undefined): number | undefined {
@@ -126,7 +135,8 @@ export function createApp(s: Services) {
   app.get('/tokens/:address/price-history', (c) => json(c, s.analytics.priceHistory(c.req.param('address'), c.req.query('range') ?? '1D')))
 
   app.get('/explore/stats', (c) => json(c, s.analytics.exploreStats(s.analytics.parseInterval(c.req.query('interval')))))
-  app.get('/explore/tokens', async (c) => json(c, await s.analytics.exploreTokens(c.req.query('sort') ?? 'volume', c.req.query('order') ?? 'desc', c.req.query('range') ?? '1D')))
+  app.get('/explore/tokens', async (c) => json(c, await s.analytics.exploreTokens(c.req.query('sort') ?? 'volume', c.req.query('order') ?? 'desc', c.req.query('range') ?? '1D', c.req.query('category') ?? 'all')))
+  app.get('/explore/trending', async (c) => json(c, await s.analytics.trending()))
   app.get('/explore/pools', (c) => json(c, s.analytics.explorePools(c.req.query('sort') ?? 'tvl', c.req.query('order') ?? 'desc')))
   app.get('/explore/transactions', (c) =>
     json(
@@ -146,6 +156,31 @@ export function createApp(s: Services) {
   app.get('/pools/:address/history', (c) => json(c, s.analytics.poolHistory(c.req.param('address'), s.analytics.parseInterval(c.req.query('interval')))))
   app.get('/pools/:address/ticks', (c) => json(c, s.analytics.poolTicks(c.req.param('address'))))
   app.get('/pools/:address/transactions', (c) => json(c, s.analytics.transactions({ pool: c.req.param('address'), type: c.req.query('type'), limit: num(c.req.query('limit')) })))
+
+  // ---- Stage 5 ----
+  app.get('/earn/vaults', async (c) => json(c, await s.earn.vaults()))
+  app.get('/earn/vaults/:address', async (c) => json(c, await s.earn.vault(c.req.param('address'))))
+  app.get('/accounts/demo', (c) => c.json({ address: DEMO_ADDRESS, label: 'Demo wallet' }))
+  app.get('/accounts/:address/earn', async (c) => json(c, await s.earn.account(c.req.param('address'))))
+  app.get('/accounts/:address/portfolio', async (c) => json(c, await s.portfolio.portfolio(c.req.param('address'))))
+  app.get('/accounts/:address/portfolio/history', async (c) => json(c, await s.portfolio.history(c.req.param('address'), c.req.query('range') ?? '1D')))
+  app.get('/accounts/:address/nfts', async (c) => json(c, await s.portfolio.nfts(c.req.param('address'))))
+  app.get('/launches', async (c) =>
+    json(
+      c,
+      await s.launches.list({
+        status: c.req.query('status'),
+        launchpad: c.req.query('launchpad'),
+        verified: c.req.query('verified'),
+        sort: c.req.query('sort'),
+        order: c.req.query('order'),
+        q: c.req.query('q'),
+      }),
+    ),
+  )
+  app.get('/launches/trending', async (c) => json(c, await s.launches.trending()))
+  app.get('/launches/top-verified', async (c) => json(c, await s.launches.topVerified()))
+  app.get('/launches/:auction', async (c) => json(c, await s.launches.detail(c.req.param('auction'), c.req.query('bidsOf'))))
 
   app.get('/accounts/:address/activity', (c) => json(c, s.accounts.activity(c.req.param('address'), num(c.req.query('limit')) ?? 100)))
   app.get('/accounts/:address/positions', async (c) => json(c, await s.accounts.positions(c.req.param('address'))))

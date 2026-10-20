@@ -93,6 +93,49 @@ const MIGRATIONS: string[] = [
   CREATE INDEX x_orders_swapper ON x_orders(swapper, status);
   CREATE INDEX x_orders_status ON x_orders(status);
   `,
+  // 2 — Stage 5: earn vaults, launchpads/auctions
+  `
+  CREATE TABLE earn_events (
+    block INTEGER NOT NULL, log_index INTEGER NOT NULL, tx_hash TEXT NOT NULL, timestamp INTEGER NOT NULL,
+    vault TEXT NOT NULL, type TEXT NOT NULL, sender TEXT NOT NULL, owner TEXT NOT NULL, receiver TEXT NOT NULL,
+    assets TEXT NOT NULL, shares TEXT NOT NULL,
+    PRIMARY KEY (block, log_index)
+  );
+  CREATE INDEX earn_owner ON earn_events(owner);
+  CREATE TABLE launches (
+    auction TEXT PRIMARY KEY, token TEXT NOT NULL, launchpad TEXT NOT NULL, creator TEXT NOT NULL,
+    name TEXT NOT NULL, symbol TEXT NOT NULL, created_block INTEGER NOT NULL, created_ts INTEGER NOT NULL,
+    params_json TEXT
+  );
+  CREATE INDEX launches_token ON launches(token);
+  CREATE TABLE bids (
+    block INTEGER NOT NULL, log_index INTEGER NOT NULL, tx_hash TEXT NOT NULL, timestamp INTEGER NOT NULL,
+    auction TEXT NOT NULL, bid_id TEXT NOT NULL, bidder TEXT NOT NULL, amount TEXT NOT NULL, max_price TEXT NOT NULL,
+    PRIMARY KEY (block, log_index)
+  );
+  CREATE INDEX bids_auction ON bids(auction, block);
+  CREATE INDEX bids_bidder ON bids(bidder);
+  CREATE TABLE settlements (
+    auction TEXT PRIMARY KEY, block INTEGER NOT NULL, tx_hash TEXT NOT NULL, timestamp INTEGER NOT NULL,
+    clearing_price TEXT NOT NULL, raised TEXT NOT NULL, launched INTEGER NOT NULL, pool TEXT
+  );
+  CREATE TABLE claims (
+    block INTEGER NOT NULL, log_index INTEGER NOT NULL, tx_hash TEXT NOT NULL, timestamp INTEGER NOT NULL,
+    auction TEXT NOT NULL, bid_id TEXT NOT NULL, bidder TEXT NOT NULL, tokens TEXT NOT NULL, refund TEXT NOT NULL,
+    PRIMARY KEY (block, log_index)
+  );
+  CREATE INDEX claims_bidder ON claims(bidder);
+  `,
+  // 3 — every value-carrying tx (ETH balance reconstruction for portfolio history)
+  `
+  CREATE TABLE tx_values (
+    block INTEGER NOT NULL, tx_index INTEGER NOT NULL, tx_hash TEXT NOT NULL, timestamp INTEGER NOT NULL,
+    from_addr TEXT NOT NULL, to_addr TEXT, value TEXT NOT NULL,
+    PRIMARY KEY (block, tx_index)
+  );
+  CREATE INDEX tx_values_from ON tx_values(from_addr);
+  CREATE INDEX tx_values_to ON tx_values(to_addr);
+  `,
 ]
 
 /** Tables wiped on a chain reset (everything derived from chain data). */
@@ -112,6 +155,12 @@ export const CHAIN_TABLES = [
   'price_points',
   'pool_snapshots',
   'x_orders',
+  'earn_events',
+  'launches',
+  'bids',
+  'settlements',
+  'claims',
+  'tx_values',
   'meta',
 ]
 

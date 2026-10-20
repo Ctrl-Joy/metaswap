@@ -129,6 +129,64 @@ export const swapRouter02Abi = parseAbi([
   'function multicall(uint256 deadline, bytes[] data) payable returns (bytes[] results)',
 ])
 
+
+// ---------- Stage 5 (docs/specs/STAGE5.md §1) ----------
+
+export const vaultAbi = parseAbi([
+  'event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)',
+  'event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)',
+  'event RateUpdated(uint256 apyBps)',
+  'event ReserveFunded(uint256 amount)',
+  'function asset() view returns (address)',
+  'function totalAssets() view returns (uint256)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+  'function convertToAssets(uint256 shares) view returns (uint256)',
+  'function maxWithdraw(address owner) view returns (uint256)',
+  'function apyBps() view returns (uint256)',
+  'function deposit(uint256 assets, address receiver) returns (uint256)',
+  'function withdraw(uint256 assets, address receiver, address owner) returns (uint256)',
+  'function depositETH(address receiver) payable returns (uint256)',
+])
+
+export const launchpadAbi = parseAbi([
+  'event LaunchCreated(address indexed token, address indexed auction, address indexed creator, string name, string symbol)',
+  'function name() view returns (string)',
+  'function launchCount() view returns (uint256)',
+  'function verified(address auction) view returns (bool)',
+  'event VerifiedSet(address indexed auction, bool verified)',
+  'function allLaunches() view returns (address[])',
+  'function setVerified(address auction, bool verified)',
+  'struct LaunchParams { string name; string symbol; uint256 totalSupply; uint256 auctionSupplyBps; address quoteToken; uint256 floorPrice; uint256 tickSize; uint256 startTime; uint256 endTime; uint256 launchThreshold; uint256 liquidityBps; uint24 poolFee; string description; string website; }',
+  'function createLaunch(LaunchParams p) returns (address token, address auction)',
+])
+
+export const launchAuctionAbi = parseAbi([
+  'event BidPlaced(uint256 indexed bidId, address indexed bidder, uint256 amount, uint256 maxPrice)',
+  'event Settled(uint256 clearingPrice, uint256 raised, bool launched, address pool)',
+  'event Claimed(uint256 indexed bidId, address indexed bidder, uint256 tokens, uint256 refund)',
+  'function status() view returns (uint8)',
+  'function clearingPrice() view returns (uint256)',
+  'function totalBids() view returns (uint256)',
+  'function totalCommitted() view returns (uint256)',
+  'function raised() view returns (uint256)',
+  'function thresholdProgressBps() view returns (uint256)',
+  'function priceLevels() view returns (uint256[] prices, uint256[] demand)',
+  'function fdvAtFloor() view returns (uint256)',
+  'function token() view returns (address)',
+  'function pool() view returns (address)',
+  'function bid(uint256 amount, uint256 maxPrice) returns (uint256 bidId)',
+  'function bidETH(uint256 maxPrice) payable returns (uint256 bidId)',
+  'struct BidInfo { uint256 id; address bidder; uint256 amount; uint256 maxPrice; bool native; bool claimed; }',
+  'function bidsOf(address bidder) view returns (BidInfo[])',
+  'function previewClaim(uint256 bidId) view returns (uint256 tokens, uint256 refund)',
+  'function settle()',
+  'function claim(uint256 bidId)',
+  'function claimAll()',
+])
+
+export const AUCTION_STATUS = ['upcoming', 'active', 'ended', 'launched', 'failed'] as const
+
 /** Which sdk export (synced from forge out/) must contain each local ABI's fragments. */
 const SDK_ABI_EXPORTS: [string, Abi][] = [
   ['v2FactoryAbi', v2FactoryAbi],
@@ -142,6 +200,9 @@ const SDK_ABI_EXPORTS: [string, Abi][] = [
   ['exclusiveDutchOrderReactorAbi', reactorAbi],
   ['swapRouter02Abi', swapRouter02Abi],
   ['weth9Abi', weth9Abi],
+  ['savingsVaultAbi', vaultAbi],
+  ['launchpadAbi', launchpadAbi],
+  ['launchAuctionAbi', launchAuctionAbi],
 ]
 
 function selectors(abi: Abi): Set<string> {
@@ -172,3 +233,9 @@ export function verifyAgainstSdk(): string[] {
   }
   return problems
 }
+
+/** `LaunchAuction.params()` — the immutable LaunchParams the auction was created with. */
+export const launchParamsAbi = parseAbi([
+  'struct LaunchParams { string name; string symbol; uint256 totalSupply; uint256 auctionSupplyBps; address quoteToken; uint256 floorPrice; uint256 tickSize; uint256 startTime; uint256 endTime; uint256 launchThreshold; uint256 liquidityBps; uint24 poolFee; string description; string website; }',
+  'function params() view returns (LaunchParams)',
+])

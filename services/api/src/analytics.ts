@@ -19,6 +19,19 @@ import {
 } from './pricing/candles'
 import { pctChange, poolTvlUsd } from './pricing/prices'
 import { sqrtPriceToPrice } from './lib/v3math'
+import { rankTrending, trendingScore } from './stage5/math'
+
+export const SEED_TAGS: Record<string, string[]> = {
+  WETH: ['majors', 'wrapped'],
+  mWBTC: ['majors'],
+  mUSDC: ['stablecoins'],
+  mUSDT: ['stablecoins'],
+  mDAI: ['stablecoins'],
+  META: ['defi'],
+  mLINK: ['defi'],
+  mARB: ['l2'],
+}
+export const TOKEN_CATEGORIES = ['all', 'trending', 'gainers', 'stablecoins', 'majors', 'defi', 'l2', 'memes', 'launched', 'wrapped']
 
 const HOUR = 3600
 const DAY = 86400
@@ -119,6 +132,11 @@ export class Analytics {
       since,
     )
     return row?.v ?? 0
+  }
+
+  /** % change of the token's USD price over the last `seconds`. */
+  changeSince(address: string, seconds: number): number | null {
+    return pctChange(this.priceUsd(address), this.priceAt(address, this.now() - seconds))
   }
 
   tokenStatsChange24h(address: string): number | null {
@@ -258,7 +276,18 @@ export class Analytics {
     })
   }
 
-  async exploreTokens(sort = 'volume', order = 'desc', range = '1D') {
+  /** Discovery tags (STAGE5 §3): seed tags by symbol, `launched` + `memes` for launchpad tokens. */
+  tagsFor(address: string): string[] {
+    const t = this.indexer.tokens.getSync(address)
+    if (!t) return []
+    if (t.isNative) return ['majors']
+    if (this.indexer.launchedTokens.has(lc(t.address))) return ['launched', 'memes']
+    return SEED_TAGS[t.symbol] ?? []
+  }
+
+  async exploreTokens(sort = 'volume', order = 'desc', range = '1D', category = 'all') {
+    const cat = category.toLowerCase()
+    if (!TOKEN_CATEGORIES.includes(cat)) throw new HttpError(400, `category must be ${TOKEN_CATEGORIES.join('|')}`)
     let span: number | null
     try {
       span = rangeSeconds(range)
@@ -266,18 +295,28 @@ export class Analytics {
       throw new HttpError(400, (e as Error).message)
     }
     const since = span === null ? 0 : this.now() - span
-    const tokens = this.indexer.tokens.all()
+    // launch tokens appear once they trade (their auction graduated and seeded a pool)
+    const tokens = this.indexer.tokens.all().filter((t) => !this.indexer.launchedTokens.has(lc(t.address)) || this.indexer.prices.has(lc(t.address)))
     const rows = await Promise.all(
       tokens.map(async (t) => {
         const s = await this.tokenStats(t.address)
         // volumeUsd = volume over the requested range (volume24hUsd is always 24h)
-        return { ...s, range: range.toUpperCase(), volumeUsd: this.tokenVolume(t.address, since), sparkline: this.sparkline(t.address) }
+        return { ...s, range: range.toUpperCase(), volumeUsd: this.tokenVolume(t.address, since), tags: this.tagsFor(t.address), sparkline: this.sparkline(t.address) }
       }),
     )
+    if (cat === 'trending') return rankTrending(rows.map((r) => ({ ...r, key: r.token.address })), 0, rows.length)
+    if (cat === 'gainers') return rows.filter((r) => (r.change24h ?? 0) > 0).sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0))
+    const filtered = cat === 'all' ? rows : rows.filter((r) => r.tags.includes(cat))
     const key = { volume: 'volumeUsd', tvl: 'tvlUsd', price: 'priceUsd', change: 'change24h', fdv: 'fdvUsd', change1h: 'change1h' }[sort] as keyof (typeof rows)[number]
     if (!key) throw new HttpError(400, 'sort must be volume|tvl|price|change')
     const dir = order === 'asc' ? 1 : -1
-    return rows.sort((a, b) => dir * ((Number(a[key]) || 0) - (Number(b[key]) || 0)))
+    return filtered.sort((a, b) => dir * ((Number(a[key]) || 0) - (Number(b[key]) || 0)))
+  }
+
+  /** GET /explore/trending: 4–8 rows ranked by 24h volume × |1D change| (launched tokens included). */
+  async trending() {
+    const rows = await this.exploreTokens('volume', 'desc', '1D', 'all')
+    return rankTrending(rows.map((r) => ({ ...r, key: r.token.address })), 4, 8).map(({ key: _k, ...r }) => ({ ...r, trendingScore: trendingScore(r) }))
   }
 
   /** ~48-point price line over the last 24h (or since the first trade on a young chain). */

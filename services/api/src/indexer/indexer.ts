@@ -10,8 +10,9 @@ import {
   type Log,
   type Transaction,
 } from 'viem'
-import { erc20Abi, npmAbi, reactorAbi, v2FactoryAbi, v2PairAbi, v3FactoryAbi, v3PoolAbi, weth9Abi } from '../abis'
+import { erc20Abi, launchAuctionAbi, launchpadAbi, npmAbi, reactorAbi, v2FactoryAbi, v2PairAbi, v3FactoryAbi, v3PoolAbi, vaultAbi, weth9Abi } from '../abis'
 import { STABLE_SYMBOLS, TokenRegistry, hasDeployment, lc, type Context } from '../context'
+import { launchParamsAbi } from '../abis'
 import { computeUsdPrices, poolTvlUsd, swapVolumeUsd, type PricingPool } from '../pricing/prices'
 import { sqrtPriceToPrice } from '../lib/v3math'
 
@@ -63,6 +64,12 @@ export const TOPICS = {
   Deposit: sel(weth9Abi, 'Deposit'),
   Withdrawal: sel(weth9Abi, 'Withdrawal'),
   Fill: sel(reactorAbi, 'Fill'),
+  VaultDeposit: sel(vaultAbi, 'Deposit'),
+  VaultWithdraw: sel(vaultAbi, 'Withdraw'),
+  LaunchCreated: sel(launchpadAbi, 'LaunchCreated'),
+  BidPlaced: sel(launchAuctionAbi, 'BidPlaced'),
+  Settled: sel(launchAuctionAbi, 'Settled'),
+  Claimed: sel(launchAuctionAbi, 'Claimed'),
 } as const
 
 const ALL_TOPICS = Object.values(TOPICS)
@@ -91,6 +98,11 @@ export class Indexer extends EventEmitter {
   prices = new Map<string, number>()
   decimals = new Map<string, number>()
   trackedTokens = new Set<string>()
+  /** Stage 5: earn vaults (from the deployment), launchpads, and auctions discovered via LaunchCreated */
+  vaults = new Set<string>()
+  launchpads = new Set<string>()
+  auctions = new Set<string>()
+  launchedTokens = new Set<string>()
   indexedBlock = -1
   indexedTimestamp = 0
   headBlock = -1
@@ -112,7 +124,9 @@ export class Indexer extends EventEmitter {
   /** Contract addresses + deployment block; a change means a new chain → rebuild. */
   private deploymentKey(): string {
     const c = this.ctx.deployment.contracts
-    return JSON.stringify([this.ctx.deployment.blockNumber, c.V2Factory, c.V3Factory, c.NonfungiblePositionManager, c.WETH9, c.ExclusiveDutchOrderReactor ?? null])
+    const c5 = c as Record<string, string | undefined>
+    // the schema tag forces a re-index when indexed tables change meaning (s5: tx_values, launches, earn)
+    return JSON.stringify(['schema-s5', this.ctx.deployment.blockNumber, c.V2Factory, c.V3Factory, c.NonfungiblePositionManager, c.WETH9, c.ExclusiveDutchOrderReactor ?? null, c5.Launchpad ?? null, c5.DevnetPad ?? null])
   }
 
   loadState() {
@@ -151,6 +165,21 @@ export class Indexer extends EventEmitter {
       })
       this.trackedTokens.add(String(r.token0))
       this.trackedTokens.add(String(r.token1))
+    }
+    this.vaults.clear()
+    this.launchpads.clear()
+    this.auctions.clear()
+    this.launchedTokens.clear()
+    for (const v of vaultsOf(this.ctx.deployment)) {
+      this.vaults.add(lc(v.address))
+      // vault share transfers feed depositor counts and portfolio history
+      this.trackedTokens.add(lc(v.address))
+    }
+    for (const p of launchpadsOf(this.ctx.deployment)) this.launchpads.add(lc(p.address))
+    for (const r of this.db.all<{ auction: string; token: string }>('SELECT auction, token FROM launches')) {
+      this.auctions.add(r.auction)
+      this.launchedTokens.add(r.token)
+      this.trackedTokens.add(r.token)
     }
     for (const r of this.db.all<{ token: string; price: number }>(
       'SELECT token, price FROM price_points p WHERE block = (SELECT MAX(block) FROM price_points q WHERE q.token = p.token)',
@@ -254,12 +283,15 @@ export class Indexer extends EventEmitter {
 
   /** Delete everything above `block` and rebuild in-memory pool state by replaying stored state. */
   private rollbackTo(block: number) {
-    const tables = ['swaps', 'liquidity_events', 'transfers', 'weth_events', 'nft_transfers', 'nft_events', 'fills', 'price_points', 'pool_snapshots']
+    const tables = ['swaps', 'liquidity_events', 'transfers', 'weth_events', 'nft_transfers', 'nft_events', 'fills', 'price_points', 'pool_snapshots', 'earn_events', 'bids', 'claims']
     this.db.tx(() => {
       for (const t of tables) this.db.run(`DELETE FROM ${t} WHERE block > ?`, block)
       this.db.run('DELETE FROM native_transfers WHERE block > ?', block)
+      this.db.run('DELETE FROM tx_values WHERE block > ?', block)
       this.db.run('DELETE FROM blocks WHERE number > ?', block)
       this.db.run('DELETE FROM pools WHERE created_block > ?', block)
+      this.db.run('DELETE FROM launches WHERE created_block > ?', block)
+      this.db.run('DELETE FROM settlements WHERE block > ?', block)
       this.db.run("UPDATE x_orders SET status = 'open', fill_tx = NULL, fill_block = NULL, filler = NULL WHERE fill_block > ?", block)
       // pool_state reflects the old head; rebuild it from the newest snapshot at or below `block`
       this.db.run('DELETE FROM pool_state')
@@ -283,7 +315,7 @@ export class Indexer extends EventEmitter {
 
   private needsRefresh = false
 
-  private async refreshPoolsFromChain(blockNumber: bigint) {
+  private async refreshPoolsFromChain(blockNumber?: bigint) {
     for (const p of this.pools.values()) {
       if (p.version === 'v3') {
         const [slot0, liq] = await Promise.all([
@@ -329,7 +361,8 @@ export class Indexer extends EventEmitter {
   async processRange(from: number, to: number) {
     const c = this.ctx.deployment.contracts
     if (this.needsRefresh && from > 0) {
-      await this.refreshPoolsFromChain(BigInt(from - 1))
+      // state at from-1 (a recent block after a shallow reorg); if the node pruned it, use the head
+      await this.refreshPoolsFromChain(BigInt(from - 1)).catch(() => this.refreshPoolsFromChain())
       this.needsRefresh = false
     }
     const rawLogs = (await this.ctx.client.request({
@@ -360,6 +393,18 @@ export class Indexer extends EventEmitter {
       }
     }
 
+    // launches: token metadata + auction params (async, before the DB tx)
+    const launchMeta = new Map<string, string | null>()
+    for (const log of logs) {
+      if (this.launchpads.has(log.address) && log.topics[0] === TOPICS.LaunchCreated) {
+        const token = lc(getAddress(`0x${log.topics[1]!.slice(26)}`))
+        const auction = lc(getAddress(`0x${log.topics[2]!.slice(26)}`))
+        const info = await this.tokens.get(token)
+        if (info) this.decimals.set(token, info.decimals)
+        launchMeta.set(auction, await readLaunchParams(this.ctx, auction))
+      }
+    }
+
     const byBlock = new Map<number, RawLog[]>()
     for (const l of logs) {
       const n = Number(l.blockNumber)
@@ -373,7 +418,7 @@ export class Indexer extends EventEmitter {
         for (const block of blocks) {
           const n = Number(block.number)
           const blockLogs = (byBlock.get(n) ?? []).sort((a, b) => a.logIndex - b.logIndex)
-          this.processBlock(block, blockLogs, fills)
+          this.processBlock(block, blockLogs, fills, launchMeta)
         }
         const last = blocks[blocks.length - 1]
         this.db.insert('blocks', { number: Number(last.number), hash: last.hash!, timestamp: Number(last.timestamp) }, 'REPLACE')
@@ -408,13 +453,16 @@ export class Indexer extends EventEmitter {
     this.emit('indexed', to, this.indexedTimestamp)
   }
 
-  private processBlock(block: FullBlock, logs: RawLog[], fills: { orderHash: string; txHash: string; block: number; filler: string }[]) {
+  private processBlock(block: FullBlock, logs: RawLog[], fills: { orderHash: string; txHash: string; block: number; filler: string }[], launchMeta = new Map<string, string | null>()) {
     const c = this.ctx.deployment.contracts
     const n = Number(block.number)
     const ts = Number(block.timestamp)
     const origins = new Map<string, string>()
     for (const tx of block.transactions as Transaction[]) {
       origins.set(tx.hash, lc(tx.from))
+      if (tx.value > 0n) {
+        this.db.insert('tx_values', { block: n, tx_index: Number(tx.transactionIndex), tx_hash: tx.hash, timestamp: ts, from_addr: lc(tx.from), to_addr: tx.to ? lc(tx.to) : null, value: tx.value.toString() })
+      }
       if (tx.value > 0n && (tx.input === '0x' || tx.input === undefined) && tx.to) {
         this.db.insert('native_transfers', {
           block: n,
@@ -552,6 +600,45 @@ export class Indexer extends EventEmitter {
         else if (ev.eventName === 'Withdrawal') this.db.insert('weth_events', { ...base, type: 'unwrap', account: lc(ev.args.src), origin, amount: ev.args.wad.toString() })
         continue
       }
+      if (this.vaults.has(a) && (t0 === TOPICS.VaultDeposit || t0 === TOPICS.VaultWithdraw)) {
+        const ev = decodeEventLog({ abi: vaultAbi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
+        if (ev.eventName === 'Deposit') {
+          this.db.insert('earn_events', { ...base, vault: a, type: 'deposit', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.owner), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
+        } else if (ev.eventName === 'Withdraw') {
+          this.db.insert('earn_events', { ...base, vault: a, type: 'withdraw', sender: lc(ev.args.sender), owner: lc(ev.args.owner), receiver: lc(ev.args.receiver), assets: ev.args.assets.toString(), shares: ev.args.shares.toString() })
+        }
+        continue
+      }
+      if (this.vaults.has(a) && t0 === TOPICS.Transfer && log.topics.length === 3) {
+        const ev = decodeEventLog({ abi: erc20Abi, eventName: 'Transfer', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
+        this.db.insert('transfers', { ...base, token: a, from_addr: lc(ev.args.from), to_addr: lc(ev.args.to), amount: ev.args.value.toString() })
+        continue
+      }
+      if (this.launchpads.has(a) && t0 === TOPICS.LaunchCreated) {
+        const ev = decodeEventLog({ abi: launchpadAbi, eventName: 'LaunchCreated', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
+        const auction = lc(ev.args.auction)
+        const token = lc(ev.args.token)
+        this.db.insert('launches', { auction, token, launchpad: a, creator: lc(ev.args.creator), name: ev.args.name, symbol: ev.args.symbol, created_block: n, created_ts: ts, params_json: launchMeta.get(auction) ?? null }, 'REPLACE')
+        const meta = this.tokens.getSync(token)
+        this.db.insert('tokens', { address: token, symbol: meta?.symbol ?? ev.args.symbol, name: meta?.name ?? ev.args.name, decimals: meta?.decimals ?? 18 }, 'REPLACE')
+        this.decimals.set(token, meta?.decimals ?? 18)
+        this.auctions.add(auction)
+        this.launchedTokens.add(token)
+        this.trackedTokens.add(token)
+        this.emit('launch', { auction, token })
+        continue
+      }
+      if (this.auctions.has(a) && (t0 === TOPICS.BidPlaced || t0 === TOPICS.Settled || t0 === TOPICS.Claimed)) {
+        const ev = decodeEventLog({ abi: launchAuctionAbi, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
+        if (ev.eventName === 'BidPlaced') {
+          this.db.insert('bids', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), amount: ev.args.amount.toString(), max_price: ev.args.maxPrice.toString() })
+        } else if (ev.eventName === 'Settled') {
+          this.db.insert('settlements', { auction: a, block: n, tx_hash: log.transactionHash!, timestamp: ts, clearing_price: ev.args.clearingPrice.toString(), raised: ev.args.raised.toString(), launched: ev.args.launched ? 1 : 0, pool: ev.args.pool === ZERO ? null : lc(ev.args.pool) }, 'REPLACE')
+        } else if (ev.eventName === 'Claimed') {
+          this.db.insert('claims', { ...base, auction: a, bid_id: ev.args.bidId.toString(), bidder: lc(ev.args.bidder), tokens: ev.args.tokens.toString(), refund: ev.args.refund.toString() })
+        }
+        continue
+      }
       if (a === reactor && t0 === TOPICS.Fill) {
         const ev = decodeEventLog({ abi: reactorAbi, eventName: 'Fill', data: log.data, topics: log.topics as [Hex, ...Hex[]] })
         const orderHash = lc(ev.args.orderHash)
@@ -663,5 +750,34 @@ export class Indexer extends EventEmitter {
         'REPLACE',
       )
     }
+  }
+}
+
+export interface VaultInfo {
+  address: string
+  asset: string
+  symbol: string
+  apyBps: number
+}
+
+/** `deployment.vaults` (Stage 5, merged by DeployStage5). */
+export function vaultsOf(d: unknown): VaultInfo[] {
+  const v = (d as { vaults?: VaultInfo[] }).vaults
+  return Array.isArray(v) ? v : []
+}
+
+/** Launchpads named in the deployment (`contracts.Launchpad`, `contracts.DevnetPad`). */
+export function launchpadsOf(d: unknown): { key: string; address: string }[] {
+  const c = ((d as { contracts?: Record<string, string> }).contracts ?? {}) as Record<string, string>
+  return ['Launchpad', 'DevnetPad'].filter((k) => c[k]).map((k) => ({ key: k, address: c[k] }))
+}
+
+/** Read an auction's immutable params once (JSON with bigints as strings); null when unreadable. */
+export async function readLaunchParams(ctx: Context, auction: string): Promise<string | null> {
+  try {
+    const raw = await ctx.client.readContract({ address: getAddress(auction), abi: launchParamsAbi, functionName: 'params' })
+    return JSON.stringify(raw, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))
+  } catch {
+    return null
   }
 }

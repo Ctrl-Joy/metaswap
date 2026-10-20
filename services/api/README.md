@@ -160,6 +160,35 @@ Amounts are decimal strings in base units unless a field ends in `Formatted` or 
 | `GET /x/orders/:hash` | one order |
 | `GET /x/filler` | filler status + recent attempts |
 
+### Stage 5 endpoints (`docs/specs/STAGE5.md` §3)
+
+| Method & path | Notes |
+|---|---|
+| `GET /explore/trending` | 4–8 token rows ranked by `volume24hUsd × \|change24h\|` (launched tokens included), each with `sparkline`, `tags` and `trendingScore` |
+| `GET /explore/tokens?category=all\|trending\|gainers\|stablecoins\|majors\|defi\|l2\|memes\|launched\|wrapped` | the token rows above, filtered (combines with `sort`/`order`/`range`); rows carry `tags: string[]`. `gainers` = positive 1D change, descending; `trending` = by trending score |
+| `GET /earn/vaults` | `[{ address, asset: token, symbol, apyBps, apyPct, totalAssets, totalAssetsFormatted, totalShares, tvlUsd, depositors }]` |
+| `GET /earn/vaults/:address` | one vault |
+| `GET /accounts/:a/earn` | `[{ vault:{address,symbol,apyPct,asset}, shares, assets, assetsFormatted, valueUsd, deposited, depositedUsd, lifetimeEarnings, lifetimeEarningsUsd }]` |
+| `GET /launches?status=all\|active\|upcoming\|ended\|launched\|failed&launchpad=<address or name>&verified=true\|false&sort=fdv\|volume\|liquidity\|age\|bidVolume&order&q` | rows: `auction, token, name, symbol, logoURI, launchpad:{address,name}, creator, verified, status, startTime, endTime, createdAt, launchedAt, ageSec, quoteToken, totalSupply, auctionSupply, floorPrice, floorPriceUsd, fdvAtFloorUsd, totalCommitted, bidVolumeUsd, bidCount, raised, threshold, thresholdUsd, thresholdPct, clearingPrice, clearingPriceUsd, clearingFdvUsd` + after launch `pool, priceUsd, fdvUsd, volume24hUsd, liquidityUsd, change1h, change1d, sparkline` |
+| `GET /launches/trending` | launched rows by 24h volume |
+| `GET /launches/top-verified` | up to 4 verified rows (active first) |
+| `GET /launches/:auction?bidsOf=<address>` | row + `params`, `description`, `website`, `priceLevels:[{price,priceUsd,demand,demandUsd,fdvUsd}]`, `bids` (recent 50; while open each has `estimatedTokens/estimatedRefund`, mirroring `previewClaim`), `bidsOf`, `settlement` |
+| `GET /accounts/:a/portfolio` | `{ totalUsd, tokensUsd, earnUsd, poolsUsd, change24hUsd, change24hPct, tokens:[{ token, priceUsd, balance, balanceFormatted, valueUsd, avgCostUsd, costBasisUsd, unrealizedPnlUsd, unrealizedPnlPct, change24h, tags }], pools:[positions + status in-range\|out-of-range\|closed, feesUsd], earn, earnLifetimeEarningsUsd, nfts, activity }` |
+| `GET /accounts/:a/portfolio/history?range=1H\|1D\|1W\|1M\|1Y\|ALL` | `[{ time, valueUsd }]`: 60–122 buckets; at each, ETH + every token `balanceOf`, vault shares → assets, V2 LP and V3 positions are read **at the historical block** (one Multicall per bucket) and valued at that time's prices. The last point uses live prices, so it matches `totalUsd`. Cached 30 s |
+| `GET /accounts/:a/nfts` | V3 position NFTs `{ tokenId, contract, pool, name, image (data:image/svg+xml), tokenURI, inRange, closed }` |
+| `GET /accounts/demo` | `{ address, label }`: the demo wallet (Anvil #1) |
+
+How the Stage 5 values are computed:
+
+- **Cost basis** uses the average cost of every inflow (ERC20 transfers in, WETH wraps, native ETH receives, router unwraps, and the genesis ETH balance), each valued at the USD price when it arrived. Tokens claimed from a launch auction cost the clearing price. `costBasisUsd = avgCostUsd × balance`.
+- **Earn earnings** are `assets now + withdrawn − deposited`, in asset units.
+- **Indexing.** The indexer picks up the vaults from `deployment.vaults` and the launchpads from `contracts.Launchpad`/`DevnetPad`. It indexes each launchpad's `LaunchCreated`, plus `BidPlaced`/`Settled`/`Claimed` on every discovered auction. Launched tokens join the token set, and their V3 pools join through the factory's `PoolCreated`.
+- **No historical node state.** Anvil runs with `--prune-history 512`, so nothing reads state older than the head. Portfolio history and `change24h` rebuild holdings backwards from the current on-chain holdings using indexed events, then value them with the indexed prices at each bucket:
+  - ERC20, WETH, vault shares and LP tokens follow `Transfer`/`Deposit`/`Withdrawal` events.
+  - V3 liquidity follows `IncreaseLiquidity`/`DecreaseLiquidity`; the pool price comes from the indexed snapshots.
+  - ETH follows the `value` of top-level txs plus the ETH paid out by unwraps the account triggered. Gas is ignored, since it is about 0 on the devnet.
+  - Vault assets per share are discounted by the APY.
+
 ### History buckets on a young chain
 
 History endpoints (`/explore/stats`, `/pools/:address/history` and `/tokens/:address/tvl-history`) take `interval=minute|hour|day` and default to `hour`. A fresh devnet would otherwise give one-point charts, so the API refines the bucket size automatically:

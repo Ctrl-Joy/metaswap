@@ -6,6 +6,7 @@ import type { Indexer } from './indexer/indexer'
 import { MAX_UINT128, getAmountsForLiquidity, tickToPrice } from './lib/v3math'
 import type { Router } from './routing/router'
 import type { XService } from './x/service'
+import { vaultsOf } from './indexer/indexer'
 
 function account(a: string): Address {
   if (!isAddress(a, { strict: false })) throw new HttpError(400, 'invalid address')
@@ -198,7 +199,7 @@ export class Accounts {
     }
     // plain token sends/receives (skip transfers that are part of swaps/liquidity/fills)
     const fillTxs = new Set(this.ctx.db.all<{ tx_hash: string }>('SELECT tx_hash FROM fills WHERE swapper = ?', o).map((r) => r.tx_hash))
-    const skipAddrs = new Set([...this.indexer.pools.keys(), lc(addr(this.ctx, 'UniversalRouter')), lc(this.ctx.deployment.contracts.Permit2 ?? '0x'), lc(this.ctx.deployment.contracts.NonfungiblePositionManager ?? '0x')])
+    const skipAddrs = new Set([...this.indexer.pools.keys(), ...this.indexer.vaults, ...this.indexer.auctions, lc(addr(this.ctx, 'UniversalRouter')), lc(this.ctx.deployment.contracts.Permit2 ?? '0x'), lc(this.ctx.deployment.contracts.NonfungiblePositionManager ?? '0x')])
     for (const r of this.ctx.db.all<Record<string, string | number>>(
       'SELECT * FROM transfers WHERE (from_addr = ? OR to_addr = ?) AND token NOT IN (SELECT address FROM pools) ORDER BY block DESC LIMIT ?',
       o,
@@ -206,7 +207,7 @@ export class Accounts {
       limit,
     )) {
       const tx = r.tx_hash as string
-      if (txWithEvents.has(tx) || fillTxs.has(tx)) continue
+      if (txWithEvents.has(tx) || fillTxs.has(tx) || this.indexer.vaults.has(r.token as string)) continue
       const counterparty = r.from_addr === o ? (r.to_addr as string) : (r.from_addr as string)
       if (skipAddrs.has(counterparty)) continue
       const isMint = r.from_addr === '0x0000000000000000000000000000000000000000'
@@ -234,6 +235,52 @@ export class Accounts {
         to: getAddress(r.to_addr as string),
         token: { ...tokenJson(this.ctx, this.indexer.tokens.native()), amount: v.toString(), amountFormatted: Number(v) / 1e18 },
         amountUsd: this.usd(addr(this.ctx, 'WETH9'), v),
+      })
+    }
+    // Stage 5: earn deposits/withdrawals, launch bids and claims
+    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM earn_events WHERE owner = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+      const v = vaultsOf(this.ctx.deployment).find((x) => lc(x.address) === r.vault)
+      items.push({
+        type: r.type === 'deposit' ? 'earn-deposit' : 'earn-withdraw',
+        txHash: r.tx_hash,
+        blockNumber: Number(r.block),
+        logIndex: Number(r.log_index),
+        timestamp: Number(r.timestamp),
+        vault: { address: getAddress(r.vault as string), symbol: v?.symbol ?? null },
+        token: v ? this.amt(v.asset, BigInt(r.assets as string)) : null,
+        amountUsd: v ? this.usd(v.asset, BigInt(r.assets as string)) : null,
+      })
+    }
+    const launchMeta = (auction: string) => this.ctx.db.get<{ symbol: string; name: string; token: string; quote: string | null }>("SELECT symbol, name, token, json_extract(params_json, '$.quoteToken') AS quote FROM launches WHERE auction = ?", auction)
+    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM bids WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+      const m = launchMeta(r.auction as string)
+      items.push({
+        type: 'bid',
+        txHash: r.tx_hash,
+        blockNumber: Number(r.block),
+        logIndex: Number(r.log_index),
+        timestamp: Number(r.timestamp),
+        auction: getAddress(r.auction as string),
+        launch: m ? { name: m.name, symbol: m.symbol, token: getAddress(m.token) } : null,
+        bidId: r.bid_id,
+        maxPrice: r.max_price,
+        token: m?.quote ? this.amt(m.quote, BigInt(r.amount as string)) : null,
+        amountUsd: m?.quote ? this.usd(m.quote, BigInt(r.amount as string)) : null,
+      })
+    }
+    for (const r of this.ctx.db.all<Record<string, string | number>>('SELECT * FROM claims WHERE bidder = ? ORDER BY block DESC LIMIT ?', o, limit)) {
+      const m = launchMeta(r.auction as string)
+      items.push({
+        type: 'claim',
+        txHash: r.tx_hash,
+        blockNumber: Number(r.block),
+        logIndex: Number(r.log_index),
+        timestamp: Number(r.timestamp),
+        auction: getAddress(r.auction as string),
+        launch: m ? { name: m.name, symbol: m.symbol, token: getAddress(m.token) } : null,
+        bidId: r.bid_id,
+        token: m ? this.amt(m.token, BigInt(r.tokens as string)) : null,
+        refund: m?.quote ? this.amt(m.quote, BigInt(r.refund as string)) : null,
       })
     }
     for (const ord of this.x.list({ swapper: owner, limit: String(limit) })) {
