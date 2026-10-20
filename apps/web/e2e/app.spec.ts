@@ -55,13 +55,15 @@ test('token selector search, chips and swap CTA states', async ({ page }) => {
   await page.keyboard.press('Escape')
 })
 
-test('routes render: 404 and placeholders', async ({ page }) => {
+test('routes render: 404, explore, positions and metachain', async ({ page }) => {
   await page.goto('/definitely-not-a-page')
   await expect(page.getByTestId('not-found')).toBeVisible()
   await page.goto('/explore')
-  await expect(page.getByTestId('coming-soon')).toBeVisible()
+  await expect(page.getByTestId('explore-page')).toBeVisible()
+  await expect(page.getByTestId('explore-stats')).toBeVisible()
   await page.goto('/positions')
-  await expect(page.getByTestId('coming-soon')).toBeVisible()
+  // signed out: the positions page shows its connect gate rather than a placeholder
+  await expect(page.getByTestId('positions-gate')).toBeVisible()
   await page.goto('/metachain')
   await expect(page.getByTestId('devnet-specs')).toContainText('31337')
   await page.goto('/')

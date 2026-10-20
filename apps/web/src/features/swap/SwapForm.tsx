@@ -111,7 +111,11 @@ export function SwapForm({ defaultOutput }: { defaultOutput?: Token } = {}) {
     if (wrapType) return typedValue
     const v = exactOut ? amountIn : amountOut
     const t = exactOut ? inputToken : outputToken
-    return v !== null && t ? toInputString(v, t.decimals, 6) : ''
+    if (v === null || !t) return ''
+    // ~6 significant digits for the computed side (3058.987797 → 3058.98), like Uniswap;
+    // small amounts keep up to 6 decimals.
+    const intDigits = (v / 10n ** BigInt(t.decimals)).toString().replace(/^0$/, '').length
+    return toInputString(v, t.decimals, Math.min(6, Math.max(2, 6 - intDigits)))
   })()
   const inputValue = exactOut ? dependentValue : typedValue
   const outputValue = exactOut ? typedValue : dependentValue

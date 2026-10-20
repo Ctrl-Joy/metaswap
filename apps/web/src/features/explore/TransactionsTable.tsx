@@ -9,6 +9,8 @@ import type { TxRow } from './types'
 
 type KindFilter = 'all' | 'swap' | 'add' | 'remove'
 
+const PAGE_SIZE = 25
+
 const FILTERS: Array<{ value: KindFilter; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'swap', label: 'Swaps' },
@@ -43,16 +45,28 @@ export function TransactionsTable({
 }) {
   const now = useNow(10_000)
   const [kind, setKind] = useState<KindFilter>('all')
-  const visible = useMemo(() => (rows ?? []).filter((r) => kind === 'all' || r.kind === kind), [rows, kind])
+  // like Uniswap: one page of rows, then "Show more" (the list is live and can be long)
+  const [limit, setLimit] = useState(PAGE_SIZE)
+  const filtered = useMemo(() => (rows ?? []).filter((r) => kind === 'all' || r.kind === kind), [rows, kind])
+  const visible = filtered.slice(0, limit)
 
   if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load transactions" />
 
   return (
     <div className="flex flex-col gap-3" data-testid={testId}>
       {showFilter && (
-        <SegmentedTabs items={FILTERS.map((f) => ({ value: f.value, label: f.label, testId: `tx-filter-${f.value}` }))} value={kind} onChange={setKind} size="sm" ariaLabel="Transaction type" />
+        <SegmentedTabs
+          items={FILTERS.map((f) => ({ value: f.value, label: f.label, testId: `tx-filter-${f.value}` }))}
+          value={kind}
+          onChange={(k) => {
+            setKind(k)
+            setLimit(PAGE_SIZE)
+          }}
+          size="sm"
+          ariaLabel="Transaction type"
+        />
       )}
-      <Table minWidth={780}>
+      <Table minWidth={620}>
         <THead>
           <Th>Time</Th>
           <Th>Type</Th>
@@ -77,23 +91,20 @@ export function TransactionsTable({
                 <Td className="text-text-2" title={new Date(tx.timeMs).toLocaleString()}>
                   {formatRelativeTime(tx.timeMs, now)}
                 </Td>
-                <Td>
-                  <span className="flex items-center gap-2">
-                    <Badge tone={KIND_TONE[tx.kind]}>{tx.kind === 'swap' ? 'Swap' : tx.kind === 'add' ? 'Add' : tx.kind === 'remove' ? 'Remove' : 'Other'}</Badge>
-                    <span className="hidden text-text-2 xl:inline">{txTitle(tx)}</span>
-                  </span>
+                <Td title={txTitle(tx)}>
+                  <Badge tone={KIND_TONE[tx.kind]}>{tx.kind === 'swap' ? 'Swap' : tx.kind === 'add' ? 'Add' : tx.kind === 'remove' ? 'Remove' : 'Other'}</Badge>
                 </Td>
                 <Td align="right">
                   <Usd value={tx.usd} />
                 </Td>
-                <Td>
-                  <span className="flex items-center gap-2 text-text-1">
+                <Td className="whitespace-normal">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-text-1">
                     <span className={cn('tabular')}>
-                      {formatAmount(tx.legs[0]?.amount ?? null)} {tx.legs[0]?.symbol}
+                      {formatAmount(tx.legs[0]?.amount ?? null, 5)} {tx.legs[0]?.symbol}
                     </span>
                     <ArrowRight size={14} className="text-text-3" aria-hidden />
                     <span className="tabular">
-                      {formatAmount(tx.legs[1]?.amount ?? null)} {tx.legs[1]?.symbol}
+                      {formatAmount(tx.legs[1]?.amount ?? null, 5)} {tx.legs[1]?.symbol}
                     </span>
                   </span>
                 </Td>
@@ -105,6 +116,16 @@ export function TransactionsTable({
           </tbody>
         )}
       </Table>
+      {filtered.length > visible.length && (
+        <button
+          type="button"
+          onClick={() => setLimit((l) => l + PAGE_SIZE)}
+          className="self-center rounded-full bg-surface-2 px-4 py-2 text-body-3 font-medium text-text-1 transition-colors hover:bg-surface-2-hover"
+          data-testid="tx-show-more"
+        >
+          Show more ({filtered.length - visible.length} older)
+        </button>
+      )}
     </div>
   )
 }

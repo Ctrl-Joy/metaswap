@@ -15,8 +15,9 @@ const PAGES = [
   ['portfolio', '/portfolio'],
   ['metaswapx', '/metaswapx'],
   ['metachain', '/metachain'],
-  ['explore-placeholder', '/explore'],
-  ['positions-placeholder', '/positions'],
+  ['explore', '/explore'],
+  ['token-eth', '/explore/tokens/metachain-devnet/NATIVE'],
+  ['positions', '/positions'],
   ['404', '/nope'],
 ] as const
 

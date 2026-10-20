@@ -209,7 +209,11 @@ export class Analytics {
       .all<{ timestamp: number; price: number }>('SELECT timestamp, price FROM price_points WHERE token = ? AND timestamp <= ? ORDER BY block', key, to)
       .map((r) => ({ time: Number(r.timestamp), value: r.price }))
     const series = bucketLast(points, step, from, to)
-    const out = series.map((p) => ({ time: p.time, priceUsd: p.value }))
+    // bucketLast forward-fills empty buckets; drop those repeats (keeping the first and last
+    // point) so charts draw a line between actual price changes instead of a staircase.
+    const out = series
+      .filter((p, i, arr) => i === 0 || i === arr.length - 1 || p.value !== arr[i - 1].value)
+      .map((p) => ({ time: p.time, priceUsd: p.value }))
     // make the last point the live price
     const live = this.indexer.prices.get(key)
     if (out.length && live !== undefined) out[out.length - 1].priceUsd = live
