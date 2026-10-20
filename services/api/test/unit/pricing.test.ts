@@ -126,3 +126,28 @@ describe('v3 math', () => {
     expect(getAmountsForLiquidity(getSqrtRatioAtTick(1000), -600, 600, L).amount0).toBe(0n)
   })
 })
+
+describe('history intervals (young-chain refinement)', async () => {
+  const { effectiveInterval, intervalForRange, parseHistoryInterval, rangeSeconds } = await import('../../src/pricing/candles')
+  it('refines hour/day to minute while data spans < 2h, day to hour while < 2 days', () => {
+    expect(effectiveInterval('hour', 600)).toBe('minute')
+    expect(effectiveInterval('day', 600)).toBe('minute')
+    expect(effectiveInterval('day', 5 * 3600)).toBe('hour')
+    expect(effectiveInterval('day', 3 * 86400)).toBe('day')
+    expect(effectiveInterval('hour', 3 * 3600)).toBe('hour')
+    expect(effectiveInterval('minute', 30 * 86400)).toBe('minute')
+  })
+  it('parses intervals and web range keys', () => {
+    expect(parseHistoryInterval(undefined)).toBe('hour')
+    expect(parseHistoryInterval('minute')).toBe('minute')
+    expect(parseHistoryInterval('1D')).toBe('day')
+    expect(() => parseHistoryInterval('week')).toThrow()
+    expect(rangeSeconds('1H')).toBe(3600)
+    expect(rangeSeconds('1w')).toBe(7 * 86400)
+    expect(rangeSeconds('ALL')).toBeNull()
+    expect(() => rangeSeconds('2D')).toThrow()
+    expect(intervalForRange('1H')).toBe('minute')
+    expect(intervalForRange('1D')).toBe('hour')
+    expect(intervalForRange('1Y')).toBe('day')
+  })
+})

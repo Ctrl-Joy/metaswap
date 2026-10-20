@@ -140,12 +140,13 @@ Amounts are decimal strings in base units unless a field ends in `Formatted` or 
 | `GET /tokens/:address` | `{ token, priceUsd, change1h, change24h, volume24hUsd, volume7dUsd, tvlUsd, fdvUsd, marketCapUsd, totalSupply, high24hUsd, low24hUsd }` (ETH sentinel `0xEeee…` maps to WETH data) |
 | `GET /tokens/:address/candles?interval=1m\|5m\|1h\|1d&from&to` | `[{ time, open, high, low, close, volumeUsd }]` (minute candles aggregated; forward-filled) |
 | `GET /tokens/:address/price-history?range=1H\|1D\|1W\|1M\|1Y` | `[{ time, priceUsd }]` |
-| `GET /explore/stats?interval=hour\|day` | `{ tvlUsd, volume24hUsd, volume7dUsd, v2:{tvlUsd,volume24hUsd,volume7dUsd,poolCount}, v3:{…}, volumeHistory:[{time,volumeUsd}], tvlHistory:[{time,tvlUsd}], txCount24h }` |
-| `GET /explore/tokens?sort=volume\|tvl\|price\|change&order=desc` | token stats rows + `sparkline:[{time,priceUsd}]` |
+| `GET /tokens/:address/tvl-history?range=1H\|1D\|1W\|1M\|1Y\|ALL` or `?interval=minute\|hour\|day&from&to` | `[{ time, tvlUsd }]`: the token's reserves across its pools × its price, at each bucket end |
+| `GET /explore/stats?interval=minute\|hour\|day` | `{ tvlUsd, volume24hUsd, volume7dUsd, v2:{tvlUsd,volume24hUsd,volume7dUsd,poolCount}, v3:{…}, interval, requestedInterval, bucketSec, volumeHistory:[{time,volumeUsd}], tvlHistory:[{time,tvlUsd}], txCount24h }` (`interval` = the bucket actually used) |
+| `GET /explore/tokens?sort=volume\|tvl\|price\|change&order=desc&range=1H\|1D\|1W\|1M\|1Y\|ALL` | token stats rows + `range`, `volumeUsd` (volume over `range`, default 1D; `sort=volume` sorts by it), `volume24hUsd` (always 24h), `sparkline:[{time,priceUsd}]` |
 | `GET /explore/pools?sort=tvl\|volume\|apr&order=desc` | `{ address, version, token0, token1, fee, feeTier, tvlUsd, volume24hUsd, volume7dUsd, fees24hUsd, apr }` |
 | `GET /explore/transactions?type=swap\|add\|remove&token&pool&account&limit&before` | swaps: `{ type, txHash, blockNumber, timestamp, version, pool, fee, account, tokenIn:{…amount}, tokenOut:{…amount}, amountUsd }`; adds/removes: `token0`/`token1` instead |
 | `GET /pools/:address` | pool row + `reserve0/1(+Formatted,+Usd), liquidity, sqrtPriceX96, tick, tickSpacing, totalSupply (v2), token0Price, token1Price, tvlChange24h, volumeChange24h, createdAt` |
-| `GET /pools/:address/history?interval=hour\|day` | `[{ time, volumeUsd, feesUsd, tvlUsd, token0Price }]` |
+| `GET /pools/:address/history?interval=minute\|hour\|day` | `[{ time, volumeUsd, feesUsd, tvlUsd, token0Price }]` |
 | `GET /pools/:address/ticks` | v3: `{ currentTick, sqrtPriceX96, liquidity, tickSpacing, ticks:[{ tick, liquidityNet, liquidityGross, liquidityActive, price0, price1 }] }` (exact, from indexed Mint/Burn) |
 | `GET /pools/:address/transactions` | same as explore/transactions for one pool |
 | `GET /accounts/:address/balances` | `{ totalValueUsd, balances:[{ token, balance, balanceFormatted, priceUsd, valueUsd, change24h }] }` |
@@ -158,6 +159,16 @@ Amounts are decimal strings in base units unless a field ends in `Formatted` or 
 | `GET /x/orders?swapper&status=open,filled,expired,cancelled&limit` | orders with `resolved` current amounts |
 | `GET /x/orders/:hash` | one order |
 | `GET /x/filler` | filler status + recent attempts |
+
+### History buckets on a young chain
+
+History endpoints (`/explore/stats`, `/pools/:address/history` and `/tokens/:address/tvl-history`) take `interval=minute|hour|day` and default to `hour`. A fresh devnet would otherwise give one-point charts, so the API refines the bucket size automatically:
+
+- While the indexed data spans less than 2 hours, `hour` and `day` return **minute** buckets.
+- While it spans less than 2 days, `day` returns **hour** buckets.
+- `minute` is always honoured, and covers the last 24 hours.
+
+The windows are 24 hours for minute buckets, 7 days for hourly and 365 days for daily. `/explore/stats` reports the bucket it actually used in `interval` and `bucketSec`.
 
 ### Example: `GET /quote?tokenIn=<mUSDC>&tokenOut=<WETH>&amount=3000000000&swapper=0x…`
 
@@ -202,7 +213,7 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
 
 ## Tests
 
-- **Unit tests** (`test/unit`, 35 tests):
+- **Unit tests** (`test/unit`, 37 tests):
   - path enumeration and V3 path encoding;
   - V2 math, mid price and price impact, gas conversion, slippage;
   - the split optimiser;
@@ -212,7 +223,7 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
   - USD pricing;
   - candle and bucket aggregation;
   - TickMath.
-- **Integration tests** (`test/integration`, 12 tests): these run only when `METASWAP_RPC` (default `:8545`) has a deployment whose UniversalRouter and reactor have code. They start the API in-process with a temporary DB, use fresh `anvil_setBalance`-funded accounts, and cover:
+- **Integration tests** (`test/integration`, 13 tests): these run only when `METASWAP_RPC` (default `:8545`) has a deployment whose UniversalRouter and reactor have code. They start the API in-process with a temporary DB, use fresh `anvil_setBalance`-funded accounts, and cover:
   - a Permit2 approve + sign + `/swap` round trip;
   - ETH input (WRAP) and ETH output (UNWRAP);
   - a 2-hop swap, a split trade and an exact-output trade, each executed and checked against `amountOutMin`/`amountInMax`;
@@ -220,7 +231,8 @@ POST /x/orders { "encodedOrder": "0x…", "signature": "0x…" }
   - token, candle, price, explore, pool and tick data for seeded tokens;
   - balances and positions;
   - a MetaSwapX Dutch order filled by the filler bot on-chain;
-  - nonce-invalidation cancellation.
+  - nonce-invalidation cancellation;
+  - minute pool history, token TVL history, explore token ranges and auto-refined stats buckets.
 - `scripts/test-chain.sh` starts a private Anvil on `:8555`, deploys and seeds it, and leaves the shared `deployments/31337.json` unchanged. Run the suite against it:
   ```bash
   METASWAP_RPC=http://127.0.0.1:8555 METASWAP_DEPLOYMENT_FILE=$TEMP/ms-8555.json npx vitest run test/integration

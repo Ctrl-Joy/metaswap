@@ -124,3 +124,45 @@ export function bucketLast(points: { time: number; value: number }[], intervalSe
   }
   return out
 }
+
+export type HistoryInterval = 'minute' | 'hour' | 'day'
+export const HISTORY_INTERVAL_SEC: Record<HistoryInterval, number> = { minute: 60, hour: 3600, day: 86400 }
+/** How far back each history interval reaches. */
+export const HISTORY_WINDOW_SEC: Record<HistoryInterval, number> = { minute: 86400, hour: 7 * 86400, day: 365 * 86400 }
+
+export function parseHistoryInterval(v: string | undefined, dflt: HistoryInterval = 'hour'): HistoryInterval {
+  if (v === undefined || v === '') return dflt
+  const k = v.toLowerCase()
+  const alias: Record<string, HistoryInterval> = { minute: 'minute', '1m': 'minute', hour: 'hour', '1h': 'hour', day: 'day', '1d': 'day' }
+  const out = alias[k]
+  if (!out) throw new Error('interval must be minute|hour|day')
+  return out
+}
+
+/**
+ * Auto-refinement for young chains so charts are never a single point:
+ * while the data spans < 2 hours, `hour` and `day` return minute buckets; while it spans < 2 days,
+ * `day` returns hour buckets. `minute` is always honoured as is.
+ */
+export function effectiveInterval(requested: HistoryInterval, dataSpanSec: number): HistoryInterval {
+  if (requested === 'minute') return 'minute'
+  if (dataSpanSec < 2 * 3600) return 'minute'
+  if (requested === 'day' && dataSpanSec < 2 * 86400) return 'hour'
+  return requested
+}
+
+/** Range keys used by the web app (1H|1D|1W|1M|1Y|ALL, case-insensitive) → seconds (null = all time). */
+export function rangeSeconds(range: string): number | null {
+  const m: Record<string, number | null> = { '1h': 3600, '1d': 86400, '1w': 7 * 86400, '1m': 30 * 86400, '1y': 365 * 86400, all: null }
+  const k = range.toLowerCase()
+  if (!(k in m)) throw new Error('range must be 1H|1D|1W|1M|1Y|ALL')
+  return m[k]
+}
+
+/** Natural bucket for a range (before auto-refinement). */
+export function intervalForRange(range: string): HistoryInterval {
+  const s = rangeSeconds(range)
+  if (s === null || s > 7 * 86400) return 'day'
+  if (s <= 3600) return 'minute'
+  return 'hour'
+}

@@ -2,6 +2,21 @@
 
 Changes to the binding interfaces in PLAN.md, newest first.
 
+## 2026-10-20 — API: fine-grained history for explore charts (API)
+Additive; existing shapes unchanged.
+- `GET /pools/:address/history?interval=minute|hour|day` (default `hour`).
+- New `GET /tokens/:address/tvl-history` → `[{ time, tvlUsd }]`. It takes `range=1H|1D|1W|1M|1Y|ALL`, or the explore area's
+  current `interval=hour|day&from=<unix>` (plus optional `to`).
+- `GET /explore/tokens?range=1H|1D|1W|1M|1Y|ALL` (case-insensitive, default 1D) adds `volumeUsd` (volume over the
+  range) and `range`. `volume24hUsd` is kept, and `sort=volume` now sorts by `volumeUsd`.
+- Young-chain auto-refinement for `/explore/stats`, pool history and token TVL history:
+  - while the data spans less than 2 hours, `hour` and `day` return minute buckets;
+  - while it spans less than 2 days, `day` returns hour buckets;
+  - `interval=minute` is always honoured.
+
+  `/explore/stats` adds `interval` (the bucket actually used), `requestedInterval` and `bucketSec`. the explore area's existing
+  calls (`interval=day` / `hour`) get fine buckets with no web change.
+
 ## 2026-10-20 — API additions on top of PLAN.md (API, services/api)
 All PLAN paths/fields are implemented as specified; these are **additive** (see `services/api/README.md`):
 - `GET /quote` takes `swapper=<address>` (the wallet that will send the tx). The Permit2/ERC20 allowance checks

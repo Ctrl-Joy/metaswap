@@ -112,10 +112,21 @@ export function createApp(s: Services) {
   app.get('/tokens/:address/candles', (c) =>
     json(c, s.analytics.candles(c.req.param('address'), c.req.query('interval') ?? '1h', num(c.req.query('from')), num(c.req.query('to')))),
   )
+  app.get('/tokens/:address/tvl-history', (c) =>
+    json(
+      c,
+      s.analytics.tokenTvlHistory(c.req.param('address'), {
+        range: c.req.query('range'),
+        interval: c.req.query('interval'),
+        from: num(c.req.query('from')),
+        to: num(c.req.query('to')),
+      }),
+    ),
+  )
   app.get('/tokens/:address/price-history', (c) => json(c, s.analytics.priceHistory(c.req.param('address'), c.req.query('range') ?? '1D')))
 
-  app.get('/explore/stats', (c) => json(c, s.analytics.exploreStats(c.req.query('interval') === 'day' ? 'day' : 'hour')))
-  app.get('/explore/tokens', async (c) => json(c, await s.analytics.exploreTokens(c.req.query('sort') ?? 'volume', c.req.query('order') ?? 'desc')))
+  app.get('/explore/stats', (c) => json(c, s.analytics.exploreStats(s.analytics.parseInterval(c.req.query('interval')))))
+  app.get('/explore/tokens', async (c) => json(c, await s.analytics.exploreTokens(c.req.query('sort') ?? 'volume', c.req.query('order') ?? 'desc', c.req.query('range') ?? '1D')))
   app.get('/explore/pools', (c) => json(c, s.analytics.explorePools(c.req.query('sort') ?? 'tvl', c.req.query('order') ?? 'desc')))
   app.get('/explore/transactions', (c) =>
     json(
@@ -132,7 +143,7 @@ export function createApp(s: Services) {
   )
 
   app.get('/pools/:address', (c) => json(c, s.analytics.poolDetail(c.req.param('address'))))
-  app.get('/pools/:address/history', (c) => json(c, s.analytics.poolHistory(c.req.param('address'), c.req.query('interval') === 'day' ? 'day' : 'hour')))
+  app.get('/pools/:address/history', (c) => json(c, s.analytics.poolHistory(c.req.param('address'), s.analytics.parseInterval(c.req.query('interval')))))
   app.get('/pools/:address/ticks', (c) => json(c, s.analytics.poolTicks(c.req.param('address'))))
   app.get('/pools/:address/transactions', (c) => json(c, s.analytics.transactions({ pool: c.req.param('address'), type: c.req.query('type'), limit: num(c.req.query('limit')) })))
 

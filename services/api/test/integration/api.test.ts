@@ -200,13 +200,56 @@ describe.skipIf(!available)('MetaSwap API against the live devnet', () => {
     expect(stats.body.v3.poolCount).toBeGreaterThan(0)
     expect(stats.body.tvlHistory.length).toBeGreaterThan(0)
     const pools = await h.get('/explore/pools?sort=tvl')
-    expect(pools.body.length).toBe(h.s.ctx.deployment.pools.v2.length + h.s.ctx.deployment.pools.v3.length)
+    expect(pools.body.length).toBeGreaterThanOrEqual(h.s.ctx.deployment.pools.v2.length + h.s.ctx.deployment.pools.v3.length)
     const v3 = pools.body.find((p: { version: string }) => p.version === 'v3')
     const detail = await h.get(`/pools/${v3.address}`)
     expect(detail.body.sqrtPriceX96).toBeTruthy()
     expect((await h.get(`/pools/${v3.address}/history`)).body.length).toBeGreaterThan(0)
     const ticks = await h.get(`/pools/${v3.address}/ticks`)
     expect(ticks.body.ticks.length).toBeGreaterThan(0)
+  })
+
+  it('fine-grained history: pool minute buckets, token TVL history, explore ranges, auto-refined stats', async () => {
+    const pools = (await h.get('/explore/pools?sort=volume')).body
+    const p = pools[0].address
+    const minute = await h.get(`/pools/${p}/history?interval=minute`)
+    expect(minute.status).toBe(200)
+    expect(minute.body.length).toBeGreaterThan(1)
+    expect(minute.body[1].time - minute.body[0].time).toBe(60)
+    expect(minute.body.some((b: { volumeUsd: number }) => b.volumeUsd > 0)).toBe(true)
+    expect(minute.body.at(-1).tvlUsd).toBeGreaterThan(0)
+    expect((await h.get(`/pools/${p}/history?interval=week`)).status).toBe(400)
+    // hour on a young pool auto-refines; either way more than one point once a few minutes have passed
+    const hour = await h.get(`/pools/${p}/history?interval=hour`)
+    expect(hour.body.length).toBeGreaterThanOrEqual(1)
+
+    for (const q of ['range=1D', 'range=ALL', 'interval=hour&from=0', 'interval=minute']) {
+      const tvl = await h.get(`/tokens/${WETH}/tvl-history?${q}`)
+      expect(tvl.status, q).toBe(200)
+      expect(tvl.body.length, q).toBeGreaterThan(0)
+      expect(tvl.body.at(-1).tvlUsd, q).toBeGreaterThan(0)
+    }
+    const live = (await h.get(`/tokens/${WETH}`)).body.tvlUsd
+    const last = (await h.get(`/tokens/${WETH}/tvl-history?interval=minute`)).body.at(-1).tvlUsd
+    expect(Math.abs(last - live) / live).toBeLessThan(0.05)
+
+    const all = (await h.get('/explore/tokens?range=ALL')).body
+    const hourRows = (await h.get('/explore/tokens?range=1H')).body
+    const w = all.find((r: { token: { symbol: string } }) => r.token.symbol === 'WETH')
+    expect(w.volumeUsd).toBeGreaterThan(0)
+    expect(w.volumeUsd).toBeGreaterThanOrEqual(w.volume24hUsd - 1e-6)
+    expect(hourRows[0]).toHaveProperty('volumeUsd')
+    expect(hourRows[0].range).toBe('1H')
+    expect((await h.get('/explore/tokens?range=2D')).status).toBe(400)
+
+    const stats = (await h.get('/explore/stats?interval=day')).body
+    expect(stats.requestedInterval).toBe('day')
+    expect(['minute', 'hour', 'day']).toContain(stats.interval)
+    expect(stats.bucketSec).toBeGreaterThan(0)
+    expect(stats.tvlHistory.length).toBeGreaterThan(0)
+    const fine = (await h.get('/explore/stats?interval=minute')).body
+    expect(fine.bucketSec).toBe(60)
+    expect(fine.tvlHistory.length).toBeGreaterThan(1)
   })
 
   it('balances and positions for accounts', async () => {

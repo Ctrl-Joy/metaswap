@@ -2,7 +2,21 @@ import { getAddress, type Address } from 'viem'
 import { erc20Abi } from './abis'
 import { HttpError, isNativeAddress, lc, tokenJson, wethAddress, type Context, type TokenInfo } from './context'
 import type { Indexer, PoolRuntime } from './indexer/indexer'
-import { INTERVALS, aggregateCandles, bucketLast, bucketStart, bucketSums, buildCandles } from './pricing/candles'
+import {
+  HISTORY_INTERVAL_SEC,
+  HISTORY_WINDOW_SEC,
+  INTERVALS,
+  aggregateCandles,
+  bucketLast,
+  bucketStart,
+  bucketSums,
+  buildCandles,
+  effectiveInterval,
+  intervalForRange,
+  parseHistoryInterval,
+  rangeSeconds,
+  type HistoryInterval,
+} from './pricing/candles'
 import { pctChange, poolTvlUsd } from './pricing/prices'
 import { sqrtPriceToPrice } from './lib/v3math'
 
@@ -240,15 +254,23 @@ export class Analytics {
     })
   }
 
-  async exploreTokens(sort = 'volume', order = 'desc') {
+  async exploreTokens(sort = 'volume', order = 'desc', range = '1D') {
+    let span: number | null
+    try {
+      span = rangeSeconds(range)
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
+    const since = span === null ? 0 : this.now() - span
     const tokens = this.indexer.tokens.all()
     const rows = await Promise.all(
       tokens.map(async (t) => {
         const s = await this.tokenStats(t.address)
-        return { ...s, sparkline: this.sparkline(t.address) }
+        // volumeUsd = volume over the requested range (volume24hUsd is always 24h)
+        return { ...s, range: range.toUpperCase(), volumeUsd: this.tokenVolume(t.address, since), sparkline: this.sparkline(t.address) }
       }),
     )
-    const key = { volume: 'volume24hUsd', tvl: 'tvlUsd', price: 'priceUsd', change: 'change24h', fdv: 'fdvUsd', change1h: 'change1h' }[sort] as keyof (typeof rows)[number]
+    const key = { volume: 'volumeUsd', tvl: 'tvlUsd', price: 'priceUsd', change: 'change24h', fdv: 'fdvUsd', change1h: 'change1h' }[sort] as keyof (typeof rows)[number]
     if (!key) throw new HttpError(400, 'sort must be volume|tvl|price|change')
     const dir = order === 'asc' ? 1 : -1
     return rows.sort((a, b) => dir * ((Number(a[key]) || 0) - (Number(b[key]) || 0)))
@@ -264,8 +286,23 @@ export class Analytics {
     return this.priceSeries(key, now - span, now, step)
   }
 
-  exploreStats(interval: 'hour' | 'day' = 'hour') {
-    return this.cached(`stats:${interval}`, () => {
+  /** Seconds of indexed history (first pool snapshot → now). */
+  dataSpan(): number {
+    const first = this.db.get<{ t: number | null }>('SELECT MIN(timestamp) AS t FROM pool_snapshots')?.t
+    return first === null || first === undefined ? 0 : this.now() - Number(first)
+  }
+
+  parseInterval(v: string | undefined, dflt: HistoryInterval = 'hour'): HistoryInterval {
+    try {
+      return parseHistoryInterval(v, dflt)
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
+  }
+
+  exploreStats(requested: HistoryInterval = 'hour') {
+    const interval = effectiveInterval(requested, this.dataSpan())
+    return this.cached(`stats:${requested}:${interval}`, () => {
       const now = this.now()
       const pools = [...this.indexer.pools.values()]
       const byVersion = (v: 'v2' | 'v3') => {
@@ -277,8 +314,8 @@ export class Analytics {
       }
       const v2 = byVersion('v2')
       const v3 = byVersion('v3')
-      const step = interval === 'day' ? DAY : HOUR
-      const span = interval === 'day' ? 365 * DAY : 7 * DAY
+      const step = HISTORY_INTERVAL_SEC[interval]
+      const span = HISTORY_WINDOW_SEC[interval]
       const swaps = this.db
         .all<{ timestamp: number; amount_usd: number | null; version: string }>('SELECT timestamp, amount_usd, version FROM swaps WHERE timestamp > ?', now - span)
       const volumeHistory = bucketSums(swaps.map((s) => ({ time: Number(s.timestamp), value: s.amount_usd ?? 0 })), step, now - span, now)
@@ -290,6 +327,8 @@ export class Analytics {
         v2,
         v3,
         interval,
+        requestedInterval: requested,
+        bucketSec: step,
         volumeHistory: volumeHistory.slice(Math.max(0, first)).map((b) => ({ time: b.time, volumeUsd: b.value })),
         tvlHistory: this.tvlHistory(step, now - span, now),
         txCount24h: this.db.get<{ c: number }>('SELECT COUNT(*) AS c FROM swaps WHERE timestamp > ?', now - DAY)?.c ?? 0,
@@ -314,6 +353,66 @@ export class Analytics {
         i++
       }
       if (latest.size) out.push({ time: b, tvlUsd: [...latest.values()].reduce((a, v) => a + v, 0) })
+    }
+    return out
+  }
+
+  /**
+   * Token TVL over time: Σ over pools holding the token of (token reserve at bucket end × token
+   * price at bucket end). Accepts a web range (1H..ALL) or interval/from/to.
+   */
+  tokenTvlHistory(address: string, q: { range?: string; interval?: string; from?: number; to?: number }) {
+    this.resolveToken(address)
+    const key = this.poolKey(address)
+    const now = q.to ?? this.now()
+    let from: number
+    let requested: HistoryInterval
+    try {
+      if (q.range) {
+        const s = rangeSeconds(q.range)
+        requested = q.interval ? parseHistoryInterval(q.interval) : intervalForRange(q.range)
+        from = q.from ?? (s === null ? 0 : now - s)
+      } else {
+        requested = parseHistoryInterval(q.interval, 'hour')
+        from = q.from ?? now - HISTORY_WINDOW_SEC[requested]
+      }
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message)
+    }
+    const pools = [...this.indexer.pools.values()].filter((p) => p.token0 === key || p.token1 === key)
+    if (pools.length === 0) return []
+    const firstTs = this.db.get<{ t: number | null }>(
+      `SELECT MIN(timestamp) AS t FROM pool_snapshots WHERE pool IN (${pools.map(() => '?').join(',')})`,
+      ...pools.map((p) => p.address),
+    )?.t
+    if (firstTs === null || firstTs === undefined) return []
+    const interval = effectiveInterval(requested, now - Number(firstTs))
+    const step = HISTORY_INTERVAL_SEC[interval]
+    from = Math.max(from, Number(firstTs), interval === 'minute' ? now - HISTORY_WINDOW_SEC.minute : 0)
+    const decimals = this.indexer.decimals.get(key) ?? 18
+    type Ev = { time: number; block: number; kind: 'snap'; pool: string; amount: number } | { time: number; block: number; kind: 'price'; price: number }
+    const events: Ev[] = []
+    for (const p of pools) {
+      const col = p.token0 === key ? 'reserve0' : 'reserve1'
+      for (const r of this.db.all<{ timestamp: number; block: number; r: string }>(`SELECT timestamp, block, ${col} AS r FROM pool_snapshots WHERE pool = ? ORDER BY block`, p.address))
+        events.push({ time: Number(r.timestamp), block: Number(r.block), kind: 'snap', pool: p.address, amount: Number(r.r) / 10 ** decimals })
+    }
+    for (const r of this.db.all<{ timestamp: number; block: number; price: number }>('SELECT timestamp, block, price FROM price_points WHERE token = ? ORDER BY block', key))
+      events.push({ time: Number(r.timestamp), block: Number(r.block), kind: 'price', price: r.price })
+    events.sort((a, b) => a.block - b.block)
+    const start = bucketStart(from, step)
+    const end = bucketStart(now, step)
+    const reserves = new Map<string, number>()
+    let price: number | null = null
+    let i = 0
+    const out: { time: number; tvlUsd: number }[] = []
+    for (let b = start; b <= end; b += step) {
+      while (i < events.length && events[i].time < b + step) {
+        const e = events[i++]
+        if (e.kind === 'snap') reserves.set(e.pool, e.amount)
+        else price = e.price
+      }
+      if (price !== null && reserves.size) out.push({ time: b, tvlUsd: [...reserves.values()].reduce((a, v) => a + v, 0) * price })
     }
     return out
   }
@@ -354,12 +453,13 @@ export class Analytics {
     }
   }
 
-  poolHistory(address: string, interval: 'hour' | 'day' = 'hour') {
+  poolHistory(address: string, requested: HistoryInterval = 'hour') {
     const p = this.indexer.pools.get(lc(address))
     if (!p) throw new HttpError(404, `Unknown pool ${address}`)
     const now = this.now()
-    const step = interval === 'day' ? DAY : HOUR
-    const span = interval === 'day' ? 365 * DAY : 7 * DAY
+    const interval = effectiveInterval(requested, now - p.createdTs)
+    const step = HISTORY_INTERVAL_SEC[interval]
+    const span = HISTORY_WINDOW_SEC[interval]
     const from = Math.max(now - span, p.createdTs)
     const swaps = this.db.all<{ timestamp: number; amount_usd: number | null; fee_usd: number | null }>('SELECT timestamp, amount_usd, fee_usd FROM swaps WHERE pool = ? AND timestamp > ?', p.address, from - step)
     const vol = bucketSums(swaps.map((s) => ({ time: Number(s.timestamp), value: s.amount_usd ?? 0 })), step, from, now)
