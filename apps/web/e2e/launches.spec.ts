@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { erc20Abi, parseAbi, parseUnits, zeroAddress, type Address } from 'viem'
-import { ACCOUNTS, balanceOf, connectDevWallet, eventually, mint, pickToken, pub, requireStack, reviewAndConfirm, token } from './helpers'
+import { ACCOUNTS, API, balanceOf, connectDevWallet, eventually, mint, pickToken, pub, requireStack, reviewAndConfirm, token } from './helpers'
 
 // the positions/launches area launches flows on a real chain.
 // - Default: the shared stack (:5173 web, :8545 chain, :8787 API). Settlement waits for the 2-minute
@@ -47,6 +47,8 @@ test.describe.serial('launches on a live chain', () => {
     await page.getByTestId('launch-liquidity-pct').fill('50')
     await page.getByTestId('launch-fee-10000').click()
     await page.getByTestId('launch-description').fill('E2E test launch')
+    // private fork: pick the fork's launchpad (VITE_LAUNCHPADS) by its option label
+    if (process.env.LAUNCH_PAD_ADDRESS) await page.getByTestId('launch-launchpad').selectOption(process.env.LAUNCH_PAD_ADDRESS)
     await page.getByTestId('launch-review').click()
     const modal = page.getByTestId('launch-modal')
     await modal.getByTestId('launch-modal-confirm').click()
@@ -121,20 +123,27 @@ test.describe.serial('launches on a live chain', () => {
   })
 
   test('the launched token trades via /swap', async ({ page }) => {
-    test.skip(!auction, 'needs the launch from the previous test')
     test.skip(PRIVATE, 'quotes come from the shared API, which does not see the private fork')
-    const tokenAddr = await pub.readContract({ address: auction!, abi: auctionAbi, functionName: 'token' })
+    // the launch from the earlier tests, or any graduated launch the API lists
+    let launched = auction
+    if (!launched) {
+      const rows = (await (await fetch(`${API}/launches?status=launched&sort=volume`)).json()) as Array<{ auction: Address }> | { launches: Array<{ auction: Address }> }
+      launched = (Array.isArray(rows) ? rows : rows.launches)[0]?.auction
+    }
+    test.skip(!launched, 'no launched token on this chain')
+    const tokenAddr = await pub.readContract({ address: launched!, abi: auctionAbi, functionName: 'token' })
+    const symbol = await pub.readContract({ address: tokenAddr, abi: erc20Abi, functionName: 'symbol' })
     const me = ACCOUNTS[2]
     await mint('mUSDC', me, parseUnits('100', 6))
     const before = await pub.readContract({ address: tokenAddr, abi: erc20Abi, functionName: 'balanceOf', args: [me] })
     await connectDevWallet(page, 2, `/swap?inputCurrency=${token('mUSDC').address}&outputCurrency=${tokenAddr}`)
     const out = page.getByTestId('swap-output-token')
-    if (!(await out.textContent())?.includes(SYMBOL)) {
+    if (!(await out.textContent())?.includes(symbol)) {
       // not in the API token list yet: import it by address
       await out.click()
       const selector = page.getByTestId('token-selector')
       await selector.getByTestId('token-search').fill(tokenAddr)
-      const option = selector.getByTestId(`token-option-${SYMBOL}`)
+      const option = selector.getByTestId(`token-option-${symbol}`)
       if (await option.first().isVisible().catch(() => false)) await option.first().click()
       else {
         await selector.getByTestId('import-ack').check()

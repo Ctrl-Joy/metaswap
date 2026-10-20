@@ -125,3 +125,23 @@ describe('auction detail maths', () => {
     expect(pctAboveFloor(E18, E18)).toBe(0)
   })
 })
+
+import { clearingHistory } from './units'
+
+describe('clearingHistory', () => {
+  const E18 = 10n ** 18n
+  const floor = E18 / 100n // 0.01
+  const supply = 10_000n * E18
+  it('replays bids and recovers older demand from the levels', () => {
+    // 50 mUSDC at 0.01 (old, not in the window), then 100 mUSDC at 0.02 (recent)
+    const old = { price: floor, demand: 50n * 10n ** 6n }
+    const recent = { time: 200, amount: 100n * 10n ** 6n, maxPrice: 2n * floor }
+    const levels = [old, { price: 2n * floor, demand: recent.amount }]
+    const h = clearingHistory(levels, [recent], supply, floor, 6, floor / 10n, 100)
+    expect(h).toHaveLength(2)
+    expect(h[0]!.time).toBe(100)
+    expect(h[0]!.price).toBe(floor) // undersubscribed → floor
+    expect(h[1]!.time).toBe(200)
+    expect(h[1]!.price).toBeGreaterThanOrEqual(floor)
+  })
+})

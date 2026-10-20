@@ -1,61 +1,93 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Flame, LayoutGrid, Plus, Rocket, Sparkles, TrendingUp } from 'lucide-react'
-import { ButtonLink, EmptyState, InfoTip, PercentChange, SegmentedTabs, Skeleton, Table, TableSkeleton, Td, Th, THead, Tr } from '@/components/ui'
-import { Sparkline } from '@/features/explore/charts/SvgCharts'
-import { formatUsd } from '@/lib/format'
+import { ArrowDown, ArrowRight, ChartNoAxesColumnIncreasing, ChevronDown, Info, Plus, Rocket, Sparkles, TrendingUp } from 'lucide-react'
+import { ButtonLink, Marquee, Skeleton, Tooltip } from '@/components/ui'
+import { LogoMark } from '@/components/layout/Logo'
 import { cn } from '@/lib/cn'
-import { useLaunches, useTopVerifiedLaunches, useTrendingLaunches, type LaunchStatusFilter } from './api'
-import { launchpadName, sparkValues, type LaunchRow } from './types'
-import { Marquee } from '@/components/ui'
-import { Countdown, formatAge, LaunchpadChip, LaunchStatusBadge, LaunchTokenLogo, ProgressBar, VerifiedMark, useNow } from './components/LaunchBits'
+import { useLaunches, useTrendingLaunches, type LaunchStatusFilter } from './api'
+import { launchpadName, type LaunchRow } from './types'
+import { Countdown, formatAge, LaunchStatusBadge, ProgressBar, VerifiedMark, useNow } from './components/LaunchBits'
+import { usdCompact, Delta, LaunchCard, LaunchCardSkeleton, LaunchLogo, LaunchPill, LaunchPillSkeleton, LaunchpadIcon } from './components/LaunchVisuals'
 
 const auctionHref = (r: LaunchRow) => `/launches/${r.auction}`
 
-/** /launches — banner + ticker, trending carousel, all launches table, live auctions. */
+/** /launches — measured against Uniswap's Launches page (docs/analysis/launches-spec.md). */
 export function LaunchesHome() {
-  const all = useLaunches({ status: 'launched', sort: 'volume' })
+  const launched = useLaunches({ status: 'launched', sort: 'volume' })
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-24 md:px-8" data-testid="launches-page">
-      <LaunchBanner rows={all.data ?? []} loading={all.isLoading} />
-      <TrendingCarousel />
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-9 px-4 pt-6 pb-12 md:px-10" data-testid="launches-page">
+      <LaunchBanner rows={launched.data ?? []} loading={launched.isLoading || launched.isError} />
+      <TrendingLaunches />
       <AllLaunches />
       <Auctions />
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ banner + ticker */
+function SectionTitle({ children, info, right }: { children: ReactNode; info?: string; right?: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
+      <h2 className="flex items-center gap-1.5 text-body-1 font-medium">
+        {children}
+        {info && (
+          <Tooltip content={info}>
+            <button type="button" aria-label="More info" className="inline-flex text-text-3 hover:text-text-2">
+              <Info size={16} />
+            </button>
+          </Tooltip>
+        )}
+      </h2>
+      {right}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ 1. banner */
 
 function LaunchBanner({ rows, loading }: { rows: LaunchRow[]; loading: boolean }) {
-  const items = rows.filter((r) => r.change1d !== undefined && r.change1d !== null).slice(0, 16)
+  const items = rows.filter((r) => r.change1d !== undefined && r.change1d !== null).slice(0, 20)
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-4 md:p-5" data-testid="launch-banner">
-      <div className="flex items-center gap-3">
-        <span className="flex size-11 items-center justify-center rounded-2xl bg-accent-fill text-white">
-          <Rocket size={22} />
+    <section
+      className="flex flex-col gap-4 overflow-hidden rounded-3xl border-[0.8px] border-border bg-surface-1 p-4 md:p-6"
+      style={{ backgroundImage: 'radial-gradient(color-mix(in srgb, var(--ms-text-1) 5%, transparent) 1px, transparent 1px)', backgroundSize: '16px 16px' }}
+      data-testid="launch-banner"
+    >
+      <div className="flex items-center gap-3 md:gap-4">
+        <span className="relative size-[52px] shrink-0" aria-hidden>
+          <span className="absolute top-0 left-0 flex size-10 items-center justify-center rounded-xl bg-accent-fill">
+            <span className="text-white">
+              <LogoMark size={24} />
+            </span>
+          </span>
+          <span className="absolute right-0 bottom-0 flex size-7 items-center justify-center rounded-lg border-2 border-surface-1 bg-surface-3 text-text-1">
+            <Rocket size={14} />
+          </span>
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-body-1 font-semibold">Launch and trade</div>
-          <div className="text-body-3 text-text-2">Raise liquidity for a new token with a fair batch auction, then trade it on MetaSwap.</div>
+          <div className="text-body-1 font-medium">Launch and trade</div>
+          <div className="text-body-3 text-text-2 md:text-body-2">
+            Trade new MetaChain tokens on{' '}
+            <a href="#all-launches" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
+              <Rocket size={14} />
+              Launchpads
+            </a>
+          </div>
         </div>
-        <Link to="/launches/create" aria-label="Launch a token" data-testid="banner-create" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-3 text-text-1 hover:bg-surface-3-hover">
-          <ArrowRight size={20} />
+        <Link to="/launches/create" aria-label="Launch a token" data-testid="banner-create" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-3 text-text-1 transition-colors hover:bg-surface-3-hover">
+          <ArrowRight size={24} />
         </Link>
       </div>
-      <div className="mt-4 [mask-image:linear-gradient(90deg,transparent,black_4%,black_96%,transparent)]">
-        {loading ? (
-          <Skeleton width="100%" height={36} rounded="full" />
-        ) : items.length === 0 ? (
-          <div className="py-2 text-body-3 text-text-3" data-testid="launch-ticker">No launched tokens yet. Be the first.</div>
+      <div data-testid="launch-ticker" data-state={loading ? 'loading' : items.length ? 'ready' : 'empty'}>
+        {loading || items.length === 0 ? (
+          <div className="flex gap-2 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
+            {[150, 120, 170, 140, 160, 130, 150].map((w, i) => (
+              <LaunchPillSkeleton key={i} width={w} />
+            ))}
+          </div>
         ) : (
-          <Marquee testId="launch-ticker" ariaLabel="Launched tokens ticker" speed={35}>
+          <Marquee fade itemGap={8} speed={35} ariaLabel="Launched tokens ticker">
             {items.map((r) => (
-              <Link key={r.auction} to={auctionHref(r)} className="flex items-center gap-2 rounded-full border border-border bg-surface-2 py-1 pr-3 pl-1 text-body-3 hover:bg-surface-2-hover">
-                <LaunchTokenLogo row={r} size={24} />
-                <span className="font-semibold">{r.name}</span>
-                <PercentChange value={r.change1d} />
-              </Link>
+              <LaunchPill key={r.auction} row={r} to={auctionHref(r)} />
             ))}
           </Marquee>
         )}
@@ -64,176 +96,100 @@ function LaunchBanner({ rows, loading }: { rows: LaunchRow[]; loading: boolean }
   )
 }
 
-/* ------------------------------------------------------------------ trending carousel */
+/* ------------------------------------------------------------------ 2. trending */
 
-function TrendingCarousel() {
+function TrendingLaunches() {
   const q = useTrendingLaunches()
   const rows = q.data ?? []
   return (
-    <section className="mt-8" data-testid="trending-launches">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-heading-3 font-semibold">
-          Trending launches <InfoTip content="Launched tokens ranked by 24h trading volume." />
-        </h2>
-      </div>
-      {q.isLoading ? (
-        <div className="flex gap-3 overflow-hidden">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} width={260} height={132} rounded="lg" className="shrink-0" />)}
+    <section data-testid="trending-launches">
+      <SectionTitle
+        info="Launched tokens ranked by 24h trading volume."
+        right={
+          <a href="#all-launches" className="text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="trending-view-all">
+            View all
+          </a>
+        }
+      >
+        Trending launches
+      </SectionTitle>
+      {q.isLoading || rows.length === 0 ? (
+        <div className="relative">
+          <div className="flex gap-3 overflow-hidden" data-state={q.isLoading ? 'loading' : 'empty'}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <LaunchCardSkeleton key={i} />
+            ))}
+          </div>
+          {!q.isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full border-[0.8px] border-border bg-surface-1 px-4 py-2 text-body-3 text-text-2 shadow-short">
+                {q.isError ? 'Launches are unavailable right now.' : 'No launched tokens yet.'}
+              </span>
+            </div>
+          )}
         </div>
-      ) : rows.length === 0 ? (
-        <div className="w-full rounded-2xl border border-border p-6 text-center text-body-3 text-text-2">{q.isError ? 'Launches are unavailable right now.' : 'No trending launches yet.'}</div>
       ) : (
-        <Marquee arrows itemGap={12} speed={30} ariaLabel="Trending launches" testId="trending-strip">
-          {rows.map((r) => <TrendingCard key={r.auction} row={r} />)}
+        <div className="[&_button[aria-label^=Scroll]]:opacity-0 [&_button[aria-label^=Scroll]]:transition-opacity hover:[&_button[aria-label^=Scroll]]:opacity-100 focus-within:[&_button[aria-label^=Scroll]]:opacity-100">
+        <Marquee fade arrows itemGap={12} speed={30} ariaLabel="Trending launches" testId="trending-strip">
+          {rows.map((r) => (
+            <LaunchCard key={r.auction} row={r} to={auctionHref(r)} />
+          ))}
         </Marquee>
+        </div>
       )}
     </section>
   )
 }
 
-function TrendingCard({ row }: { row: LaunchRow }) {
-  const spark = sparkValues(row)
-  return (
-    <Link to={auctionHref(row)} className="flex w-[260px] flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-4 hover:bg-surface-2" data-testid={`trending-card-${row.symbol}`}>
-      <div className="flex items-start gap-2.5">
-        <LaunchTokenLogo row={row} size={36} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-body-2 font-semibold">{row.name}</div>
-          <div className="text-body-4 text-text-2">{row.symbol}</div>
-        </div>
-        <Sparkline values={spark} width={84} height={32} />
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-body-1 font-semibold tabular">{formatUsd(row.fdvUsd, { compact: true })}</span>
-        <span className="text-body-4 text-text-2">FDV</span>
-        <PercentChange value={row.change1d} className="text-body-4" />
-      </div>
-      <div className="flex items-center justify-between text-body-4 text-text-2">
-        <span>
-          <span className="font-semibold text-text-1 tabular">{formatUsd(row.volume24hUsd, { compact: true })}</span> 24H volume
-        </span>
-        <LaunchpadChip name={launchpadName(row)} />
-      </div>
-    </Link>
-  )
-}
-
-/* ------------------------------------------------------------------ all launches table */
+/* ------------------------------------------------------------------ 3. all launches */
 
 type ListMode = 'all' | 'recent' | 'trending'
 
-function useLaunchpadFilter() {
-  const [params, setParams] = useSearchParams()
-  const launchpad = params.get('launchpad') ?? ''
-  const set = (v: string) => {
-    const next = new URLSearchParams(params)
-    if (v) next.set('launchpad', v)
-    else next.delete('launchpad')
-    setParams(next, { replace: true })
-  }
-  return [launchpad, set] as const
+function FilterChip({ active, onClick, icon, children, testId }: { active: boolean; onClick: () => void; icon: ReactNode; children: ReactNode; testId: string }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      data-testid={testId}
+      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 py-2 text-body-3 font-semibold whitespace-nowrap transition-colors', active ? 'bg-surface-2 text-text-1' : 'text-text-2 hover:text-text-1')}
+    >
+      {icon}
+      {children}
+    </button>
+  )
 }
 
-function AllLaunches() {
-  const [mode, setMode] = useState<ListMode>('all')
-  const [launchpad, setLaunchpad] = useLaunchpadFilter()
-  const q = useLaunches({ status: 'launched', sort: mode === 'recent' ? 'age' : 'volume', launchpad: launchpad || undefined })
-  const pads = usePadNames()
-  const navigate = useNavigate()
-  const rows = useMemo(() => {
-    let r = q.data ?? []
-    if (mode === 'recent') r = [...r].sort((a, b) => (a.ageSec ?? Infinity) - (b.ageSec ?? Infinity))
-    if (mode === 'trending') r = [...r].sort((a, b) => (b.volume24hUsd ?? 0) * Math.abs(b.change1d ?? 0) - (a.volume24hUsd ?? 0) * Math.abs(a.change1d ?? 0))
-    if (launchpad) r = r.filter((x) => launchpadName(x) === launchpad)
-    return r
-  }, [q.data, mode, launchpad])
+function Dropdown({ value, onChange, children, ariaLabel, testId, leading, className }: { value: string; onChange: (v: string) => void; children: ReactNode; ariaLabel: string; testId?: string; leading?: ReactNode; className?: string }) {
   return (
-    <section className="mt-10" data-testid="all-launches">
-      <h2 className="mb-3 text-heading-3 font-semibold">All launches</h2>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <SegmentedTabs
-          size="sm"
-          ariaLabel="Launch list"
-          value={mode}
-          onChange={setMode}
-          items={[
-            { value: 'all', label: <span className="inline-flex items-center gap-1"><LayoutGrid size={14} />All</span>, testId: 'launches-mode-all' },
-            { value: 'recent', label: <span className="inline-flex items-center gap-1"><Sparkles size={14} />Recently launched</span>, testId: 'launches-mode-recent' },
-            { value: 'trending', label: <span className="inline-flex items-center gap-1"><TrendingUp size={14} />Trending</span>, testId: 'launches-mode-trending' },
-          ]}
-        />
-        <select
-          value={launchpad}
-          onChange={(e) => setLaunchpad(e.target.value)}
-          aria-label="Launchpad"
-          data-testid="launchpad-filter"
-          className="h-9 rounded-full border border-border bg-surface-1 px-3 text-body-3 font-semibold text-text-1"
-        >
-          <option value="">All launchpads</option>
-          {pads.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </div>
-      <Table minWidth={860}>
-        <THead>
-          <Th className="w-10">#</Th>
-          <Th>Token</Th>
-          <Th>Launchpad</Th>
-          <Th align="right">FDV</Th>
-          <Th align="right">24H volume</Th>
-          <Th align="right">Liquidity</Th>
-          <Th align="right">1H</Th>
-          <Th align="right">1D</Th>
-          <Th align="right">Age</Th>
-        </THead>
-        {q.isLoading ? (
-          <TableSkeleton rows={5} cols={9} />
-        ) : (
-          <tbody>
-            {rows.map((r, i) => (
-              <Tr key={r.auction} onClick={() => navigate(auctionHref(r))} data-testid={`launch-row-${r.symbol}`}>
-                <Td className="text-text-2">{i + 1}</Td>
-                <Td>
-                  <Link to={auctionHref(r)} className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
-                    <LaunchTokenLogo row={r} size={28} />
-                    <span>
-                      <span className="flex items-center gap-1 font-semibold">
-                        {r.name} <VerifiedMark verified={r.verified} />
-                      </span>
-                      <span className="block text-body-4 text-text-2">{r.symbol}</span>
-                    </span>
-                  </Link>
-                </Td>
-                <Td>
-                  <LaunchpadChip name={launchpadName(r)} />
-                </Td>
-                <Td align="right">{formatUsd(r.fdvUsd, { compact: true })}</Td>
-                <Td align="right">{formatUsd(r.volume24hUsd, { compact: true })}</Td>
-                <Td align="right">{formatUsd(r.liquidityUsd, { compact: true })}</Td>
-                <Td align="right">
-                  <PercentChange value={r.change1h} />
-                </Td>
-                <Td align="right">
-                  <PercentChange value={r.change1d} />
-                </Td>
-                <Td align="right" className="text-text-2">
-                  {formatAge(r.ageSec)}
-                </Td>
-              </Tr>
-            ))}
-          </tbody>
-        )}
-      </Table>
-      {!q.isLoading && rows.length === 0 && (
-        <EmptyState icon={<Rocket size={20} />} title={q.isError ? 'Launches unavailable' : 'No launches yet'} action={<ButtonLink to="/launches/create">Launch a token</ButtonLink>}>
-          {q.isError ? 'The MetaSwap API is not reachable.' : 'Graduated launches show up here with their pool stats.'}
-        </EmptyState>
-      )}
-    </section>
+    <label className={cn('relative inline-flex h-12 items-center gap-2 rounded-2xl border-[0.8px] border-border bg-surface-1 pr-3 pl-4 text-body-2 font-semibold hover:bg-surface-2', className)}>
+      {leading}
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} data-testid={testId} className="absolute inset-0 cursor-pointer opacity-0">
+        {children}
+      </select>
+      <span className="pointer-events-none truncate">{leading ? null : ariaLabelValue(children, value)}</span>
+      <ChevronDown size={18} className="pointer-events-none shrink-0 text-text-2" />
+    </label>
   )
+}
+
+function ariaLabelValue(children: ReactNode, value: string): string {
+  const opts = (Array.isArray(children) ? children.flat() : [children]) as Array<{ props?: { value?: string; children?: ReactNode } }>
+  const hit = opts.find((o) => o?.props?.value === value)
+  return String(hit?.props?.children ?? '')
+}
+
+function useParam(key: string) {
+  const [params, setParams] = useSearchParams()
+  const value = params.get(key) ?? ''
+  const set = (v: string) => {
+    const next = new URLSearchParams(params)
+    if (v) next.set(key, v)
+    else next.delete(key)
+    setParams(next, { replace: true })
+  }
+  return [value, set] as const
 }
 
 function usePadNames(): string[] {
@@ -241,111 +197,220 @@ function usePadNames(): string[] {
   return useMemo(() => [...new Set((q.data ?? []).map(launchpadName).filter(Boolean))].sort(), [q.data])
 }
 
-/* ------------------------------------------------------------------ auctions */
+const TH = 'h-[42px] px-3 text-body-3 font-medium text-text-2 whitespace-nowrap first:rounded-l-xl last:rounded-r-xl'
+const TD = 'px-3 py-4 whitespace-nowrap'
+
+function AllLaunches() {
+  const [mode, setMode] = useState<ListMode>('all')
+  const [launchpad, setLaunchpad] = useParam('launchpad')
+  const q = useLaunches({ status: 'launched', sort: mode === 'recent' ? 'age' : 'volume', launchpad: launchpad || undefined })
+  const pads = usePadNames()
+  const navigate = useNavigate()
+  const rows = useMemo(() => {
+    let r = q.data ?? []
+    if (mode === 'recent') r = [...r].sort((a, b) => (a.ageSec ?? Infinity) - (b.ageSec ?? Infinity))
+    if (mode === 'trending') r = [...r].sort((a, b) => (b.volume24hUsd ?? 0) * Math.abs(b.change1d ?? 0) - (a.volume24hUsd ?? 0) * Math.abs(a.change1d ?? 0))
+    else if (mode === 'all') r = [...r].sort((a, b) => (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0))
+    if (launchpad) r = r.filter((x) => launchpadName(x) === launchpad)
+    return r
+  }, [q.data, mode, launchpad])
+
+  return (
+    <section id="all-launches" className="scroll-mt-24" data-testid="all-launches">
+      <SectionTitle>All launches</SectionTitle>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 md:mb-6">
+        <div role="tablist" aria-label="Launch list" className="-mx-1 flex max-w-full items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
+          <FilterChip active={mode === 'all'} onClick={() => setMode('all')} icon={<ChartNoAxesColumnIncreasing size={16} strokeWidth={2.5} />} testId="launches-mode-all">
+            All
+          </FilterChip>
+          <FilterChip active={mode === 'recent'} onClick={() => setMode('recent')} icon={<Sparkles size={16} />} testId="launches-mode-recent">
+            Recently launched
+          </FilterChip>
+          <FilterChip active={mode === 'trending'} onClick={() => setMode('trending')} icon={<TrendingUp size={16} />} testId="launches-mode-trending">
+            Trending
+          </FilterChip>
+        </div>
+        <div className="flex items-center gap-2">
+          <Dropdown value={launchpad} onChange={setLaunchpad} ariaLabel="Launchpad" testId="launchpad-filter">
+            <option value="">All launchpads</option>
+            {pads.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Dropdown>
+          <Dropdown value="devnet" onChange={() => undefined} ariaLabel="Network" leading={<LaunchpadIcon name={launchpad || 'MetaSwap'} size={24} />} className="pl-3">
+            <option value="devnet">MetaChain Devnet</option>
+          </Dropdown>
+        </div>
+      </div>
+      <div className="overflow-x-auto [scrollbar-width:thin]">
+        <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left text-body-2">
+          <thead>
+            <tr className="bg-surface-2">
+              <th className={cn(TH, 'w-14 text-center')}>#</th>
+              <th className={TH}>Token</th>
+              <th className={TH}>Launchpad</th>
+              <th className={cn(TH, 'text-right')}>FDV</th>
+              <th className={cn(TH, 'text-right', mode !== 'recent' && 'text-text-1')}>
+                <span className="inline-flex items-center gap-1">
+                  {mode !== 'recent' && <ArrowDown size={14} />}24H volume
+                </span>
+              </th>
+              <th className={cn(TH, 'text-right')}>Liquidity</th>
+              <th className={cn(TH, 'text-right')}>1H</th>
+              <th className={cn(TH, 'text-right')}>1D</th>
+              <th className={cn(TH, 'text-right', mode === 'recent' && 'text-text-1')}>Age</th>
+            </tr>
+          </thead>
+          <tbody>
+            {q.isLoading
+              ? [0, 1, 2, 3, 4].map((i) => (
+                  <tr key={i} className="h-[74px]" aria-hidden>
+                    <td className={cn(TD, 'text-center')}><Skeleton width={12} height={14} /></td>
+                    <td className={TD}><span className="flex items-center gap-3"><Skeleton width={32} height={32} /><span className="flex flex-col gap-1.5"><Skeleton width={96} height={14} /><Skeleton width={56} height={12} /></span></span></td>
+                    {[80, 64, 64, 64, 56, 56, 32].map((w, j) => (
+                      <td key={j} className={cn(TD, j > 0 && 'text-right')}><Skeleton width={w} height={14} /></td>
+                    ))}
+                  </tr>
+                ))
+              : rows.map((r, i) => (
+                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2/60" data-testid={`launch-row-${r.symbol}`}>
+                    <td className={cn(TD, 'text-center tabular')}>{i + 1}</td>
+                    <td className={TD}>
+                      <Link to={auctionHref(r)} className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                        <LaunchLogo row={r} size={32} badge={12} />
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-1 font-medium">
+                            {r.name} <VerifiedMark verified={r.verified} />
+                          </span>
+                          <span className="block text-body-3 text-text-2">{r.symbol}</span>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className={TD}>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <LaunchpadIcon name={launchpadName(r)} size={20} />
+                        {launchpadName(r)}
+                      </span>
+                    </td>
+                    <td className={cn(TD, 'text-right tabular')}>{usdCompact(r.fdvUsd)}</td>
+                    <td className={cn(TD, 'text-right tabular')}>{usdCompact(r.volume24hUsd)}</td>
+                    <td className={cn(TD, 'text-right tabular')}>{usdCompact(r.liquidityUsd)}</td>
+                    <td className={cn(TD, 'text-right')}>
+                      <Delta value={r.change1h} />
+                    </td>
+                    <td className={cn(TD, 'text-right')}>
+                      <Delta value={r.change1d} />
+                    </td>
+                    <td className={cn(TD, 'text-right text-text-2 tabular')}>{formatAge(r.ageSec)}</td>
+                  </tr>
+                ))}
+          </tbody>
+        </table>
+      </div>
+      {!q.isLoading && rows.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-12 text-center" data-testid="launches-empty">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-2 text-text-2">
+            <Rocket size={22} />
+          </span>
+          <div className="text-body-1 font-medium">{q.isError ? 'Launches unavailable' : 'No launches yet'}</div>
+          <p className="max-w-sm text-body-3 text-text-2">{q.isError ? 'The MetaSwap API is not reachable.' : 'Tokens that graduate from an auction show up here with their pool stats.'}</p>
+          <ButtonLink to="/launches/create" size="md">
+            Launch a token
+          </ButtonLink>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------ 4. auctions (same table spec) */
 
 function Auctions() {
-  const [status, setStatus] = useState<LaunchStatusFilter | 'verified'>('active')
-  const q = useLaunches({ status: status === 'verified' ? 'all' : status, verified: status === 'verified' ? true : undefined, sort: 'bidVolume' })
-  const top = useTopVerifiedLaunches()
+  const [status, setStatus] = useState<LaunchStatusFilter>('active')
+  const q = useLaunches({ status, sort: 'bidVolume' })
   const navigate = useNavigate()
   const now = useNow(5000)
-  const rows = q.data ?? []
+  const rows = (q.data ?? []).slice(0, 8)
   return (
-    <section className="mt-10" data-testid="auctions">
-      {(top.data?.length ?? 0) > 0 && (
-        <>
-          <h2 className="mb-3 flex items-center gap-1.5 text-heading-3 font-semibold">
-            Top verified auctions <InfoTip content="Auctions verified by their launchpad." />
-          </h2>
-          <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {top.data!.map((r) => (
-              <Link key={r.auction} to={auctionHref(r)} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-4 hover:bg-surface-2" data-testid={`verified-card-${r.symbol}`}>
-                <div className="flex items-center gap-2.5">
-                  <LaunchTokenLogo row={r} size={32} />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1 truncate text-body-2 font-semibold">
-                      {r.name} <VerifiedMark verified />
-                    </div>
-                    <div className="text-body-4 text-text-2">{r.symbol}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-body-4 text-text-2">
-                  <span>
-                    FDV
-                    <span className="block text-body-2 font-semibold text-text-1 tabular">{formatUsd(r.fdvUsd ?? r.fdvAtFloorUsd, { compact: true })}</span>
-                  </span>
-                  <span>
-                    Bid volume
-                    <span className="block text-body-2 font-semibold text-text-1 tabular">{formatUsd(r.bidVolumeUsd, { compact: true })}</span>
-                  </span>
-                </div>
-                <StatusCell row={r} now={now} />
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-heading-3 font-semibold">Auctions</h2>
-        <ButtonLink to="/launches/create" size="sm" variant="secondary" data-testid="launch-auction">
-          <Plus size={16} /> Launch auction
-        </ButtonLink>
+    <section data-testid="auctions">
+      <SectionTitle
+        right={
+          <span className="flex items-center gap-3">
+            <Link to="/launches/create" className="inline-flex items-center gap-1 text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="launch-auction">
+              <Plus size={16} /> Launch auction
+            </Link>
+            <Link to="/explore/auctions" className="text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="auctions-view-all">
+              View all auctions
+            </Link>
+          </span>
+        }
+      >
+        Auctions
+      </SectionTitle>
+      <div role="tablist" aria-label="Auction status" className="mb-4 flex flex-wrap items-center gap-1">
+        {(
+          [
+            ['active', 'Live'],
+            ['upcoming', 'Starting soon'],
+            ['failed', 'Failed'],
+          ] as const
+        ).map(([v, label]) => (
+          <FilterChip key={v} active={status === v} onClick={() => setStatus(v)} icon={null} testId={`auctions-${v}`}>
+            {label}
+          </FilterChip>
+        ))}
       </div>
-      <SegmentedTabs
-        size="sm"
-        className="mb-3"
-        ariaLabel="Auction status"
-        value={status}
-        onChange={setStatus}
-        items={[
-          { value: 'active', label: <span className="inline-flex items-center gap-1"><Flame size={14} />Live</span>, testId: 'auctions-active' },
-          { value: 'upcoming', label: 'Starting soon', testId: 'auctions-upcoming' },
-          { value: 'verified', label: 'Verified', testId: 'auctions-verified' },
-          { value: 'launched', label: 'Launched', testId: 'auctions-launched' },
-          { value: 'failed', label: 'Failed', testId: 'auctions-failed' },
-          { value: 'all', label: 'All', testId: 'auctions-all' },
-        ]}
-      />
-      <Table minWidth={760}>
-        <THead>
-          <Th>Token</Th>
-          <Th align="right">FDV at floor</Th>
-          <Th align="right">Bid volume</Th>
-          <Th align="right">Launch threshold</Th>
-          <Th align="right">Status</Th>
-        </THead>
-        {q.isLoading ? (
-          <TableSkeleton rows={4} cols={5} />
-        ) : (
+      <div className="overflow-x-auto [scrollbar-width:thin]">
+        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-body-2">
+          <thead>
+            <tr className="bg-surface-2">
+              <th className={TH}>Token</th>
+              <th className={cn(TH, 'text-right')}>FDV at floor</th>
+              <th className={cn(TH, 'text-right')}>Bid volume</th>
+              <th className={cn(TH, 'text-right')}>Launch threshold</th>
+              <th className={cn(TH, 'text-right')}>Status</th>
+            </tr>
+          </thead>
           <tbody>
-            {rows.map((r) => (
-              <Tr key={r.auction} onClick={() => navigate(auctionHref(r))} data-testid={`auction-row-${r.symbol}`}>
-                <Td>
-                  <span className="flex items-center gap-2.5">
-                    <LaunchTokenLogo row={r} size={28} />
-                    <span className="font-semibold">{r.name}</span>
-                    <span className="text-text-2">{r.symbol}</span>
-                    <VerifiedMark verified={r.verified} />
-                  </span>
-                </Td>
-                <Td align="right">{formatUsd(r.fdvAtFloorUsd, { compact: true })}</Td>
-                <Td align="right">{r.bidVolumeUsd ? formatUsd(r.bidVolumeUsd, { compact: true }) : '-'}</Td>
-                <Td align="right">
-                  <span className="block">{formatUsd(r.thresholdUsd, { compact: true })}</span>
-                  <span className="block text-body-4 text-text-2">{(r.thresholdPct ?? 0).toFixed(2)}% met</span>
-                </Td>
-                <Td align="right" className="w-48">
-                  <StatusCell row={r} now={now} />
-                </Td>
-              </Tr>
-            ))}
+            {q.isLoading
+              ? [0, 1, 2].map((i) => (
+                  <tr key={i} className="h-[74px]" aria-hidden>
+                    <td className={TD}><span className="flex items-center gap-3"><Skeleton width={32} height={32} /><Skeleton width={120} height={14} /></span></td>
+                    {[64, 64, 72, 96].map((w, j) => (
+                      <td key={j} className={cn(TD, 'text-right')}><Skeleton width={w} height={14} /></td>
+                    ))}
+                  </tr>
+                ))
+              : rows.map((r) => (
+                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2/60" data-testid={`auction-row-${r.symbol}`}>
+                    <td className={TD}>
+                      <span className="flex items-center gap-3">
+                        <LaunchLogo row={r} size={32} badge={12} />
+                        <span className="font-medium">{r.name}</span>
+                        <span className="text-text-2">{r.symbol}</span>
+                        <VerifiedMark verified={r.verified} />
+                      </span>
+                    </td>
+                    <td className={cn(TD, 'text-right tabular')}>{usdCompact(r.fdvAtFloorUsd)}</td>
+                    <td className={cn(TD, 'text-right tabular')}>{r.bidVolumeUsd ? usdCompact(r.bidVolumeUsd) : '-'}</td>
+                    <td className={cn(TD, 'text-right')}>
+                      <span className="block tabular">{usdCompact(r.thresholdUsd)}</span>
+                      <span className="block text-body-4 text-text-2 tabular">{(r.thresholdPct ?? 0).toFixed(2)}% met</span>
+                    </td>
+                    <td className={cn(TD, 'w-48 text-right')}>
+                      <StatusCell row={r} now={now} />
+                    </td>
+                  </tr>
+                ))}
           </tbody>
-        )}
-      </Table>
+        </table>
+      </div>
       {!q.isLoading && rows.length === 0 && (
-        <EmptyState icon={<Rocket size={20} />} title={q.isError ? 'Auctions unavailable' : 'No auctions here'}>
-          {q.isError ? 'The MetaSwap API is not reachable.' : 'Try another status, or launch your own token.'}
-        </EmptyState>
+        <p className="py-8 text-center text-body-3 text-text-2" data-testid="auctions-empty">
+          {q.isError ? 'Auctions are unavailable right now.' : status === 'active' ? 'No live auctions right now.' : status === 'upcoming' ? 'No auctions starting soon.' : 'No failed auctions.'}
+        </p>
       )}
     </section>
   )
@@ -354,10 +419,9 @@ function Auctions() {
 function StatusCell({ row, now }: { row: LaunchRow; now: number }) {
   if (row.status === 'active') {
     const total = Math.max(1, row.endTime - row.startTime)
-    const elapsed = ((now - row.startTime) / total) * 100
     return (
       <span className="flex flex-col items-end gap-1">
-        <ProgressBar value={elapsed} className="w-24" />
+        <ProgressBar value={((now - row.startTime) / total) * 100} className="w-24" />
         <Countdown to={row.endTime} className="text-body-4 text-text-2" />
       </span>
     )
@@ -365,12 +429,12 @@ function StatusCell({ row, now }: { row: LaunchRow; now: number }) {
   if (row.status === 'upcoming')
     return (
       <span className="flex flex-col items-end">
-        <span className="font-semibold">Starting soon</span>
+        <span className="font-medium">Starting soon</span>
         <Countdown to={row.startTime} className="text-body-4 text-text-2" />
       </span>
     )
   return (
-    <span className={cn('flex justify-end')}>
+    <span className="flex justify-end">
       <LaunchStatusBadge status={row.status} />
     </span>
   )

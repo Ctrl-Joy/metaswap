@@ -130,3 +130,32 @@ export function pctAboveFloor(clearing: bigint, floor: bigint): number {
   if (floor <= 0n) return 0
   return (Number(clearing) / Number(floor) - 1) * 100
 }
+
+/**
+ * Clearing price over time, replayed from bids. `levels` are the current on-chain demand levels (all
+ * bids); `bids` is the API's recent window (any order). Demand from bids older than the window is
+ * recovered as levels − window, so the replay is exact even when only recent bids are listed.
+ * Returns one point per bid (unix seconds, on-chain price), starting with the state before the window.
+ */
+export function clearingHistory(
+  levels: ReadonlyArray<{ price: bigint; demand: bigint }>,
+  bids: ReadonlyArray<{ time: number; amount: bigint; maxPrice: bigint }>,
+  supply: bigint,
+  floor: bigint,
+  quoteDecimals: number,
+  tickSize: bigint,
+  startTime: number,
+): Array<{ time: number; price: bigint }> {
+  const demand = new Map<bigint, bigint>()
+  for (const l of levels) demand.set(l.price, (demand.get(l.price) ?? 0n) + l.demand)
+  const asc = [...bids].sort((a, b) => a.time - b.time)
+  for (const b of asc) demand.set(b.maxPrice, (demand.get(b.maxPrice) ?? 0n) - b.amount)
+  const snapshot = () => [...demand.entries()].filter(([, d]) => d > 0n).map(([price, d]) => ({ price, demand: d }))
+  const first = asc[0]?.time ?? startTime
+  const out: Array<{ time: number; price: bigint }> = [{ time: Math.min(startTime, first - 1), price: clearingPrice(snapshot(), supply, floor, quoteDecimals, tickSize) }]
+  for (const b of asc) {
+    demand.set(b.maxPrice, (demand.get(b.maxPrice) ?? 0n) + b.amount)
+    out.push({ time: b.time, price: clearingPrice(snapshot(), supply, floor, quoteDecimals, tickSize) })
+  }
+  return out
+}

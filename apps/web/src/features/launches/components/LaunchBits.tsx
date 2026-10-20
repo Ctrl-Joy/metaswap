@@ -82,14 +82,5 @@ export function VerifiedMark({ verified }: { verified: boolean }) {
   return <BadgeCheck size={16} className="shrink-0 text-accent" aria-label="Verified" />
 }
 
-export function LaunchpadChip({ name }: { name: string }) {
-  if (!name) return null
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-2 py-0.5 text-body-4 font-semibold text-text-2">
-      <span className="size-3 rounded-[4px] bg-accent-fill" aria-hidden />
-      {name}
-    </span>
-  )
-}
 
 export { formatDuration }
