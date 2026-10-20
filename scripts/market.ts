@@ -39,7 +39,6 @@ const MODE = process.argv.includes('--live') ? 'live' : 'history'
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS ?? 30)
 const STEP_SECONDS = Number(process.env.HISTORY_STEP_SECONDS ?? 3600)
 const LIVE_INTERVAL_SECONDS = Number(process.env.LIVE_INTERVAL_SECONDS ?? 20)
-const API_URL = process.env.API_URL ?? 'http://127.0.0.1:8787'
 const SWAP_GAS = 1_000_000n
 // Anvil default-mnemonic accounts #10–#14
 const TRADERS: Address[] = [
@@ -137,9 +136,18 @@ async function send(from: Address, to: Address, data: { abi: unknown; functionNa
   return hash as Hex
 }
 
-// Anvil can hand back a tx hash a moment before its block is sealed, so always wait rather than
-// reading the receipt directly.
-const waitMined = (hash: Hex) => pub.waitForTransactionReceipt({ hash, pollingInterval: 25, timeout: 60_000 })
+// Anvil can hand back a tx hash a moment before its block is sealed, so poll for the receipt.
+// (viem's waitForTransactionReceipt re-checks only when a *new* block arrives; with automine and
+// nothing else being sent, that block never comes and it times out.)
+async function waitMined(hash: Hex) {
+  const deadline = Date.now() + 60_000
+  for (;;) {
+    const receipt = await pub.getTransactionReceipt({ hash }).catch(() => null)
+    if (receipt) return receipt
+    if (Date.now() > deadline) throw new Error(`tx ${hash} not mined within 60s`)
+    await new Promise((r) => setTimeout(r, 25))
+  }
+}
 
 async function checkReceipts(hashes: Hex[]) {
   for (const hash of hashes) {
@@ -151,20 +159,36 @@ async function checkReceipts(hashes: Hex[]) {
   }
 }
 
-/** Fund each trader once (ETH → WETH, minted test tokens) and approve SwapRouter02. */
-async function fundTraders(router: Address, weth: Address) {
+const targetBalance = (tok: (typeof tokens)[number]) =>
+  tok.symbol === 'WETH' ? TRADER_WETH : BigInt(Math.round(TRADER_USD_PER_TOKEN / tok.seedPriceUsd)) * 10n ** BigInt(tok.decimals)
+
+/**
+ * Keep each trader stocked: approve SwapRouter02 once, and refill any token that has fallen below
+ * a quarter of its working balance (ETH → WETH for WETH, open mint for test tokens). Run at start
+ * and periodically, so a long replay can never stall on an empty inventory.
+ */
+async function topUpTraders(router: Address, weth: Address) {
   const hashes: Hex[] = []
   for (const trader of TRADERS) {
-    const wethBal = (await pub.readContract({ address: weth, abi: weth9Abi, functionName: 'balanceOf', args: [trader] })) as bigint
-    if (wethBal >= TRADER_WETH / 2n) continue // already funded (e.g. live mode after history)
-    await rpc('anvil_setBalance', [trader, '0x' + parseEther('1000000').toString(16)])
-    hashes.push(await send(trader, weth, { abi: weth9Abi, functionName: 'deposit', args: [] }, TRADER_WETH))
+    const ethBal = await pub.getBalance({ address: trader })
+    if (ethBal < parseEther('100000')) await rpc('anvil_setBalance', [trader, '0x' + parseEther('1000000').toString(16)])
     for (const tok of tokens) {
-      if (tok.symbol !== 'WETH') {
-        const amount = BigInt(Math.round(TRADER_USD_PER_TOKEN / tok.seedPriceUsd)) * 10n ** BigInt(tok.decimals)
-        hashes.push(await send(trader, tok.address, { abi: testErc20Abi, functionName: 'mint', args: [trader, amount] }))
+      const [balance, allowance] = (await Promise.all([
+        pub.readContract({ address: tok.address, abi: testErc20Abi, functionName: 'balanceOf', args: [trader] }),
+        pub.readContract({ address: tok.address, abi: testErc20Abi, functionName: 'allowance', args: [trader, router] }),
+      ])) as [bigint, bigint]
+      const target = targetBalance(tok)
+      if (balance < target / 4n) {
+        const missing = target - balance
+        hashes.push(
+          tok.address.toLowerCase() === weth.toLowerCase()
+            ? await send(trader, weth, { abi: weth9Abi, functionName: 'deposit', args: [] }, missing)
+            : await send(trader, tok.address, { abi: testErc20Abi, functionName: 'mint', args: [trader, missing] }),
+        )
       }
-      hashes.push(await send(trader, tok.address, { abi: testErc20Abi, functionName: 'approve', args: [router, maxUint256] }))
+      if (allowance < maxUint256 / 2n) {
+        hashes.push(await send(trader, tok.address, { abi: testErc20Abi, functionName: 'approve', args: [router, maxUint256] }))
+      }
     }
   }
   await checkReceipts(hashes)
@@ -190,8 +214,10 @@ async function marketStep(router: Address, organicMin: number, organicMax: numbe
     const diff = Number(target > current ? target - current : current - target) / Number(current)
     if (diff < 0.0001) continue
     const zeroForOne = target < current
+    // every trade pays its own sender so trader inventories stay balanced over a long replay
+    const trader = nextTrader()
     hashes.push(
-      await send(nextTrader(), router, {
+      await send(trader, router, {
         abi: swapRouter02Abi,
         functionName: 'exactInputSingle',
         // amountIn is a ceiling: the price limit stops the swap at the target and only the
@@ -201,7 +227,7 @@ async function marketStep(router: Address, organicMin: number, organicMax: numbe
             tokenIn: zeroForOne ? p.token0 : p.token1,
             tokenOut: zeroForOne ? p.token1 : p.token0,
             fee: p.fee,
-            recipient: TRADERS[0],
+            recipient: trader,
             amountIn: 10n ** 30n,
             amountOutMinimum: 0n,
             sqrtPriceLimitX96: target,
@@ -226,11 +252,12 @@ async function marketStep(router: Address, organicMin: number, organicMax: numbe
     const buyToken0 = target > currentPrice // token0 gets more expensive → pay token1 in
     const amountIn = buyToken0 ? (Math.sqrt(k * target) - r1) / 0.997 : (Math.sqrt(k / target) - r0) / 0.997
     if (!(amountIn > 0)) continue
+    const trader = nextTrader()
     hashes.push(
-      await send(nextTrader(), router, {
+      await send(trader, router, {
         abi: swapRouter02Abi,
         functionName: 'swapExactTokensForTokens',
-        args: [BigInt(Math.floor(amountIn)), 0n, buyToken0 ? [p.token1, p.token0] : [p.token0, p.token1], TRADERS[0]],
+        args: [BigInt(Math.floor(amountIn)), 0n, buyToken0 ? [p.token1, p.token0] : [p.token0, p.token1], trader],
       }),
     )
   }
@@ -246,9 +273,10 @@ async function marketStep(router: Address, organicMin: number, organicMax: numbe
     const sizeUsd = Math.exp(Math.log(200) + rand() * Math.log(400)) // ~$200 … $80k, log-uniform
     const amountIn = BigInt(Math.floor((sizeUsd / usd[tokenIn.symbol]) * 10 ** tokenIn.decimals))
     if (amountIn === 0n) continue
+    const trader = nextTrader()
     hashes.push(
       useV3
-        ? await send(nextTrader(), router, {
+        ? await send(trader, router, {
             abi: swapRouter02Abi,
             functionName: 'exactInputSingle',
             args: [
@@ -256,17 +284,17 @@ async function marketStep(router: Address, organicMin: number, organicMax: numbe
                 tokenIn: tokenIn.address,
                 tokenOut,
                 fee: (pool as { fee: number }).fee,
-                recipient: nextTrader(),
+                recipient: trader,
                 amountIn,
                 amountOutMinimum: 0n,
                 sqrtPriceLimitX96: 0n,
               },
             ],
           })
-        : await send(nextTrader(), router, {
+        : await send(trader, router, {
             abi: swapRouter02Abi,
             functionName: 'swapExactTokensForTokens',
-            args: [amountIn, 0n, [tokenIn.address, tokenOut], nextTrader()],
+            args: [amountIn, 0n, [tokenIn.address, tokenOut], trader],
           }),
     )
   }
@@ -289,11 +317,12 @@ async function runHistory(router: Address, weth: Address) {
   // manual mining while we rewrite the clock
   await rpc('evm_setIntervalMining', [0])
   await rpc('evm_setAutomine', [true])
-  await fundTraders(router, weth)
+  await topUpTraders(router, weth)
 
   for (let step = 0; step < steps; step++, t += STEP_SECONDS) {
     stepPrices(STEP_SECONDS / 3600)
     await rpc('evm_setNextBlockTimestamp', [t])
+    if (step > 0 && step % 24 === 0) await topUpTraders(router, weth)
     const hashes = await marketStep(router, 2, 6)
     // receipts: every step for the first day, then sampled daily, to keep the replay fast. The
     // last tx of each step is always awaited so the next step reads settled pool state and its
@@ -316,49 +345,64 @@ async function runHistory(router: Address, weth: Address) {
   if (failed > 0) process.exitCode = 1
 }
 
-/** Start the live walk from the prices the indexer currently reports, so nothing jumps. */
+/**
+ * Start the live walk from the prices the pools hold right now, so nothing jumps. Read on-chain
+ * rather than from the API: the indexer may still be backfilling and would report stale prices.
+ * ETH comes from the deepest WETH/stable V3 pool; every other token from its V3 pool against WETH
+ * (or a stable); stablecoins keep $1.
+ */
 async function loadCurrentPrices() {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    try {
-      const res = await fetch(`${API_URL}/explore/tokens`)
-      if (res.ok) {
-        const body = (await res.json()) as unknown
-        const rows = (Array.isArray(body) ? body : (body as { tokens: unknown[] }).tokens) as Array<{ priceUsd?: number; token?: { address: string }; address?: string }>
-        let n = 0
-        for (const row of rows) {
-          const address = (row.token?.address ?? row.address ?? '').toLowerCase()
-          const tok = byAddress[address]
-          if (tok && row.priceUsd && row.priceUsd > 0) {
-            usd[tok.symbol] = row.priceUsd
-            n++
-          }
-        }
-        if (n >= tokens.length - 1) return
-      }
-    } catch {}
-    await new Promise((r) => setTimeout(r, 2000))
+  const weth = deployment.tokens.find((t) => t.symbol === 'WETH')!
+  const pools = deployment.pools.v3
+  const slots = await Promise.all(
+    pools.map((p) => pub.readContract({ address: p.address, abi: v3PoolAbi, functionName: 'slot0' }) as Promise<readonly [bigint, ...unknown[]]>),
+  )
+  /** human price of `base` in units of `quote` from pool i */
+  const priceIn = (i: number, base: string, quote: string) => {
+    const p = pools[i]
+    const t0 = byAddress[p.token0.toLowerCase()]
+    const t1 = byAddress[p.token1.toLowerCase()]
+    const raw = (Number(slots[i][0]) / 2 ** 96) ** 2 // token1 per token0, raw units
+    const p01 = raw * 10 ** (t0.decimals - t1.decimals) // human token1 per token0
+    if (t0.symbol === base && t1.symbol === quote) return p01
+    if (t1.symbol === base && t0.symbol === quote) return 1 / p01
+    return null
   }
-  log('API prices unavailable; starting from seed prices')
+  const pick = (base: string, quotes: string[]) => {
+    for (const quote of quotes) for (let i = 0; i < pools.length; i++) {
+      const v = priceIn(i, base, quote)
+      if (v) return { v, quote }
+    }
+    return null
+  }
+  const eth = pick('WETH', ['mUSDC', 'mUSDT', 'mDAI'])
+  if (eth) usd.WETH = eth.v
+  for (const t of tokens) {
+    if (t.symbol === 'WETH' || STABLES.has(t.symbol)) continue
+    const hit = pick(t.symbol, [weth.symbol, 'mUSDC', 'mUSDT', 'mDAI'])
+    if (hit) usd[t.symbol] = hit.quote === weth.symbol ? hit.v * usd.WETH : hit.v
+  }
 }
 
 async function runLive(router: Address, weth: Address) {
-  await fundTraders(router, weth)
+  await topUpTraders(router, weth)
   await loadCurrentPrices()
   log(`trading every ${LIVE_INTERVAL_SECONDS}s from ETH $${usd.WETH.toFixed(2)} — Ctrl+C to stop`)
   let last = Date.now()
-  for (;;) {
+  for (let step = 1; ; step++) {
     await new Promise((r) => setTimeout(r, LIVE_INTERVAL_SECONDS * 1000))
     const now = Date.now()
     stepPrices((now - last) / 3_600_000)
     last = now
     try {
+      if (step % 30 === 0) await topUpTraders(router, weth)
       const hashes = await marketStep(router, 0, 2)
       await checkReceipts(hashes)
     } catch (err) {
       // the chain may be restarting; keep going
       log(`step skipped: ${(err as Error).message.split('\n')[0]}`)
     }
-    if (sent % 200 < 15) log(`ETH $${usd.WETH.toFixed(2)}  txs ${sent} (failed ${failed})`)
+    if (step % 30 === 0) log(`ETH $${usd.WETH.toFixed(2)}  txs ${sent} (failed ${failed})`)
   }
 }
 

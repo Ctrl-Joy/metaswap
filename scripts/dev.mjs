@@ -8,7 +8,8 @@
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, openSync } from 'node:fs'
+import { existsSync, mkdirSync, openSync, readdirSync, rmSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -93,6 +94,18 @@ process.on('SIGTERM', () => shutdown(0))
 if (await rpcReady(500)) {
   log(`something is already listening on ${RPC}; stop it first (it may be a stale anvil).`)
   process.exit(1)
+}
+
+// Anvil persists historical chain state under ~/.foundry/anvil/tmp (several GB for a 30-day
+// replay) and never cleans it up. Every launch starts a brand-new chain, so earlier state folders
+// are dead weight — remove them before they fill the disk.
+const anvilTmp = join(homedir(), '.foundry', 'anvil', 'tmp')
+if (existsSync(anvilTmp)) {
+  for (const entry of readdirSync(anvilTmp)) {
+    try {
+      rmSync(join(anvilTmp, entry), { recursive: true, force: true })
+    } catch {} // still held by a running anvil — leave it
+  }
 }
 
 // Start the chain's clock in the past so scripts/market.ts --history can replay HISTORY_DAYS of hourly
