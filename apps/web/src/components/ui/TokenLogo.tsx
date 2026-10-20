@@ -14,9 +14,41 @@ export function hueFrom(s: string): number {
   return h % 360
 }
 
-function initials(symbol: string): string {
-  const s = symbol.replace(/^m(?=[A-Z])/, '')
-  return s.slice(0, s.length > 3 ? 2 : 3).toUpperCase()
+function initial(symbol: string): string {
+  return (symbol.replace(/^m(?=[A-Z])/, '').replace(/^\$/, '')[0] ?? '?').toUpperCase()
+}
+
+/**
+ * Generated avatar for tokens without artwork (e.g. freshly launched tokens): a two-tone gradient
+ * and one of several geometric motifs, both derived from the address, plus a single initial. Every
+ * token gets a distinct, stable logo that stays legible down to 16px.
+ */
+function GeneratedLogo({ seed, symbol }: { seed: string; symbol: string }) {
+  const h = hueFrom(seed)
+  const h2 = (h + 40 + (hueFrom(seed + 'b') % 80)) % 360
+  const motif = hueFrom(seed + 'm') % 5
+  const id = `g${hueFrom(seed + 'id')}`
+  return (
+    <svg viewBox="0 0 40 40" className="size-full rounded-full" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={`hsl(${h} 70% 58%)`} />
+          <stop offset="1" stopColor={`hsl(${h2} 65% 38%)`} />
+        </linearGradient>
+      </defs>
+      <circle cx="20" cy="20" r="20" fill={`url(#${id})`} />
+      <g fill="white" fillOpacity="0.16">
+        {motif === 0 && <circle cx="31" cy="9" r="11" />}
+        {motif === 1 && <path d="M0 30 L20 12 L40 30 L40 40 L0 40Z" />}
+        {motif === 2 && <rect x="22" y="-4" width="20" height="20" rx="5" transform="rotate(20 32 6)" />}
+        {motif === 3 && <path d="M20 2 L24 14 L37 14 L27 22 L31 35 L20 27 L9 35 L13 22 L3 14 L16 14Z" />}
+        {motif === 4 && <ellipse cx="8" cy="34" rx="18" ry="11" />}
+      </g>
+      <text x="20" y="20" dy="0.36em" textAnchor="middle" fontSize="17" fontWeight="700" fill="white" fontFamily="Inter, ui-sans-serif, system-ui, sans-serif">
+        {initial(symbol)}
+      </text>
+    </svg>
+  )
 }
 
 /**
@@ -33,13 +65,7 @@ export function TokenLogo({ token, size = 36, className, chainBadge }: { token: 
       {src && !failed ? (
         <img src={src} alt="" width={size} height={size} className="size-full rounded-full" onError={() => setFailed(true)} draggable={false} />
       ) : (
-        <span
-          aria-hidden
-          className="flex size-full items-center justify-center rounded-full font-semibold text-white"
-          style={{ background: `hsl(${hueFrom(token.address ?? token.symbol)} 55% 45%)`, fontSize: Math.max(8, size * 0.34) }}
-        >
-          {initials(token.symbol)}
-        </span>
+        <GeneratedLogo seed={(token.address ?? token.symbol).toLowerCase()} symbol={token.symbol} />
       )}
       {chainBadge && (
         <span className="absolute -right-0.5 -bottom-0.5 rounded-[4px] border-2 border-surface-1 bg-accent-fill" style={{ width: size * 0.38, height: size * 0.38 }} aria-hidden>
