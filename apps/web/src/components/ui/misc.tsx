@@ -309,7 +309,7 @@ export function EmptyState({ icon, title, children, action, className }: { icon?
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-2xl border border-border bg-surface-1', className)} {...rest}>
+    <div className={cn('rounded-[20px] border border-border bg-surface-1', className)} {...rest}>
       {children}
     </div>
   )
