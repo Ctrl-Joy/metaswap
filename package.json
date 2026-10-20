@@ -12,8 +12,11 @@
     "node": ">=22.19"
   },
   "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:chain": "node scripts/dev.mjs --chain-only",
     "contracts:build": "cd packages/contracts && forge build",
     "contracts:test": "cd packages/contracts && forge test",
-    "sdk:sync": "node packages/sdk/scripts/sync.mjs"
+    "sdk:sync": "node packages/sdk/scripts/sync.mjs",
+    "test:sdk": "npm test -w @metaswap/sdk"
   }
 }

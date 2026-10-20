@@ -21,3 +21,6 @@ services/*/data/
 # test artifacts
 playwright-report/
 test-results/
+
+# sdk generated (rebuilt by npm run sdk:sync)
+packages/sdk/src/generated/

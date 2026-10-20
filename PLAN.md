@@ -45,6 +45,12 @@ in your final report — do not silently diverge.
 | Frontend | `apps/web` (`@metaswap/web`): Vite + React 18 + TypeScript, React Router, wagmi v2 + viem, TanStack Query, Zustand, Tailwind CSS, Radix UI primitives, `lightweight-charts` for price charts, Vite dev server on **:5173** | Mirrors Uniswap's SPA architecture |
 | Tests | forge test; vitest (sdk/api/web units); Playwright e2e for web against the live local stack | |
 
+**Pinned versions (binding — keep all workspaces on the same lines):** typescript 5.9.3,
+viem ^2.57, wagmi ^2.19 (v2 API, not v3), @tanstack/react-query ^5, react/react-dom ^19,
+react-router-dom ^7, vite ^7.3, vitest ^3.2, @playwright/test ^1.64, tailwindcss ^4 (CSS-first
+config via `@tailwindcss/vite`), zustand ^5, lightweight-charts ^5, hono ^4, @hono/node-server,
+tsx ^4. `@metaswap/sdk` is consumed as TypeScript source (`exports: "./src/index.ts"`).
+
 ## Repository layout and ownership
 
 ```

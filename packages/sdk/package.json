@@ -1,0 +1,23 @@
+{
+  "name": "@metaswap/sdk",
+  "private": true,
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./abis": "./src/generated/abis.ts"
+  },
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "^2.57.7"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
