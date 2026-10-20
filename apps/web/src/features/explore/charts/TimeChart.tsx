@@ -62,6 +62,17 @@ export function trendColor(data: ReadonlyArray<{ value: number }>, palette: Char
   return data[data.length - 1]!.value >= data[0]!.value ? palette.success : palette.critical
 }
 
+/**
+ * lightweight-charts requires strictly ascending, unique times and rejects the whole update
+ * otherwise (leaving stale data on screen). Callers often append a live "now" point that can
+ * collide with the last bucket, so sort and keep the last value per timestamp.
+ */
+export function normalizeSeries<T extends { time: number }>(data: ReadonlyArray<T>): T[] {
+  const byTime = new Map<number, T>()
+  for (const p of data) if (Number.isFinite(p.time)) byTime.set(p.time, p)
+  return [...byTime.values()].sort((a, b) => a.time - b.time)
+}
+
 const DOT_GRID = (color: string): React.CSSProperties => ({
   backgroundImage: `radial-gradient(circle, ${color} 1px, transparent 1.4px)`,
   backgroundSize: '18px 18px',
@@ -204,8 +215,12 @@ export function TimeChart(props: Props) {
       })
     }
     seriesRef.current = series
-    chart.timeScale().subscribeVisibleLogicalRangeChange(placeDot)
-    const ro = new ResizeObserver(() => placeDot())
+    // Re-place the dot whenever the plot's geometry changes. Our ResizeObserver fires before the
+    // chart's own autoSize resize, so defer a frame; the chart's size-change event covers the rest.
+    const placeDotSoon = () => requestAnimationFrame(placeDot)
+    chart.timeScale().subscribeVisibleLogicalRangeChange(placeDotSoon)
+    chart.timeScale().subscribeSizeChange(placeDotSoon)
+    const ro = new ResizeObserver(placeDotSoon)
     ro.observe(host)
 
     chart.subscribeCrosshairMove((param: MouseEventParams<Time>) => {
@@ -249,26 +264,34 @@ export function TimeChart(props: Props) {
     if (!s || !chart) return
     barHover.current = null
     if (props.kind === 'candles') {
+      const candles = normalizeSeries(props.data)
       ;(s as ISeriesApi<'Candlestick'>).setData(
-        props.data.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })),
+        candles.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })),
       )
       lastPoint.current = null
     } else if (props.kind === 'bar') {
-      barValues.current = new Map(props.data.map((p) => [p.time, p.value]))
-      ;(s as ISeriesApi<'Histogram'>).setData(props.data.map((p): HistogramData<Time> => ({ time: p.time as UTCTimestamp, value: p.value, color: palette.accent })))
+      const bars = normalizeSeries(props.data)
+      barValues.current = new Map(bars.map((p) => [p.time, p.value]))
+      ;(s as ISeriesApi<'Histogram'>).setData(bars.map((p): HistogramData<Time> => ({ time: p.time as UTCTimestamp, value: p.value, color: palette.accent })))
       lastPoint.current = null
     } else {
-      const tc = trendColor(props.data, palette)
+      // drop interior repeats of the previous value (forward-filled buckets) so lines connect
+      // real changes instead of drawing a staircase, as on Uniswap
+      const points = normalizeSeries(props.data).filter((p, i, arr) => i === 0 || i === arr.length - 1 || p.value !== arr[i - 1]!.value)
+      const tc = trendColor(points, palette)
       ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).applyOptions(
         props.kind === 'area'
           ? { lineColor: tc, topColor: withAlpha(tc, 0.25), bottomColor: withAlpha(tc, 0) }
           : { color: tc },
       )
-      ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).setData(props.data.map((p): LineData<Time> => ({ time: p.time as UTCTimestamp, value: p.value })))
-      lastPoint.current = props.data.length ? props.data[props.data.length - 1]! : null
+      ;(s as ISeriesApi<'Line'> | ISeriesApi<'Area'>).setData(points.map((p): LineData<Time> => ({ time: p.time as UTCTimestamp, value: p.value })))
+      lastPoint.current = points.length ? points[points.length - 1]! : null
     }
     chart.timeScale().fitContent()
+    // the price scale autoscales a frame or two after setData; place the dot once it has settled
     requestAnimationFrame(placeDot)
+    const settle = [setTimeout(placeDot, 60), setTimeout(placeDot, 300)]
+    return () => settle.forEach(clearTimeout)
     // `data` identity drives updates; `props` is read for the discriminant.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, kind, palette])
