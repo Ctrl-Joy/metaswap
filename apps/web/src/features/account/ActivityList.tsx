@@ -1,166 +1,172 @@
 import { useMemo } from 'react'
-import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, Check, Droplets, Layers, X, Zap, Clock, ShieldCheck } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, ArrowRight, Check, Droplets, Layers, X, Zap, Clock, ShieldCheck, PiggyBank, Gavel, Repeat } from 'lucide-react'
 import type { Address } from 'viem'
-import { CopyButton, EmptyState, Skeleton, Spinner } from '@/components/ui'
+import { EmptyState, Skeleton, Spinner, TokenLogo } from '@/components/ui'
 import { useAccountActivity } from '@/api/hooks'
-import type { ActivityItem } from '@/api/types'
-import { useAccountTxs, TX_TYPE_LABEL, type TrackedTx } from '@/state/transactions'
-import { formatAmount, formatRelativeTime, formatUsd, shortenAddress } from '@/lib/format'
+import { useAccountTxs } from '@/state/transactions'
+import { useTokenList } from '@/features/tokens/useTokenList'
+import { formatAmount, formatRelativeTime, formatUsd } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { filterActivity, mergeActivity, type ActivityKind, type ActivityLeg, type ActivityRowModel, type TimeFilter, type TypeFilter } from './activityModel'
 
-interface Row {
-  key: string
-  hash?: string
-  type: string
-  title: string
-  detail: string
-  time?: number
-  status: TrackedTx['status'] | 'indexed'
-  usd?: number | null
-}
-
-type Amt = { symbol?: string; amountFormatted?: number }
-const amt = (a: unknown) => {
-  const x = a as Amt | undefined
-  return x && x.symbol ? `${formatAmount(Math.abs(x.amountFormatted ?? 0))} ${x.symbol}` : ''
-}
-
-/** Human description of an indexed API activity item. */
-export function describeActivity(it: ActivityItem): { title: string; detail: string } {
-  const t = String(it.type)
-  switch (t) {
-    case 'swap':
-      return { title: 'Swapped', detail: `${amt(it.tokenIn)} → ${amt(it.tokenOut)}` }
-    case 'add':
-    case 'mint':
-      if (it.token0) return { title: 'Added liquidity', detail: `${amt(it.token0)} + ${amt(it.token1)}` }
-      return { title: 'Received (mint)', detail: amt(it.token) }
-    case 'remove':
-    case 'burn':
-      return { title: 'Removed liquidity', detail: `${amt(it.token0)} + ${amt(it.token1)}` }
-    case 'collect':
-      return { title: 'Collected fees', detail: it.tokenId ? `Position #${String(it.tokenId)}` : '' }
-    case 'deposit':
-    case 'wrap':
-      return { title: 'Wrapped', detail: `${formatAmount(Number(it.amount ?? 0) / 1e18)} ETH → WETH` }
-    case 'withdrawal':
-    case 'withdraw':
-    case 'unwrap':
-      return { title: 'Unwrapped', detail: `${formatAmount(Number(it.amount ?? 0) / 1e18)} WETH → ETH` }
-    case 'send':
-      return { title: 'Sent', detail: `${amt(it.token)} to ${shortenAddress(String(it.to ?? ''))}` }
-    case 'receive':
-      return { title: 'Received', detail: `${amt(it.token)} from ${shortenAddress(String(it.from ?? ''))}` }
-    case 'order': {
-      const o = it.order as { status?: string } | undefined
-      return { title: `Limit order ${o?.status ?? ''}`.trim(), detail: 'MetaSwapX' }
-    }
-    default:
-      return { title: t.charAt(0).toUpperCase() + t.slice(1), detail: String(it.summary ?? '') }
-  }
-}
-
-function iconFor(type: string) {
-  switch (type) {
+export function iconFor(kind: ActivityKind) {
+  switch (kind) {
     case 'swap':
       return ArrowLeftRight
     case 'send':
       return ArrowUpRight
     case 'receive':
-    case 'mint':
       return ArrowDownLeft
-    case 'faucet':
+    case 'mint':
       return Droplets
+    case 'wrap':
+    case 'unwrap':
+      return Repeat
     case 'approve':
       return ShieldCheck
     case 'order':
-    case 'cancel-order':
       return Zap
     case 'add':
     case 'remove':
-    case 'add-liquidity':
-    case 'remove-liquidity':
     case 'collect':
-    case 'collect-fees':
       return Layers
+    case 'earn-deposit':
+    case 'earn-withdraw':
+      return PiggyBank
+    case 'bid':
+      return Gavel
     default:
       return ArrowLeftRight
   }
 }
 
-/** Activity = this browser's tracked txs (instant, with pending state) + the API indexer's history. */
-export function ActivityList({ address, limit, types }: { address: Address; limit?: number; /** Only show these activity types (local tx types or API types). */ types?: readonly string[] }) {
+/** Merged, sorted activity rows for an address (local tracked txs + indexed history). */
+export function useActivityRows(address: Address | undefined) {
   const local = useAccountTxs(address)
   const api = useAccountActivity(address)
-  const rows = useMemo(() => {
-    const out: Row[] = local.map((t) => ({ key: t.hash, hash: t.hash, type: t.type, title: TX_TYPE_LABEL[t.type], detail: t.summary, time: t.addedAt, status: t.status }))
-    const seen = new Set(local.map((t) => t.hash.toLowerCase()))
-    for (const it of api.data ?? []) {
-      const h = (it.txHash ?? it.hash) as string | undefined
-      if (h && seen.has(h.toLowerCase())) continue
-      if (h) seen.add(h.toLowerCase())
-      const d = describeActivity(it)
-      out.push({ key: h ?? `${it.type}-${it.blockNumber}-${String(it.logIndex)}`, hash: h ?? undefined, type: String(it.type), title: d.title, detail: d.detail, time: it.timestamp ? Number(it.timestamp) * 1000 : undefined, status: 'indexed', usd: (it.amountUsd as number | null | undefined) ?? null })
-    }
-    return out.filter((r) => !types || types.includes(r.type)).sort((a, b) => (b.time ?? 0) - (a.time ?? 0)).slice(0, limit ?? 100)
-  }, [local, api.data, limit, types])
+  const rows = useMemo(() => mergeActivity(local, api.data ?? []), [local, api.data])
+  return { rows, loading: api.isLoading && local.length === 0 }
+}
 
-  if (api.isLoading && local.length === 0)
+function StatusBadge({ status }: { status: ActivityRowModel['status'] }) {
+  if (status === 'pending')
     return (
-      <div className="flex flex-col gap-3 p-1">
+      <span className="absolute -right-1 -bottom-1 rounded-full bg-surface-1 text-accent">
+        <Spinner size={12} />
+      </span>
+    )
+  if (status === 'reverted' || status === 'dropped')
+    return (
+      <span className="absolute -right-1 -bottom-1 rounded-full bg-critical p-0.5 text-white">
+        <X size={7} strokeWidth={4} />
+      </span>
+    )
+  if (status === 'confirmed')
+    return (
+      <span className="absolute -right-1 -bottom-1 rounded-full bg-success p-0.5 text-white">
+        <Check size={7} strokeWidth={4} />
+      </span>
+    )
+  return null
+}
+
+function useLegToken() {
+  const { find } = useTokenList()
+  return (l: ActivityLeg) => (l.address ? find(l.address) : undefined) ?? find(l.symbol === 'ETH' ? 'ETH' : l.symbol) ?? { symbol: l.symbol, address: l.address ?? l.symbol }
+}
+
+function legText(l: ActivityLeg): string {
+  return `${l.amount === null ? '' : `${formatAmount(l.amount, 5)} `}${l.symbol}`
+}
+
+/** One-line amount summary: "0.5 WETH → 1,517 mUSDC", "42.5 mUSDC", or the tracked summary. */
+export function amountSummary(r: ActivityRowModel): string {
+  if (r.legs.length >= 2) return `${legText(r.legs[0]!)} ${r.kind === 'add' || r.kind === 'remove' ? '+' : '→'} ${legText(r.legs[1]!)}`
+  if (r.legs.length === 1) return legText(r.legs[0]!)
+  return r.detail ?? ''
+}
+
+/**
+ * Activity list for the account drawer and the portfolio "Recent activity" column (Uniswap layout:
+ * 64px rows, 24px token logo, 12px verb over a 14px amount, date on the right).
+ */
+export function ActivityList({ address, limit, types, time }: { address: Address; limit?: number; types?: TypeFilter; time?: TimeFilter; /** @deprecated kept for callers */ compact?: boolean }) {
+  const { rows: all, loading } = useActivityRows(address)
+  const legToken = useLegToken()
+  const rows = useMemo(() => filterActivity(all, { type: types, time }).slice(0, limit ?? 100), [all, types, time, limit])
+
+  if (loading)
+    return (
+      <div className="flex flex-col gap-3 p-2">
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex items-center gap-3">
-            <Skeleton width={36} height={36} />
+            <Skeleton width={24} height={24} rounded="full" />
             <Skeleton width={180} height={14} />
           </div>
         ))}
       </div>
     )
-  if (rows.length === 0) return <EmptyState icon={<Clock size={20} />} title="No activity yet" className="py-8">Your swaps, sends and orders will show up here.</EmptyState>
+  if (rows.length === 0)
+    return (
+      <EmptyState icon={<Clock size={20} />} title="No activity yet" className="py-8">
+        Your swaps, sends and orders will show up here.
+      </EmptyState>
+    )
   return (
     <ul className="flex flex-col" data-testid="activity-list">
       {rows.map((r) => {
-        const Icon = iconFor(r.type)
+        const Icon = iconFor(r.kind)
+        const lead = r.legs[r.kind === 'swap' ? 1 : 0]
         return (
-          <li key={r.key} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-2" data-testid="activity-row" data-status={r.status}>
-            <span className={cn('relative flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-3 text-text-2')}>
-              <Icon size={16} />
-              {r.status === 'pending' && (
-                <span className="absolute -right-1 -bottom-1 rounded-full bg-surface-1 text-accent">
-                  <Spinner size={14} />
+          <li key={r.key} className="flex h-16 items-center gap-3 rounded-xl px-5 transition-colors hover:bg-surface-2" data-testid="activity-row" data-status={r.status} data-kind={r.kind}>
+            <span className="relative shrink-0">
+              {lead ? (
+                <TokenLogo token={legToken(lead)} size={24} />
+              ) : (
+                <span className="flex size-6 items-center justify-center rounded-full bg-surface-3 text-text-2">
+                  <Icon size={13} />
                 </span>
               )}
-              {r.status === 'confirmed' && (
-                <span className="absolute -right-1 -bottom-1 rounded-full bg-success p-0.5 text-white">
-                  <Check size={8} strokeWidth={4} />
-                </span>
-              )}
-              {(r.status === 'reverted' || r.status === 'dropped') && (
-                <span className="absolute -right-1 -bottom-1 rounded-full bg-critical p-0.5 text-white">
-                  <X size={8} strokeWidth={4} />
-                </span>
-              )}
+              <StatusBadge status={r.status} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-body-3 font-semibold">
-                {r.title}
-                {r.status === 'reverted' && <span className="ml-1.5 font-normal text-critical">failed</span>}
-                {r.status === 'pending' && <span className="ml-1.5 font-normal text-accent">pending</span>}
+              <span className="block text-body-4 text-text-2">
+                {r.label}
+                {r.status === 'reverted' && <span className="ml-1 text-critical">· failed</span>}
+                {r.status === 'pending' && <span className="ml-1 text-accent">· pending</span>}
               </span>
-              <span className="block truncate text-body-4 text-text-2">{r.detail}</span>
+              <span className="block truncate text-body-3 text-text-1">{amountSummary(r)}</span>
             </span>
             <span className="shrink-0 text-right">
-              {r.time && <span className="block text-body-4 text-text-3">{formatRelativeTime(r.time)}</span>}
-              {r.usd ? <span className="block text-body-4 text-text-2 tabular">{formatUsd(r.usd)}</span> : null}
-              {r.hash && !r.usd && (
-                <CopyButton value={r.hash} label="Copy transaction hash" className="font-mono text-[11px] text-text-3">
-                  {r.hash.slice(0, 6)}
-                </CopyButton>
-              )}
+              {r.time && <span className="block text-body-3 text-text-2">{formatRelativeTime(r.time)}</span>}
+              {r.usd ? <span className="block text-body-4 text-text-3 tabular">{formatUsd(r.usd)}</span> : null}
             </span>
           </li>
         )
       })}
     </ul>
+  )
+}
+
+/** Amount cell: token logo + amount + USD, swaps as "in → out" (Activity tab). */
+export function AmountCell({ r }: { r: ActivityRowModel }) {
+  const legToken = useLegToken()
+  if (r.legs.length === 0) return <span className="text-text-2">{r.detail ?? '-'}</span>
+  const one = (l: ActivityLeg) => (
+    <span className="flex min-w-0 items-center gap-2">
+      <TokenLogo token={legToken(l)} size={32} />
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-text-1">{legText(l)}</span>
+        <span className="block text-body-4 text-text-2 tabular">{l.usd != null ? formatUsd(l.usd) : r.legs.length === 1 && r.usd ? formatUsd(r.usd) : ' '}</span>
+      </span>
+    </span>
+  )
+  if (r.legs.length === 1) return one(r.legs[0]!)
+  return (
+    <span className="grid grid-cols-[minmax(0,1fr)_32px_minmax(0,1fr)] items-center gap-2">
+      {one(r.legs[0]!)}
+      <span className={cn('flex justify-center text-text-2', (r.kind === 'add' || r.kind === 'remove') && 'text-body-2')}>{r.kind === 'add' || r.kind === 'remove' ? '+' : <ArrowRight size={16} />}</span>
+      {one(r.legs[1]!)}
+    </span>
   )
 }

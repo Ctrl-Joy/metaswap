@@ -29,6 +29,9 @@ export interface CurrencyInputPanelProps {
   footer?: ReactNode
   /** Rendered between the amount and the token button row (e.g. percent chips). */
   children?: ReactNode
+  /** Up to 5 quick-pick tokens shown beside "Select token" while no token is chosen (Uniswap's buy panel). */
+  quickPicks?: Token[]
+  className?: string
 }
 
 /**
@@ -52,6 +55,8 @@ export function CurrencyInputPanel({
   testId,
   footer,
   children,
+  quickPicks,
+  className,
 }: CurrencyInputPanelProps) {
   const [selectorOpen, setSelectorOpen] = useState(false)
   const showBalance = balance !== undefined && token
@@ -59,12 +64,13 @@ export function CurrencyInputPanel({
     <div
       data-testid={testId}
       className={cn(
-        'rounded-2xl p-4 transition-colors focus-within:border-surface-3-solid',
-        variant === 'sell' ? 'border border-border bg-surface-1 hover:border-surface-3-solid' : 'border border-transparent bg-surface-2',
+        'group/panel rounded-[20px] px-4 pt-4 pb-5 transition-colors',
+        variant === 'sell' ? 'border border-border bg-surface-1 focus-within:bg-surface-2 hover:bg-surface-1-hover' : 'border border-transparent bg-surface-2',
+        className,
       )}
     >
-      <div className="text-body-3 text-text-2">{label}</div>
-      <div className="mt-2 flex items-center gap-3">
+      <div className="text-body-2 leading-5 text-text-2">{label}</div>
+      <div className="mt-2 flex items-center gap-2">
         <div className="min-w-0 flex-1">
           {estimating && !value ? (
             <Skeleton width={120} height={36} rounded="lg" className="my-1" />
@@ -84,18 +90,38 @@ export function CurrencyInputPanel({
                 if (next !== null) onChange?.(next)
               }}
               className={cn(
-                'h-11 w-full min-w-0 bg-transparent text-[36px] leading-[44px] font-medium tracking-[-0.01em] outline-none tabular',
+                'h-[43px] w-full min-w-0 bg-transparent text-[36px] leading-[43px] font-medium outline-none tabular placeholder:text-text-3',
                 error ? 'text-critical' : 'text-text-1',
                 estimating && 'opacity-50',
               )}
             />
           )}
         </div>
+        {!token && onTokenSelect && quickPicks && quickPicks.length > 0 && (
+          <div className="hidden items-center gap-1 transition-opacity duration-150 md:flex md:opacity-0 md:group-hover/panel:opacity-100 md:focus-within:opacity-100" data-testid={testId ? `${testId}-quick-picks` : undefined}>
+            {quickPicks.slice(0, 5).map((t) => (
+              <button
+                key={t.address}
+                type="button"
+                title={t.symbol}
+                aria-label={`Select ${t.symbol}`}
+                onClick={() => onTokenSelect(t)}
+                data-testid={testId ? `${testId}-quick-${t.symbol}` : undefined}
+                className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover"
+              >
+                <TokenLogo token={t} size={20} />
+              </button>
+            ))}
+          </div>
+        )}
         <TokenButton token={token} onClick={onTokenSelect ? () => setSelectorOpen(true) : undefined} testId={testId ? `${testId}-token` : undefined} />
       </div>
       {children}
-      <div className="mt-2 flex min-h-5 items-center justify-between gap-2 text-body-3 text-text-2">
-        <span className="tabular">{usdValue !== undefined && value ? formatUsd(usdValue) : value ? '' : ''}</span>
+      <div className="mt-2 flex min-h-[18px] items-center justify-between gap-2 text-body-3 text-text-2">
+        {/* Uniswap shows "$0" under an empty panel; a typed amount without a price shows nothing. */}
+        <span className="tabular" data-testid={testId ? `${testId}-fiat` : undefined}>
+          {!value || Number(value) === 0 ? '$0' : usdValue !== undefined ? formatUsd(usdValue) : ''}
+        </span>
         {showBalance && (
           <span className="flex items-center gap-2">
             <span className="tabular" data-testid={testId ? `${testId}-balance` : undefined}>
@@ -129,9 +155,9 @@ export function TokenButton({ token, onClick, testId }: { token: Token | undefin
         type="button"
         onClick={onClick}
         data-testid={testId}
-        className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-fill pr-3 pl-4 font-semibold text-white shadow-short transition-colors hover:bg-accent-fill-hover"
+        className="flex h-[38px] shrink-0 items-center gap-1 rounded-full border border-surface-3-solid bg-accent-fill pr-2 pl-3 text-body-2 font-semibold text-white transition-colors hover:bg-accent-fill-hover"
       >
-        Select token <ChevronDown size={18} />
+        Select token <ChevronDown size={20} />
       </button>
     )
   return (
@@ -140,11 +166,11 @@ export function TokenButton({ token, onClick, testId }: { token: Token | undefin
       onClick={onClick}
       disabled={!onClick}
       data-testid={testId}
-      className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-surface-1 py-1 pr-2.5 pl-1 font-semibold shadow-short transition-colors hover:bg-surface-2-hover disabled:cursor-default disabled:hover:bg-surface-1"
+      className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-full border border-surface-3-solid bg-bg py-1 pr-2 pl-1 font-semibold transition-colors hover:bg-surface-2-hover disabled:cursor-default disabled:hover:bg-bg"
     >
       <TokenLogo token={token} size={28} chainBadge />
-      <span className="text-body-1">{token.symbol}</span>
-      {onClick && <ChevronDown size={18} className="text-text-2" />}
+      <span className="text-body-2 leading-[18px]">{token.symbol}</span>
+      {onClick && <ChevronDown size={20} className="text-text-1" />}
     </button>
   )
 }

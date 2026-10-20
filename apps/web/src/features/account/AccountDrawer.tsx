@@ -14,8 +14,11 @@ import { OrdersList } from '@/features/limit/OrdersList'
 import { TokenBalancesList, usePortfolio } from './TokenBalancesList'
 import { PositionsSummary } from './PositionsSummary'
 import { ActivityList } from './ActivityList'
+import { NftGrid } from '@/features/portfolio/PortfolioTables'
+import { usePortfolioQuery } from '@/api/hooks'
+import { cn } from '@/lib/cn'
 
-type Tab = 'tokens' | 'pools' | 'activity' | 'orders'
+type Tab = 'tokens' | 'nfts' | 'pools' | 'activity' | 'orders'
 
 /** Right-side account drawer (ui-ux.md §7.3). */
 export function AccountDrawer() {
@@ -27,6 +30,9 @@ export function AccountDrawer() {
   const [tab, setTab] = useState<Tab>('tokens')
   const [view, setView] = useState<'main' | 'settings' | 'receive'>('main')
   const { total, isLoading } = usePortfolio(open ? address : undefined)
+  const pf = usePortfolioQuery(open ? address : undefined)
+  const ch = pf.data?.change24hUsd ?? null
+  const chPct = pf.data?.change24hPct ?? null
   const hide = useSettings((s) => s.hideSmallBalances)
   const setHide = useSettings((s) => s.setHideSmallBalances)
   const close = () => setOpen(false)
@@ -118,6 +124,17 @@ export function AccountDrawer() {
             <div className="mt-4 text-heading-2 font-semibold tracking-[-0.02em] tabular" data-testid="portfolio-total">
               {isLoading ? <Skeleton width={160} height={36} rounded="lg" /> : formatUsd(total)}
             </div>
+            {ch !== null && !isLoading && (
+              <div className="mt-1 flex items-center gap-1.5 text-body-3 text-text-2" data-testid="drawer-change">
+                <span className={cn('inline-flex items-center gap-1 tabular', ch > 0 ? 'text-success' : ch < 0 ? 'text-critical' : 'text-text-2')}>
+                  <span aria-hidden className="text-[0.7em]">
+                    {ch >= 0 ? '▲' : '▼'}
+                  </span>
+                  {formatUsd(Math.abs(ch))} ({Math.abs(chPct ?? 0).toFixed(2)}%)
+                </span>
+                today
+              </div>
+            )}
             <div className="mt-4 grid grid-cols-4 gap-2">
               <Shortcut icon={<ArrowLeftRight size={18} />} label="Swap" onClick={() => go('/swap')} />
               <Shortcut icon={<Send size={18} />} label="Send" onClick={() => go('/send')} />
@@ -131,6 +148,7 @@ export function AccountDrawer() {
             onChange={setTab}
             items={[
               { value: 'tokens', label: 'Tokens', testId: 'drawer-tab-tokens' },
+              { value: 'nfts', label: 'NFTs', testId: 'drawer-tab-nfts' },
               { value: 'pools', label: 'Pools', testId: 'drawer-tab-pools' },
               { value: 'activity', label: 'Activity', testId: 'drawer-tab-activity' },
               { value: 'orders', label: 'Orders', testId: 'drawer-tab-orders' },
@@ -138,6 +156,11 @@ export function AccountDrawer() {
           />
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 scrollbar-thin">
             {tab === 'tokens' && <TokenBalancesList address={address} onNavigate={close} />}
+            {tab === 'nfts' && (
+              <div className="px-2" onClick={(e) => (e.target as HTMLElement).closest('a') && close()}>
+                <NftGrid nfts={pf.data?.nfts ?? []} loading={pf.isLoading} />
+              </div>
+            )}
             {tab === 'pools' && <PositionsSummary address={address} onNavigate={close} />}
             {tab === 'activity' && <ActivityList address={address} limit={50} />}
             {tab === 'orders' && (

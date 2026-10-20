@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowDownLeft, CreditCard, MoreHorizontal, Send, ArrowLeftRight, Zap, PiggyBank, Plus } from 'lucide-react'
 import { CopyButton, Identicon, Modal, Popover } from '@/components/ui'
@@ -13,9 +13,14 @@ import { usePortfolioContext } from './PortfolioLayout'
 export default function OverviewPage() {
   const { account, data } = usePortfolioContext()
   const [range, setRange] = useState<PortfolioRange>('1D')
+  const weekTxs = useMemo(() => {
+    const from = Date.now() / 1000 - 7 * 86_400
+    return data.activity.filter((a) => Number(a.timestamp ?? 0) >= from).length
+  }, [data.activity])
   return (
-    <div className="flex min-w-0 flex-col gap-10">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="flex min-w-0 flex-col">
+      {/* Value + chart (752px) | action tiles (360px), 40px gutter — measured from Uniswap's overview. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
         <PortfolioValue
           address={account.address}
           isDemo={account.isDemo}
@@ -29,9 +34,14 @@ export default function OverviewPage() {
         <ActionTiles isDemo={account.isDemo} address={account.address} />
       </div>
 
-      <HoldingsStrip rows={data.tokens} range={range} />
+      <hr className="mt-10 border-border" />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* MetaSwap's live holdings strip sits between the chart block and the tables. */}
+      <div className="mt-10">
+        <HoldingsStrip rows={data.tokens} range={range} />
+      </div>
+
+      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-10">
           <section>
             <SectionHeader title="Tokens" subtitle={data.isLoading ? undefined : `${data.tokens.length} token${data.tokens.length === 1 ? '' : 's'}`} />
@@ -47,8 +57,8 @@ export default function OverviewPage() {
         <aside className="flex min-w-0 flex-col gap-10">
           <EarnSummary positions={data.earn} loading={data.earnLoading} />
           <section>
-            <SectionHeader title="Recent activity" />
-            {account.address && <ActivityList address={account.address} limit={4} />}
+            <SectionHeader title="Recent activity" subtitle={`${weekTxs} transaction${weekTxs === 1 ? '' : 's'} in the last 7 days`} />
+            {account.address && <ActivityList address={account.address} limit={4} compact />}
             <ViewAll to="/portfolio/activity" label="View all activity" testId="view-all-activity" />
           </section>
         </aside>
@@ -63,16 +73,16 @@ function ActionTiles({ isDemo, address }: { isDemo: boolean; address: `0x${strin
   const [receive, setReceive] = useState(false)
   const gated = (fn: () => void) => () => (isDemo ? openConnect() : fn())
   return (
-    <div className="grid h-fit grid-cols-2 gap-2 lg:mt-24" data-testid="portfolio-actions">
-      <Tile icon={<Send size={20} />} label="Send" onClick={gated(() => navigate('/send'))} />
-      <Tile icon={<ArrowDownLeft size={20} />} label="Receive" onClick={gated(() => setReceive(true))} />
-      <Tile icon={<CreditCard size={20} />} label="Buy" onClick={gated(() => navigate('/buy'))} />
+    <div className="grid h-fit grid-cols-2 gap-3 lg:mt-[92px]" data-testid="portfolio-actions">
+      <Tile icon={<Send size={22} />} label="Send" onClick={gated(() => navigate('/send'))} />
+      <Tile icon={<ArrowDownLeft size={22} />} label="Receive" onClick={gated(() => setReceive(true))} />
+      <Tile icon={<CreditCard size={22} />} label="Buy" onClick={gated(() => navigate('/buy'))} />
       <Popover
         align="end"
         className="w-[220px] p-2"
         trigger={
-          <button type="button" className="flex h-[84px] flex-col justify-between rounded-2xl bg-accent-tint p-4 text-left text-accent transition-colors hover:bg-accent-tint-hover">
-            <MoreHorizontal size={20} />
+          <button type="button" data-testid="portfolio-action-more" className="flex h-[88px] flex-col justify-between rounded-2xl bg-accent-tint p-4 text-left text-accent transition-colors hover:bg-accent-tint-hover">
+            <MoreHorizontal size={22} />
             <span className="text-body-2 font-semibold">More</span>
           </button>
         }
@@ -106,7 +116,7 @@ function ActionTiles({ isDemo, address }: { isDemo: boolean; address: `0x${strin
 
 function Tile({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} data-testid={`portfolio-action-${label.toLowerCase()}`} className="flex h-[84px] flex-col justify-between rounded-2xl bg-accent-tint p-4 text-left text-accent transition-colors hover:bg-accent-tint-hover">
+    <button type="button" onClick={onClick} data-testid={`portfolio-action-${label.toLowerCase()}`} className="flex h-[88px] flex-col justify-between rounded-2xl bg-accent-tint p-4 text-left text-accent transition-colors hover:bg-accent-tint-hover">
       {icon}
       <span className="text-body-2 font-semibold">{label}</span>
     </button>

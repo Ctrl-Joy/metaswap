@@ -279,3 +279,29 @@ Fixed (fix-list numbers):
 - **#29** Send: recent recipients.
 
 Left for later: nav hover dropdowns, ⋯-menu theme Auto/Language/Currency, mobile bottom-sheet nav, footer "API offline" flash (Header/Footer belong to the web shell); portfolio extras (#14, #26, #27); `$0` fiat line / quick-pick logos (`features/tokens/CurrencyInputPanel.tsx`, not in scope); `▲/▼` glyphs and neutral "0%" (`components/ui` PercentChange); Δ% on V2/V3 TVL and pool TVL/volume (needs API history per protocol); Price/Demand toggle on the auction chart (needs bid-time price history from the API); settings "Trade options" restyle, route "View" modal, sticky token header / "⋯" menus (P3 polish).
+
+## Phase 3 status (the parity review, 2026-10-21)
+
+Fixed:
+- **Header**:
+  - Nav hover menus (Trade, Explore, Launches, Pool, Portfolio): centred 182px panel with 48px filled items, matching `measured/nav-trade-hover`. Supports click-through, focus/↓/↑/Esc, and touch tap.
+  - "⋯" Global preferences matches `measured/more-menu`: Theme Auto/Light/Dark (Auto follows the OS), Language English ›, Currency USD ›, plus Hide small balances.
+  - Search is a centred 640×520 panel on a 60% scrim with text filter tabs (`measured/search-modal`).
+  - Footer shows a neutral "checking…" state instead of flashing "API offline".
+- **Portfolio** (`measured/portfolio*`):
+  - Connect banner: 216px, r24, accent tint with pattern.
+  - Wallet row: 48px avatar, ticker, "MetaChain Devnet" network dropdown.
+  - 36px total, range capsule plus "Total balance ⌄", 2×2 action tiles.
+  - Tables use 42px headers and 72px rows.
+  - Tokens tab: Avg cost, 1D change, Allocation, search, per-row Hide, "Hidden tokens (n)" for hidden, unverified and small balances.
+  - NFTs: 200×262 cards.
+  - Activity: All types / All time dropdowns, search, and a Time · Type · Amount · Address table.
+  - Recent activity "n transactions in the last 7 days".
+  - Account drawer: today change and an NFTs tab.
+- **Misc**:
+  - Filled ▲/▼ with a neutral "0%".
+  - `$0` fiat line.
+  - V2/V3 TVL "% today" and pool TVL/volume Δ% (handed to the explore area).
+  - Auction Price/Demand toggle, with the clearing price replayed from bids and levels.
+
+Still open: settings "Trade options" restyle, route "View" modal, sticky token header (now the web shell/the explore area areas); mobile bottom-sheet nav; Wallets search filter.

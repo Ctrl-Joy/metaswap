@@ -34,6 +34,33 @@ export interface HoldingRow {
   unrealizedPnlUsd: number | null
   unrealizedPnlPct: number | null
   change24h: number | null
+  avgCostUsd: number | null
+  /** Token is not on the MetaSwap token list (airdropped / unknown → treated as possible spam). */
+  unlisted: boolean
+}
+
+export type HiddenReason = 'hidden' | 'spam' | 'small'
+export interface HiddenRow extends HoldingRow {
+  reason: HiddenReason
+}
+
+/**
+ * Split holdings into the visible list and the collapsible "Hidden tokens" section (Uniswap): tokens the
+ * user hid, unlisted tokens (possible spam) and — with "Hide small balances" on — dust under $1.
+ * A user-hidden token always stays hidden; zero balances are dropped.
+ */
+export function splitHoldings(rows: readonly HoldingRow[], opts: { hideSmall: boolean; hidden: readonly string[] }): { visible: HoldingRow[]; hidden: HiddenRow[] } {
+  const hiddenSet = new Set(opts.hidden.map((a) => a.toLowerCase()))
+  const visible: HoldingRow[] = []
+  const hidden: HiddenRow[] = []
+  for (const r of rows) {
+    if (r.balance <= 0n) continue
+    if (hiddenSet.has(r.token.address.toLowerCase())) hidden.push({ ...r, reason: 'hidden' })
+    else if (r.unlisted) hidden.push({ ...r, reason: 'spam' })
+    else if (opts.hideSmall && (r.valueUsd ?? Infinity) < SMALL_USD) hidden.push({ ...r, reason: 'small' })
+    else visible.push(r)
+  }
+  return { visible, hidden }
 }
 
 export interface PortfolioData {
@@ -44,6 +71,8 @@ export interface PortfolioData {
   change24hUsd: number | null
   change24hPct: number | null
   tokens: HoldingRow[]
+  /** Hidden / spam / small rows ("Hidden tokens (n)" section). */
+  hiddenTokens: HiddenRow[]
   pools: PositionRow[]
   earn: EarnPosition[]
   nfts: PortfolioNft[]
@@ -83,9 +112,10 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
   const earn = useAccountEarn(fallbackEnabled ? address : undefined)
   const activity = useAccountActivity(fallbackEnabled ? address : undefined)
   const hideSmall = useSettings((s) => s.hideSmallBalances)
+  const hiddenList = useSettings((s) => s.hiddenTokens)
 
   return useMemo<PortfolioData>(() => {
-    const filterSmall = (rows: HoldingRow[]) => rows.filter((r) => r.balance > 0n && (!hideSmall || (r.valueUsd ?? Infinity) >= SMALL_USD))
+    const split = (rows: HoldingRow[]) => splitHoldings(rows, { hideSmall, hidden: hiddenList })
     if (api.data) {
       const d = api.data
       const tokens = d.tokens
@@ -97,6 +127,8 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
           unrealizedPnlUsd: r.unrealizedPnlUsd ?? null,
           unrealizedPnlPct: r.unrealizedPnlPct ?? null,
           change24h: r.change24h ?? null,
+          avgCostUsd: r.avgCostUsd ?? null,
+          unlisted: !(r.token.isNative || isNative(r.token.address)) && !find(r.token.address),
         }))
         .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
       return {
@@ -105,7 +137,10 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
         totalUsd: d.totalUsd,
         change24hUsd: d.change24hUsd,
         change24hPct: d.change24hPct,
-        tokens: filterSmall(tokens),
+        ...(() => {
+          const sp = split(tokens)
+          return { tokens: sp.visible, hiddenTokens: sp.hidden }
+        })(),
         pools: (d.pools ?? []).filter((p) => !p.closed),
         earn: (d.earn ?? []).filter((e) => BigInt(e.shares || '0') > 0n),
         nfts: d.nfts ?? [],
@@ -126,6 +161,8 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
           unrealizedPnlUsd: null,
           unrealizedPnlPct: null,
           change24h: null,
+          avgCostUsd: null,
+          unlisted: false,
         }
       })
       .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
@@ -136,7 +173,10 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
       totalUsd: api.isLoading ? null : totalUsd,
       change24hUsd: null,
       change24hPct: null,
-      tokens: filterSmall(rows),
+      ...(() => {
+        const sp = split(rows)
+        return { tokens: sp.visible, hiddenTokens: sp.hidden }
+      })(),
       pools: (positions.data ?? []).filter((p) => !p.closed),
       earn: (earn.data ?? []).filter((e) => BigInt(e.shares || '0') > 0n),
       nfts: [],
@@ -144,7 +184,7 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
       poolsLoading: api.isLoading || positions.isLoading,
       earnLoading: api.isLoading || earn.isLoading,
     }
-  }, [api.data, api.isLoading, all, find, prices, chain.balances, chain.isLoading, positions.data, positions.isLoading, earn.data, earn.isLoading, activity.data, fallbackEnabled, hideSmall])
+  }, [api.data, api.isLoading, all, find, prices, chain.balances, chain.isLoading, positions.data, positions.isLoading, earn.data, earn.isLoading, activity.data, fallbackEnabled, hideSmall, hiddenList])
 }
 
 /** Mask a formatted value when "hide balances" is on. */

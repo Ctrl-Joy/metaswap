@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { deployment } from '@metaswap/sdk'
 import type { Address } from 'viem'
 import { ChartCard, Marquee, TickerPill } from '@/components/ui'
+import { asList } from '@/api/client'
 import { usePriceHistory, useExploreTokens } from '@/api/hooks'
 import type { PortfolioRange } from '@/api/hooks'
 import { Sparkline } from '@/features/explore/charts/SvgCharts'
@@ -35,7 +36,7 @@ function changeOf(h: HoldingRow, changes: Map<string, number>): number | null {
 
 function HoldingCard({ h, range, change }: { h: HoldingRow; range: PortfolioRange; change: number | null }) {
   const hist = usePriceHistory(priceAddress(h), historyRange(range))
-  const values = useMemo(() => (hist.data ?? []).map((p) => p.priceUsd).filter((v) => Number.isFinite(v)), [hist.data])
+  const values = useMemo(() => asList<{ time: number; priceUsd: number }>(hist.data, 'history', 'points', 'prices').map((p) => p.priceUsd).filter((v) => Number.isFinite(v)), [hist.data])
   const mask = useMask()
   return (
     <ChartCard

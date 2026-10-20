@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import * as RTooltip from '@radix-ui/react-tooltip'
 import * as RPopover from '@radix-ui/react-popover'
-import { AlertTriangle, Check, Copy, Info, OctagonAlert, CircleCheck, ArrowUp, ArrowDown } from 'lucide-react'
+import { AlertTriangle, Check, Copy, Info, OctagonAlert, CircleCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { formatPercent, formatUsd, formatAmount } from '@/lib/format'
+import { formatUsd, formatAmount } from '@/lib/format'
 
 /* ---------------------------------------------------------------- Skeleton */
 
@@ -172,16 +172,25 @@ export function UnderlineTabs<T extends string>({ items, value, onChange, classN
 
 /* ---------------------------------------------------------------- Numbers */
 
-/** Signed percent with ▲/▼ and success/critical colour (neutral at 0). */
+/** Percent text without trailing zeros ("1.5%", "12%"), like Uniswap. */
+export function trimPercent(abs: number, digits = 2): string {
+  return `${Number(abs.toFixed(digits)).toLocaleString('en-US', { maximumFractionDigits: digits })}%`
+}
+
+/** Signed percent with filled ▲/▼ and success/critical colour; exactly 0 reads a neutral "0%". */
 export function PercentChange({ value, className, digits = 2 }: { value: number | null | undefined; className?: string; digits?: number }) {
   if (value === null || value === undefined || !Number.isFinite(value)) return <span className={cn('text-text-3', className)}>-</span>
-  const up = value > 0
-  const down = value < 0
-  const Icon = down ? ArrowDown : ArrowUp
+  const rounded = Number(value.toFixed(digits))
+  const up = rounded > 0
+  const down = rounded < 0
   return (
-    <span className={cn('relative inline-flex items-center gap-0.5 tabular', up ? 'text-success' : down ? 'text-critical' : 'text-text-2', className)}>
-      <Icon size={12} strokeWidth={2.5} aria-hidden />
-      <span>{formatPercent(Math.abs(value), { digits })}</span>
+    <span className={cn('relative inline-flex items-center gap-0.5 tabular', up ? 'text-success' : down ? 'text-critical' : 'text-text-2', className)} data-testid="percent-change">
+      {(up || down) && (
+        <span aria-hidden className="text-[0.75em] leading-none">
+          {up ? '▲' : '▼'}
+        </span>
+      )}
+      <span>{trimPercent(Math.abs(rounded), digits)}</span>
       <span className="sr-only">{up ? 'up' : down ? 'down' : 'unchanged'}</span>
     </span>
   )

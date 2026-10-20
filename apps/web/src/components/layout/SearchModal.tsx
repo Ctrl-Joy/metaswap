@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, Search } from 'lucide-react'
+import { ChevronDown, Clock, Search } from 'lucide-react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { NATIVE_ETH, type Token } from '@metaswap/sdk'
-import { Modal, SegmentedTabs, TokenLogo, DoubleLogo, Skeleton, PercentChange } from '@/components/ui'
+import { TokenLogo, DoubleLogo, Skeleton, PercentChange } from '@/components/ui'
 import { useTokenList, useTokenPrices } from '@/features/tokens/useTokenList'
 import { nextIndex, pushRecent, searchTokens, sortByVolume, type RecentSearch } from '@/features/tokens/tokenSearch'
 import { useExplorePoolRows, useExploreTokenRows } from '@/features/explore/api'
@@ -222,67 +223,98 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
 
   let idx = -1
   const activeId = active >= 0 ? `search-option-${active}` : undefined
+  const FILTERS: Array<{ value: Filter; label: string }> = [
+    { value: 'all', label: 'All' },
+    { value: 'tokens', label: 'Tokens' },
+    { value: 'pools', label: 'Pools' },
+  ]
+  // Uniswap: 640×520 panel centred on a 60% scrim, borderless 68px search row with a network chip,
+  // text-only filter tabs (16px / 535), scrolling result sections.
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Search" width={520} testId="search-modal">
-      <label className="flex h-12 items-center gap-2 rounded-2xl bg-surface-2 px-4 focus-within:ring-1 focus-within:ring-accent">
-        <Search size={18} className="text-text-3" />
-        <input
-          autoFocus
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Search by name, symbol, or address"
-          aria-label="Search tokens and pools"
-          role="combobox"
-          aria-expanded
-          aria-controls="search-results"
-          aria-activedescendant={activeId}
-          data-testid="search-input"
-          className="w-full bg-transparent text-body-2 outline-none"
-        />
-      </label>
-      <SegmentedTabs
-        className="mt-3"
-        size="sm"
-        value={filter}
-        onChange={setFilter}
-        items={[
-          { value: 'all', label: 'All' },
-          { value: 'tokens', label: 'Tokens' },
-          { value: 'pools', label: 'Pools' },
-        ]}
-      />
-      <div id="search-results" role="listbox" aria-label="Search results" ref={listRef}>
-        {items.map((s) => (
-          <section key={s.testId} className="mt-3" data-testid={s.testId}>
-            <h3 className="px-1 pb-1 text-body-3 text-text-2">{s.title}</h3>
-            {s.testId === 'search-tokens' && s.items.length === 0 && <p className="px-1 py-4 text-body-3 text-text-3">No tokens match “{query}”.</p>}
-            {s.testId === 'search-pools' && pools.isLoading && <Skeleton width="100%" height={44} rounded="lg" />}
-            {s.testId === 'search-pools' && pools.isError && <p className="px-1 py-2 text-body-3 text-text-3">Pool data unavailable (API offline).</p>}
-            {s.testId === 'search-pools' && !pools.isLoading && !pools.isError && s.items.length === 0 && query.trim() && <p className="px-1 py-4 text-body-3 text-text-3">No pools match “{query}”.</p>}
-            {s.items.map((item) => {
-              idx += 1
-              const i = idx
-              return (
-                <button
-                  key={item.key}
-                  id={`search-option-${i}`}
-                  role="option"
-                  aria-selected={i === active}
-                  data-index={i}
-                  data-testid={`search-option-${i}`}
-                  data-active={i === active ? 'true' : undefined}
-                  onClick={() => go(item)}
-                  onMouseMove={() => active !== i && setActive(i)}
-                  className={cn('flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2', i === active && 'bg-surface-2')}
-                >
-                  {item.node}
-                </button>
-              )
-            })}
-          </section>
-        ))}
-      </div>
-    </Modal>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[1190] bg-black/60 animate-fade-in" />
+        <Dialog.Content
+          data-testid="search-modal"
+          aria-describedby={undefined}
+          className="fixed inset-x-0 top-0 z-[1200] flex h-[100dvh] flex-col overflow-hidden bg-surface-1 outline-none animate-pop-in sm:top-1/2 sm:left-1/2 sm:h-[520px] sm:max-h-[calc(100dvh-32px)] sm:w-[640px] sm:max-w-[calc(100vw-32px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border sm:border-border"
+        >
+          <Dialog.Title className="sr-only">Search</Dialog.Title>
+          <label className="flex h-[68px] shrink-0 items-center gap-2 border-b border-border px-5">
+            <Search size={20} className="shrink-0 text-text-2" aria-hidden />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search by name, symbol, or address"
+              aria-label="Search tokens and pools"
+              role="combobox"
+              aria-expanded
+              aria-controls="search-results"
+              aria-activedescendant={activeId}
+              data-testid="search-input"
+              className="min-w-0 flex-1 bg-transparent text-body-1 text-text-1 outline-none placeholder:text-text-2"
+            />
+            <span className="flex shrink-0 items-center gap-1 text-text-2" title="MetaChain Devnet">
+              <span className="flex size-5 items-center justify-center rounded-md bg-accent-tint">
+                <span className="size-2 rounded-full bg-success" />
+              </span>
+              <ChevronDown size={18} aria-hidden />
+            </span>
+          </label>
+          <div className="flex shrink-0 items-center gap-4 px-5 pt-4 pb-2" role="tablist" aria-label="Result type">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.value}
+                onClick={() => setFilter(f.value)}
+                data-testid={`search-filter-${f.value}`}
+                className={cn('text-body-2 font-semibold transition-colors', filter === f.value ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div id="search-results" role="listbox" aria-label="Search results" ref={listRef} className="min-h-0 flex-1 overflow-y-auto pb-2 scrollbar-thin">
+            {items.map((s) => (
+              <section key={s.testId} className="mt-2" data-testid={s.testId}>
+                <h3 className="px-5 pt-2 pb-1 text-body-3 font-semibold text-text-2">{s.title}</h3>
+                {s.testId === 'search-tokens' && s.items.length === 0 && <p className="px-5 py-4 text-body-3 text-text-3">No tokens match “{query}”.</p>}
+                {s.testId === 'search-pools' && pools.isLoading && (
+                  <div className="px-5">
+                    <Skeleton width="100%" height={44} rounded="lg" />
+                  </div>
+                )}
+                {s.testId === 'search-pools' && pools.isError && <p className="px-5 py-2 text-body-3 text-text-3">Pool data unavailable (API offline).</p>}
+                {s.testId === 'search-pools' && !pools.isLoading && !pools.isError && s.items.length === 0 && query.trim() && <p className="px-5 py-4 text-body-3 text-text-3">No pools match “{query}”.</p>}
+                {s.items.map((item) => {
+                  idx += 1
+                  const i = idx
+                  return (
+                    <button
+                      key={item.key}
+                      id={`search-option-${i}`}
+                      role="option"
+                      aria-selected={i === active}
+                      data-index={i}
+                      data-testid={`search-option-${i}`}
+                      data-active={i === active ? 'true' : undefined}
+                      onClick={() => go(item)}
+                      onMouseMove={() => active !== i && setActive(i)}
+                      className={cn('flex h-[60px] w-full items-center gap-3 px-5 text-left transition-colors hover:bg-surface-2', i === active && 'bg-surface-2')}
+                    >
+                      {item.node}
+                    </button>
+                  )
+                })}
+              </section>
+            ))}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
