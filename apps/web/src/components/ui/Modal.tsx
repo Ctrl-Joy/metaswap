@@ -21,17 +21,19 @@ export interface ModalProps {
   /** Stretch to most of the viewport height on desktop (token selector). */
   tall?: boolean
   testId?: string
+  /** false: no dimming scrim (dropdown-style panels such as the connect-wallet panel). */
+  overlay?: boolean
 }
 
 /**
  * Accessible dialog (Radix): centred card on desktop, bottom sheet under 640px.
  * Focus is trapped, Escape closes, focus returns to the trigger.
  */
-export function Modal({ open, onOpenChange, title, description, showDescription, children, width = 420, hideClose, onBack, dismissible = true, className, tall, testId }: ModalProps) {
+export function Modal({ open, onOpenChange, title, description, showDescription, children, width = 420, hideClose, onBack, dismissible = true, className, tall, testId, overlay = true }: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[1190] bg-scrim animate-fade-in" />
+        <Dialog.Overlay className={cn('fixed inset-0 z-[1190] animate-fade-in', overlay ? 'bg-scrim' : 'bg-scrim md:bg-transparent')} />
         <Dialog.Content
           data-testid={testId}
           onPointerDownOutside={(e) => !dismissible && e.preventDefault()}

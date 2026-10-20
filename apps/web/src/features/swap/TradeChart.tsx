@@ -7,9 +7,9 @@ import { TokenChartPanel } from '@/features/explore/token/TokenChartPanel'
 
 const KEY = 'metaswap.tradeChart.open'
 
-/** Persisted show/hide state of the price chart next to the swap/limit card (default: shown). */
+/** Persisted show/hide state of the price chart next to the swap/limit card (default: hidden, like Uniswap). */
 export function useTradeChartOpen(): [boolean, () => void] {
-  const [open, setOpen] = useState(() => safeStorage.getItem(KEY) !== '0')
+  const [open, setOpen] = useState(() => safeStorage.getItem(KEY) === '1')
   const toggle = useCallback(() => {
     setOpen((o) => {
       safeStorage.setItem(KEY, o ? '0' : '1')
@@ -40,7 +40,7 @@ export function TradeChart({ token }: { token: Token | undefined }) {
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2" data-testid="trade-chart-token">
             <TokenLogo token={token} size={28} />
-            <span className="text-body-1 font-semibold">{token.symbol}</span>
+            <span className="text-body-1 font-medium">{token.symbol}</span>
             <span className="truncate text-body-3 text-text-2">{token.name}</span>
           </div>
           {d ? (

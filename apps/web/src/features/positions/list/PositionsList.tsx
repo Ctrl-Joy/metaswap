@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Layers, Plus, Wallet } from 'lucide-react'
+import { ArrowDown, ArrowRight, ChevronRight, Droplet, Layers, Plus } from 'lucide-react'
 import type { Address } from 'viem'
-import { Banner, Button, ButtonLink, Card, DoubleLogo, EmptyState, SegmentedTabs, Skeleton } from '@/components/ui'
+import { Banner, ButtonLink, Card, DoubleLogo, EmptyState, SegmentedTabs, Skeleton } from '@/components/ui'
+import { cn } from '@/lib/cn'
 import { useWallet } from '@/wallet/hooks'
 import { useUi } from '@/state/ui'
 import { formatPercent, formatUsd } from '@/lib/format'
-import { LogoMark } from '@/components/layout/Logo'
 import { useAccountPositionsData, useAllPools, usePoolDetails, type AnyPositionRow, type ExplorePoolRowW3, type PoolDetail } from '../api'
 import { feeLabel } from '../tokens'
 import { isFullRange, tickSpacingForFee } from '../math'
@@ -30,30 +30,53 @@ export function PositionsList() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-24 md:px-8" data-testid="positions-page">
-      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-heading-3 font-semibold md:text-heading-2">Your positions</h1>
-            <div className="flex gap-2">
-              <ButtonLink to="/positions/create" data-testid="new-position">
-                <Plus size={18} /> New position
-              </ButtonLink>
+    <div className="relative" data-testid="positions-page">
+      {/* Uniswap's dotted backdrop behind the hero */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[290px] opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, var(--ms-surface-3) 1px, transparent 0)', backgroundSize: '12px 12px' }}
+      />
+      <div className="relative mx-auto w-full max-w-[1184px] px-4 pt-6 pb-24 md:px-8 md:pt-8">
+        <h1 className="text-heading-3 font-medium md:text-[36px] md:leading-10">Supply liquidity to collect fees</h1>
+        <p className="mt-2 text-body-2 text-text-2 md:text-body-1">Provide liquidity to MetaSwap V2 and V3 pools and earn fees on every trade.</p>
+        <div className="mt-8 flex flex-wrap gap-2">
+          <ButtonLink to="/positions/create" data-testid="new-position" className="h-[46px]! rounded-2xl! px-4! text-body-2!">
+            <Droplet size={18} className="fill-current" /> Create position
+          </ButtonLink>
+          <ButtonLink to="/positions/create?version=v2" variant="tint" className="h-[46px]! rounded-2xl! px-4! text-body-2!" data-testid="create-pool">
+            <Plus size={20} /> Create pool
+          </ButtonLink>
+          <ButtonLink to="/launches/create" variant="tint" className="h-[46px]! rounded-2xl! px-4! text-body-2!" data-testid="launch-token">
+            <Plus size={20} /> Launch token
+          </ButtonLink>
+        </div>
+
+        {!address ? (
+          <>
+            <div className="relative mt-14 flex min-h-[180px] flex-col items-center justify-center overflow-hidden rounded-[20px] bg-accent-tint px-6 py-8 text-center" data-testid="positions-gate">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-40"
+                style={{ backgroundImage: 'linear-gradient(var(--ms-accent-tint) 1px, transparent 1px), linear-gradient(90deg, var(--ms-accent-tint) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+              />
+              <h2 className="relative text-heading-3 font-medium">Connect your wallet</h2>
+              <p className="relative mt-2 text-body-2 text-text-2">To view your positions and rewards you must connect your wallet.</p>
+              <button
+                type="button"
+                onClick={openConnect}
+                data-testid="positions-connect"
+                className="relative mt-6 inline-flex h-[34px] items-center gap-2 rounded-full bg-surface-3 px-3 text-body-3 font-semibold transition-colors hover:bg-surface-3-hover"
+              >
+                Connect wallet
+              </button>
             </div>
-          </div>
-          {!address ? (
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-accent-solid px-6 py-12 text-center" data-testid="positions-gate">
-              <div className="relative flex flex-col items-center gap-4">
-                <LogoMark size={44} />
-                <h2 className="text-heading-3 font-semibold">Connect a wallet to view your positions</h2>
-                <p className="max-w-md text-body-3 text-text-2">Provide liquidity to MetaSwap V2 and V3 pools and earn fees on every trade through your range.</p>
-                <Button size="lg" onClick={openConnect} leftIcon={<Wallet size={18} />} data-testid="positions-connect">
-                  Connect wallet
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
+            <TopPoolsTable />
+          </>
+        ) : (
+          <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_360px]">
+            <div className="min-w-0">
+              <h2 className="mb-4 text-body-1 font-medium">Your positions</h2>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <SegmentedTabs
                   size="sm"
@@ -82,12 +105,88 @@ export function PositionsList() {
                 />
               </div>
               <AccountPositions address={address} status={status} version={version} />
-            </>
-          )}
-        </div>
-        <TopPools />
+            </div>
+            <TopPools />
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+function poolHref(row: ExplorePoolRowW3) {
+  const t0 = typeof row.token0 === 'string' ? undefined : row.token0
+  const t1 = typeof row.token1 === 'string' ? undefined : row.token1
+  const a = t0?.symbol === 'WETH' ? 'ETH' : (t0?.address ?? '')
+  const b = t1?.symbol === 'WETH' ? 'ETH' : (t1?.address ?? '')
+  return `/positions/create?currencyA=${a}&currencyB=${b}${row.version === 'v2' ? '&version=v2' : `&fee=${row.fee}`}`
+}
+
+/** Signed-out "Top pools" table (Uniswap /positions): #, Pool, TVL, 1D vol, 7D vol, 1D vol/TVL, Pool APR. */
+function TopPoolsTable() {
+  const q = useAllPools()
+  const rows = (q.data ?? []).slice(0, 10)
+  const cols = 'grid grid-cols-[28px_minmax(0,1fr)_88px] md:grid-cols-[52px_minmax(0,1fr)_repeat(5,minmax(0,140px))] items-center gap-x-3 px-4 md:px-5'
+  return (
+    <section className="mt-10" data-testid="top-pools" aria-labelledby="top-pools-title">
+      <h2 id="top-pools-title" className="mb-4 text-body-1 font-medium">
+        Top pools
+      </h2>
+      <div className="overflow-hidden rounded-xl">
+        <div className={cn(cols, 'h-[54px] rounded-xl bg-surface-2 text-body-3 text-text-2')}>
+          <span>#</span>
+          <span>Pool</span>
+          <span className="text-right">TVL</span>
+          <span className="hidden text-right text-text-1 md:block">
+            <ArrowDown size={14} className="mr-0.5 inline align-[-2px]" />
+            1D vol
+          </span>
+          <span className="hidden text-right md:block">7D vol</span>
+          <span className="hidden text-right md:block">1D vol/TVL</span>
+          <span className="hidden text-right md:block">Pool APR</span>
+        </div>
+        {q.isLoading ? (
+          <div className="flex flex-col gap-2 pt-2">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} width="100%" height={56} rounded="lg" />
+            ))}
+          </div>
+        ) : q.isError ? (
+          <p className="px-5 py-6 text-body-3 text-text-2">Pools unavailable.</p>
+        ) : (
+          [...rows]
+            .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
+            .map((r, i) => {
+              const t0 = typeof r.token0 === 'string' ? undefined : r.token0
+              const t1 = typeof r.token1 === 'string' ? undefined : r.token1
+              return (
+                <Link key={r.address} to={poolHref(r)} className={cn(cols, 'min-h-16 rounded-xl py-2 text-body-2 transition-colors hover:bg-surface-1-hover')} data-testid={`top-pool-${r.address}`}>
+                  <span className="pl-1.5 tabular">{i + 1}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <DoubleLogo token0={t0} token1={t1} size={24} />
+                    <span className="min-w-0">
+                      <span className="block truncate leading-[22px]">
+                        {t0?.symbol}/{t1?.symbol}
+                      </span>
+                      <span className="block text-body-3 whitespace-nowrap text-text-2">
+                        {r.version} · {feeLabel(r.fee)}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-right tabular">{formatUsd(r.tvlUsd, { compact: true })}</span>
+                  <span className="hidden text-right tabular md:block">{formatUsd(r.volume24hUsd, { compact: true })}</span>
+                  <span className="hidden text-right tabular md:block">{formatUsd(r.volume7dUsd, { compact: true })}</span>
+                  <span className="hidden text-right tabular md:block">{r.tvlUsd ? (r.volume24hUsd / r.tvlUsd).toFixed(2) : '-'}</span>
+                  <span className="hidden text-right tabular md:block">{formatPercent(r.apr)}</span>
+                </Link>
+              )
+            })
+        )}
+      </div>
+      <ButtonLink to="/explore/pools" variant="outline" size="sm" className="mt-4 h-8! rounded-full! px-3!" data-testid="see-all-pools">
+        See all pools <ArrowRight size={16} />
+      </ButtonLink>
+    </section>
   )
 }
 
@@ -175,13 +274,13 @@ function PositionCard({ row, pool }: { row: AnyPositionRow; pool?: PoolDetail })
     <Link
       to={href}
       data-testid={`position-card-${row.version}-${id}`}
-      className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2 sm:p-5"
+      className="flex flex-col gap-4 rounded-[20px] border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-1-hover sm:p-6"
     >
       <div className="flex flex-wrap items-center gap-3">
         <DoubleLogo token0={row.token0} token1={row.token1} size={32} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-body-1 font-semibold">
+            <span className="text-body-1 font-medium">
               {row.token0.symbol} / {row.token1.symbol}
             </span>
             <span className="rounded-full bg-surface-3 px-2 py-0.5 text-body-4 font-semibold text-text-2">
@@ -220,7 +319,7 @@ function TopPools() {
   const rows = (q.data ?? []).slice(0, 6)
   return (
     <aside className="flex flex-col gap-3" data-testid="top-pools">
-      <h2 className="text-body-1 font-semibold">Top pools by TVL</h2>
+      <h2 className="text-body-1 font-medium">Top pools by TVL</h2>
       {q.isLoading ? (
         [0, 1, 2, 3].map((i) => <Skeleton key={i} width="100%" height={64} rounded="lg" />)
       ) : q.isError ? (
@@ -238,11 +337,8 @@ function TopPools() {
 function TopPoolRow({ row }: { row: ExplorePoolRowW3 }) {
   const t0 = typeof row.token0 === 'string' ? undefined : row.token0
   const t1 = typeof row.token1 === 'string' ? undefined : row.token1
-  const a = t0?.symbol === 'WETH' ? 'ETH' : (t0?.address ?? '')
-  const b = t1?.symbol === 'WETH' ? 'ETH' : (t1?.address ?? '')
-  const href = `/positions/create?currencyA=${a}&currencyB=${b}${row.version === 'v2' ? '&version=v2' : `&fee=${row.fee}`}`
   return (
-    <Link to={href} className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-3 hover:bg-surface-2" data-testid={`top-pool-${row.address}`}>
+    <Link to={poolHref(row)} className="flex items-center gap-3 rounded-[20px] border border-border bg-surface-1 p-4 hover:bg-surface-1-hover" data-testid={`top-pool-${row.address}`}>
       <DoubleLogo token0={t0} token1={t1} size={28} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-body-3 font-semibold">

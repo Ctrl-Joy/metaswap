@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, ChevronLeft } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react'
 import { parseEventLogs, type Address, type TransactionReceipt } from 'viem'
 import { nonfungiblePositionManagerAbi } from '@metaswap/sdk/abis'
 import { v2Math } from '@metaswap/sdk'
-import { Banner, Button, ButtonLink, Card, DoubleLogo, SegmentedTabs, Skeleton } from '@/components/ui'
-import { TokenButton } from '@/features/tokens/CurrencyInputPanel'
+import { Banner, Button, ButtonLink, Card, DoubleLogo, SegmentedTabs, Skeleton, TokenLogo } from '@/components/ui'
 import { TokenSelector } from '@/features/tokens/TokenSelector'
 import { useTokenList, useTokenPrices, priceOf } from '@/features/tokens/useTokenList'
 import { SettingsPopover } from '@/features/settings/SettingsPopover'
@@ -73,18 +72,37 @@ export function CreatePosition() {
   const pairReady = !!tokenA && !!tokenB && !sameToken(tokenA, tokenB)
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-24 md:px-8" data-testid="create-position">
-      <div className="mb-1 flex items-center gap-1 text-body-3 text-text-2">
-        <Link to="/positions" className="inline-flex items-center gap-1 hover:text-text-1">
-          <ChevronLeft size={16} /> Your positions
+    <div className="mx-auto w-full max-w-[1264px] px-4 pt-6 pb-24 md:px-8" data-testid="create-position">
+      <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-1 text-body-2 leading-[22px] text-text-2">
+        <Link to="/positions" className="hover:text-text-1">
+          Your positions
         </Link>
-      </div>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-heading-3 font-semibold md:text-heading-2">New position</h1>
+        <ChevronRight size={16} />
+        <span className="text-text-1">New position</span>
+      </nav>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-3 text-heading-3 font-medium">
+          <Link to="/positions" aria-label="Back to your positions" className="text-text-1 hover:text-text-2">
+            <ArrowLeft size={24} />
+          </Link>
+          New position
+        </h1>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setParams({ ...(version === 'v2' ? { version: 'v2' } : {}) }, { replace: true })
+              setStep(1)
+            }}
+            className="inline-flex h-[38px] items-center gap-2 rounded-xl bg-surface-2 px-3 text-body-3 font-semibold text-text-2 transition-colors hover:text-text-1"
+            data-testid="create-reset"
+          >
+            <RotateCcw size={16} /> Reset
+          </button>
           <SegmentedTabs
             ariaLabel="Protocol version"
             size="sm"
+            className="h-[38px] rounded-xl border border-border"
             value={version}
             onChange={(v) => {
               setParam({ version: v === 'v3' ? undefined : v })
@@ -95,23 +113,25 @@ export function CreatePosition() {
               { value: 'v2', label: 'v2', testId: 'version-v2' },
             ]}
           />
-          <SettingsPopover />
+          <span className="inline-flex h-[38px] items-center rounded-xl border border-border px-2">
+            <SettingsPopover />
+          </span>
         </div>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
         <StepsRail version={version} step={step} onStep={(s) => pairReady && setStep(s)} />
         <div className="min-w-0">
           {step === 1 ? (
-            <Card className="flex flex-col gap-6 p-5">
+            <div className="flex flex-col gap-8 rounded-[20px] border border-border p-6">
               <section>
-                <h2 className="text-body-1 font-semibold">Select pair</h2>
-                <p className="mb-3 text-body-3 text-text-2">Choose the tokens you want to provide liquidity for.</p>
+                <h2 className="text-body-1 font-medium">Select pair</h2>
+                <p className="mb-4 text-body-3 text-text-2">Choose the tokens you want to provide liquidity for.</p>
                 <PairPicker tokenA={tokenA} tokenB={tokenB} onA={selectA} onB={selectB} onFlip={() => setParam({ currencyA: tokenB ? tokenParam(tokenB) : undefined, currencyB: tokenA ? tokenParam(tokenA) : undefined })} />
               </section>
               {version === 'v3' && (
                 <section>
-                  <h2 className="text-body-1 font-semibold">Fee tier</h2>
-                  <p className="mb-3 text-body-3 text-text-2">The amount earned providing liquidity. Choose an amount that suits your risk tolerance.</p>
+                  <h2 className="text-body-1 font-medium">Fee tier</h2>
+                  <p className="mb-4 text-body-3 text-text-2">The amount earned providing liquidity. Choose an amount that suits your risk tolerance and strategy.</p>
                   <FeeTierSection tokenA={tokenA} tokenB={tokenB} fee={fee} onFee={(f) => setParam({ fee: String(f) })} />
                 </section>
               )}
@@ -120,10 +140,10 @@ export function CreatePosition() {
                   V2 pools charge a fixed 0.3% fee and spread your liquidity over the full price range.
                 </Banner>
               )}
-              <Button size="xl" fullWidth disabled={!pairReady} onClick={() => setStep(2)} data-testid="create-continue">
+              <Button size="xl" fullWidth style={{ height: 54, borderRadius: 20 }} disabled={!pairReady} onClick={() => setStep(2)} data-testid="create-continue">
                 {pairReady ? 'Continue' : 'Select a pair'}
               </Button>
-            </Card>
+            </div>
           ) : tokenA && tokenB && version === 'v3' ? (
             <V3Deposit key={`${tokenA.address}-${tokenB.address}-${fee}`} tokenA={tokenA} tokenB={tokenB} fee={fee} account={address} onConnect={openConnect} onEdit={() => setStep(1)} />
           ) : tokenA && tokenB ? (
@@ -147,35 +167,52 @@ function StepsRail({ version, step, onStep }: { version: Version; step: 1 | 2; o
           { n: 2 as const, title: 'Enter deposit amounts' },
         ]
   return (
-    <Card className="hidden h-fit flex-col gap-1 p-4 lg:flex">
-      {items.map((it) => (
-        <button key={it.n} type="button" onClick={() => onStep(it.n)} className={cn('flex items-start gap-3 rounded-xl p-2 text-left', step === it.n ? 'text-text-1' : 'text-text-3')}>
-          <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-body-3 font-semibold', step === it.n ? 'bg-accent-fill text-white' : 'bg-surface-3')}>{it.n}</span>
-          <span className="pt-0.5">
-            <span className="block text-body-4">Step {it.n}</span>
-            <span className="block text-body-3 font-semibold">{it.title}</span>
-          </span>
-        </button>
+    <div className="hidden h-fit flex-col rounded-3xl border border-border px-4 py-5 lg:flex" data-testid="create-steps">
+      {items.map((it, i) => (
+        <div key={it.n}>
+          {i > 0 && <span className="ml-4 block h-12 w-px bg-border" aria-hidden />}
+          <button type="button" onClick={() => onStep(it.n)} className="flex items-center gap-3 text-left">
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-body-2 font-medium', step === it.n ? 'bg-text-1 text-bg' : 'bg-surface-3 text-text-2')}>{it.n}</span>
+            <span>
+              <span className={cn('block text-body-3', step === it.n ? 'text-text-2' : 'text-text-3')}>Step {it.n}</span>
+              <span className={cn('block text-body-2 leading-5', step === it.n ? 'text-text-1' : 'text-text-2')}>{it.title}</span>
+            </span>
+          </button>
+        </div>
       ))}
-    </Card>
+    </div>
   )
 }
 
 function PairPicker({ tokenA, tokenB, onA, onB, onFlip }: { tokenA?: Token; tokenB?: Token; onA: (t: Token) => void; onB: (t: Token) => void; onFlip: () => void }) {
   const [open, setOpen] = useState<'A' | 'B' | null>(null)
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex-1 [&>button]:w-full [&>button]:justify-between">
-        <TokenButton token={tokenA} onClick={() => setOpen('A')} testId="pair-token-a" />
-      </div>
-      <button type="button" aria-label="Swap token order" onClick={onFlip} className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-text-2 hover:text-text-1">
+    <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+      <PairButton token={tokenA} onClick={() => setOpen('A')} testId="pair-token-a" />
+      <button type="button" aria-label="Swap token order" onClick={onFlip} className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
         <ArrowLeftRight size={16} />
       </button>
-      <div className="flex-1 [&>button]:w-full [&>button]:justify-between">
-        <TokenButton token={tokenB} onClick={() => setOpen('B')} testId="pair-token-b" />
-      </div>
+      <PairButton token={tokenB} onClick={() => setOpen('B')} testId="pair-token-b" />
       <TokenSelector open={open !== null} onOpenChange={(o) => !o && setOpen(null)} onSelect={(t) => (open === 'A' ? onA(t) : onB(t))} selected={open === 'A' ? tokenA : tokenB} />
     </div>
+  )
+}
+
+function PairButton({ token, onClick, testId }: { token?: Token; onClick: () => void; testId: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className={cn(
+        'flex h-[50px] w-full min-w-0 flex-1 items-center gap-2 rounded-2xl px-4 text-body-2 font-semibold transition-colors',
+        token ? 'bg-surface-3 text-text-1 hover:bg-surface-3-hover' : 'bg-text-1 text-bg hover:opacity-90',
+      )}
+    >
+      {token && <TokenLogo token={token} size={24} chainBadge />}
+      <span className="min-w-0 flex-1 truncate text-left">{token ? token.symbol : 'Choose token'}</span>
+      <ChevronDown size={20} />
+    </button>
   )
 }
 
@@ -203,7 +240,9 @@ function FeeTierSection({ tokenA, tokenB, fee, onFee }: { tokenA?: Token; tokenB
     if (total > 0) for (const r of rows) if (r.fee) out[r.fee] = (r.tvlUsd || 0) / total
     return out
   }, [all.data, token0, token1])
-  if (!token0 || !token1) return <p className="text-body-3 text-text-3">Select both tokens to see fee tiers.</p>
+  // Like Uniswap, the tiers show before the pair is complete (every tier reads "Not created").
+  if (!token0 || !token1) return <FeeTierSelector value={fee} onChange={onFee} pools={{}} tvlShare={{}} />
+
   return <FeeTierSelector value={fee} onChange={onFee} pools={pools.data} tvlShare={tvlShare} loading={pools.isLoading} />
 }
 
@@ -350,7 +389,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
       <Card className="flex items-center gap-3 p-4">
         <DoubleLogo token0={tokenA} token1={tokenB} size={32} />
         <div className="min-w-0 flex-1">
-          <div className="text-body-1 font-semibold">
+          <div className="text-body-1 font-medium">
             {tokenA.symbol} / {tokenB.symbol}
           </div>
           <div className="flex gap-1.5 text-body-4 text-text-2">
@@ -365,7 +404,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
       </Card>
 
       <Card className="flex flex-col gap-4 p-5">
-        <h2 className="text-body-1 font-semibold">Set price range</h2>
+        <h2 className="text-body-1 font-medium">Set price range</h2>
         {poolsQ.isLoading ? (
           <Skeleton width="100%" height={200} rounded="lg" />
         ) : (
@@ -413,7 +452,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
       </Card>
 
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-body-1 font-semibold">Deposit tokens</h2>
+        <h2 className="text-body-1 font-medium">Deposit tokens</h2>
         <p className="-mt-2 text-body-3 text-text-2">Specify the token amounts for your liquidity contribution.</p>
         {sqrtP ? (
           <DepositInputs tokenA={tokenA} tokenB={tokenB} amounts={amounts} account={account} disabled={disabled} />
@@ -451,7 +490,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
         <div className="flex items-center gap-3">
           <DoubleLogo token0={tokenA} token1={tokenB} size={36} />
           <div>
-            <div className="text-body-1 font-semibold">
+            <div className="text-body-1 font-medium">
               {tokenA.symbol} / {tokenB.symbol}
             </div>
             <div className="text-body-4 text-text-2">
@@ -613,7 +652,7 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
       <Card className="flex items-center gap-3 p-4">
         <DoubleLogo token0={tokenA} token1={tokenB} size={32} />
         <div className="min-w-0 flex-1">
-          <div className="text-body-1 font-semibold">
+          <div className="text-body-1 font-medium">
             {tokenA.symbol} / {tokenB.symbol}
           </div>
           <div className="flex gap-1.5 text-body-4 text-text-2">
@@ -627,7 +666,7 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
         </Button>
       </Card>
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-body-1 font-semibold">Deposit tokens</h2>
+        <h2 className="text-body-1 font-medium">Deposit tokens</h2>
         {!pairQ.isLoading && !hasReserves && (
           <Banner tone="info" title="You are the first liquidity provider">
             The ratio of tokens you add sets the price of this pool.

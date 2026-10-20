@@ -25,11 +25,11 @@ export interface TradeChartSlot {
 export function TradeLayout({ children, settings = false, below, wide, chart }: { children: ReactNode; settings?: boolean; below?: ReactNode; wide?: boolean; chart?: TradeChartSlot }) {
   const showChart = !!chart?.open
   return (
-    <div className="flex flex-col items-center px-4 pt-6 pb-24 md:pt-[min(10vh,96px)]">
+    <div className="flex flex-col items-center px-4 pt-4 pb-24 md:pt-[60px]">
       <div className={cn('flex w-full flex-col items-center gap-6', showChart && 'lg:max-w-[1200px] lg:flex-row-reverse lg:items-start lg:justify-center')}>
         <div className={cn('w-full shrink-0', wide ? 'max-w-[480px]' : 'max-w-[480px]')}>
-          <div className="mb-2 flex items-center justify-between">
-            <nav aria-label="Trade" className="flex items-center gap-1">
+          <div className="mb-0.5 flex h-[46px] items-center justify-between">
+            <nav aria-label="Trade" className="flex items-center gap-3 p-1">
               {TABS.map((t) => (
                 <NavLink
                   key={t.to}
@@ -37,8 +37,8 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                   data-testid={`tab-${t.label.toLowerCase()}`}
                   className={({ isActive }) =>
                     cn(
-                      'rounded-full px-3.5 py-2 text-body-2 font-semibold transition-colors duration-150',
-                      isActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
+                      'flex h-9 items-center rounded-full px-3 text-body-3 leading-4 font-semibold transition-colors duration-150',
+                      isActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1',
                     )
                   }
                 >
@@ -46,15 +46,15 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                 </NavLink>
               ))}
             </nav>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-2">
               {chart && (
                 <IconButton
                   label={chart.open ? 'Hide price chart' : 'Show price chart'}
-                  size={36}
+                  size={32}
                   aria-pressed={chart.open}
                   onClick={chart.onToggle}
                   data-testid="chart-toggle"
-                  className={cn(chart.open && 'text-accent')}
+                  className={cn('rounded-lg', chart.open ? 'text-text-1' : 'text-text-2')}
                 >
                   <TrendingUp size={20} />
                 </IconButton>

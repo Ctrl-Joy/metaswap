@@ -28,7 +28,11 @@ const wethAddress = deployment.tokens?.find((t) => t.symbol === 'WETH')?.address
 
 /** The swap card body (Sell panel, flip, Buy panel, details, CTA) — ui-ux.md §2. */
 export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: Token; onTokensChange?: (input: Token | undefined, output: Token | undefined) => void } = {}) {
-  const { find } = useTokenList()
+  const { find, all } = useTokenList()
+  const quickPicks = useMemo(
+    () => (['ETH', 'mUSDC', 'mUSDT', 'mWBTC', 'WETH'] as const).map((s) => all.find((t) => t.symbol === s)).filter((t): t is Token => !!t),
+    [all],
+  )
   const [params, setParams] = useSearchParams()
   const [state, dispatch] = useReducer(swapReducer, undefined, () => ({
     independentField: 'INPUT' as Field,
@@ -215,7 +219,7 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
         error={cta.label.startsWith('Insufficient')}
         variant="sell"
       />
-      <div className="relative z-[1] -my-[18px] flex justify-center">
+      <div className="relative z-[1] -my-[22px] flex justify-center">
         <button
           type="button"
           aria-label="Switch tokens"
@@ -237,9 +241,10 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
         usdValue={usd(outputToken, amountOut)}
         estimating={!exactOut && q.status === 'loading' && !!amount}
         variant="buy"
+        quickPicks={quickPicks}
       />
 
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1 flex flex-col gap-1">
         {!wrapType && shownQuote && inputToken && outputToken && amount ? (
           <SwapDetailsAccordion
             quote={shownQuote}
@@ -287,6 +292,7 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
           size="xl"
           fullWidth
           data-testid="swap-cta"
+          style={{ height: 54, borderRadius: 20 }}
           variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}
           disabled={cta.disabled}
           loading={cta.loading || switching}

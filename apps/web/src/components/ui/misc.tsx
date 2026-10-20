@@ -66,6 +66,8 @@ export function Popover({
   onOpenChange,
   align = 'end',
   className,
+  autoFocus = true,
+  sideOffset = 8,
 }: {
   trigger: ReactNode
   children: ReactNode
@@ -73,6 +75,9 @@ export function Popover({
   onOpenChange?: (o: boolean) => void
   align?: 'start' | 'center' | 'end'
   className?: string
+  /** false: keep focus on the trigger when opening (avoids popping the first tooltip inside). */
+  autoFocus?: boolean
+  sideOffset?: number
 }) {
   return (
     <RPopover.Root open={open} onOpenChange={onOpenChange}>
@@ -80,7 +85,8 @@ export function Popover({
       <RPopover.Portal>
         <RPopover.Content
           align={align}
-          sideOffset={8}
+          sideOffset={sideOffset}
+          onOpenAutoFocus={autoFocus ? undefined : (e) => e.preventDefault()}
           collisionPadding={12}
           className={cn('z-[1100] rounded-2xl border border-border bg-surface-1 p-4 shadow-large outline-none animate-pop-in', className)}
         >

@@ -87,7 +87,7 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
         <div className="flex items-center gap-3">
           <DoubleLogo token0={t0} token1={t1} size={40} />
           <div>
-            <h1 className="text-heading-3 font-semibold" data-testid="position-title">
+            <h1 className="text-heading-3 font-medium" data-testid="position-title">
               {t0.symbol} / {t1.symbol}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-body-4">
@@ -121,7 +121,7 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Card className="p-5">
           <div className="text-body-3 text-text-2">Liquidity</div>
-          <div className="mt-1 text-heading-2 font-semibold tabular" data-testid="position-value">
+          <div className="mt-1 text-heading-2 font-medium tabular" data-testid="position-value">
             {formatUsd(usd0 + usd1)}
           </div>
           <div className="mt-4 flex flex-col gap-3">
@@ -241,7 +241,7 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove V2 liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 'A')} testId="remove-amount0">
           {formatTokenAmount(amount0, t0.decimals)}
         </ReviewRow>

@@ -99,28 +99,21 @@ export function CurrencyInputPanel({
         </div>
         {!token && onTokenSelect && quickPicks && quickPicks.length > 0 && (
           <div className="hidden items-center gap-1 transition-opacity duration-150 md:flex md:opacity-0 md:group-hover/panel:opacity-100 md:focus-within:opacity-100" data-testid={testId ? `${testId}-quick-picks` : undefined}>
-            {quickPicks.slice(0, 5).map((t) => (
-              <button
-                key={t.address}
-                type="button"
-                title={t.symbol}
-                aria-label={`Select ${t.symbol}`}
-                onClick={() => onTokenSelect(t)}
-                data-testid={testId ? `${testId}-quick-${t.symbol}` : undefined}
-                className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover"
-              >
-                <TokenLogo token={t} size={20} />
-              </button>
-            ))}
+            <QuickPicks tokens={quickPicks} onPick={onTokenSelect} testId={testId} />
           </div>
         )}
         <TokenButton token={token} onClick={onTokenSelect ? () => setSelectorOpen(true) : undefined} testId={testId ? `${testId}-token` : undefined} />
       </div>
+      {!token && onTokenSelect && quickPicks && quickPicks.length > 0 && (
+        <div className="mt-2 flex items-center gap-1 md:hidden" data-testid={testId ? `${testId}-quick-picks-mobile` : undefined}>
+          <QuickPicks tokens={quickPicks} onPick={onTokenSelect} testId={testId ? `${testId}-m` : undefined} />
+        </div>
+      )}
       {children}
       <div className="mt-2 flex min-h-[18px] items-center justify-between gap-2 text-body-3 text-text-2">
         {/* Uniswap shows "$0" under an empty panel; a typed amount without a price shows nothing. */}
         <span className="tabular" data-testid={testId ? `${testId}-fiat` : undefined}>
-          {!value || Number(value) === 0 ? '$0' : usdValue !== undefined ? formatUsd(usdValue) : ''}
+          {!token ? '' : !value || Number(value) === 0 ? '$0' : usdValue !== undefined ? formatUsd(usdValue) : ''}
         </span>
         {showBalance && (
           <span className="flex items-center gap-2">
@@ -145,6 +138,26 @@ export function CurrencyInputPanel({
         <TokenSelector open={selectorOpen} onOpenChange={setSelectorOpen} onSelect={onTokenSelect} selected={token} filter={tokenFilter} />
       )}
     </div>
+  )
+}
+
+function QuickPicks({ tokens, onPick, testId }: { tokens: Token[]; onPick: (t: Token) => void; testId?: string }) {
+  return (
+    <>
+      {tokens.slice(0, 5).map((t) => (
+        <button
+          key={t.address}
+          type="button"
+          title={t.symbol}
+          aria-label={`Select ${t.symbol}`}
+          onClick={() => onPick(t)}
+          data-testid={testId ? `${testId}-quick-${t.symbol}` : undefined}
+          className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover"
+        >
+          <TokenLogo token={t} size={20} />
+        </button>
+      ))}
+    </>
   )
 }
 

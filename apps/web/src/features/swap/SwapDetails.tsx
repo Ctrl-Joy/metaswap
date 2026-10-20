@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ArrowLeftRight, ChevronDown, Fuel } from 'lucide-react'
 import type { Token } from '@metaswap/sdk'
-import { InfoTip, TokenLogo, Skeleton } from '@/components/ui'
+import { InfoTip, Modal, TokenLogo, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatAmount, formatImpact, formatTokenAmount, formatUsd } from '@/lib/format'
 import { toNumber } from '@/lib/amount'
@@ -99,10 +99,9 @@ export function SwapDetailRows({ quote, inputToken, outputToken, exactOut, slipp
           {minOut !== undefined ? `${formatTokenAmount(minOut, outputToken.decimals)} ${outputToken.symbol}` : '-'}
         </Row>
       )}
-      <Row label="Order routing" tip="MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optional split) for the best price net of gas.">
-        MetaSwap API
+      <Row label="Order routing" tip="MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optional split) for the best price net of gas." testId="detail-routing">
+        <RouteViewButton quote={quote} />
       </Row>
-      <RouteDiagram quote={quote} />
     </div>
   )
 }
@@ -154,13 +153,39 @@ function tokenAddr(t: RouteHop['tokenIn']): string {
   return typeof t === 'string' ? t : (t as ApiToken).address
 }
 
+/** "MetaSwap API · View" in the details rows; View opens the route in a modal (Uniswap's route "View"). */
+function RouteViewButton({ quote }: { quote: QuoteResponse }) {
+  const [open, setOpen] = useState(false)
+  const has = (quote.route ?? []).some((r) => r.length > 0)
+  return (
+    <span className="inline-flex items-center gap-2">
+      MetaSwap API
+      {has && (
+        <button type="button" onClick={() => setOpen(true)} className="font-semibold text-accent hover:underline" data-testid="route-view">
+          View
+        </button>
+      )}
+      {has && (
+        <Modal open={open} onOpenChange={setOpen} title="Order routing" width={420} testId="route-modal">
+          <div className="flex flex-col gap-3 text-left">
+            <RouteDiagram quote={quote} />
+            <p className="text-body-3 text-text-2">
+              MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optionally split) for the best price after network cost.
+            </p>
+          </div>
+        </Modal>
+      )}
+    </span>
+  )
+}
+
 /** Route visualisation: one row per (split) route, token → [v3 0.05%] → token. */
 export function RouteDiagram({ quote }: { quote: QuoteResponse }) {
   const { find } = useTokenList()
   const routes = quote.route ?? []
   if (!routes.length) return null
   return (
-    <div className="mt-2 flex flex-col gap-2 rounded-xl bg-surface-2 p-3" data-testid="route-diagram" aria-label="Route">
+    <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4" data-testid="route-diagram" aria-label="Route">
       {routes.map((hops, ri) => {
         if (!hops.length) return null
         const pct = quote.routes?.[ri]?.percent ?? hops[0]?.percent ?? (routes.length === 1 ? 100 : undefined)

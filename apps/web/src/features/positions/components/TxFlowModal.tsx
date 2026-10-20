@@ -45,7 +45,7 @@ export function TxFlowModal({
       {runner.state === 'success' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid={`${testId}-success`}>
           <CircleCheck size={48} className="text-success" />
-          <div className="text-body-1 font-semibold">Transaction confirmed</div>
+          <div className="text-body-1 font-medium">Transaction confirmed</div>
           {success}
           <Button variant="secondary" fullWidth onClick={() => close(false)} data-testid={`${testId}-close`}>
             Close

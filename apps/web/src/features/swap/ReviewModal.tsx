@@ -129,7 +129,7 @@ export function ReviewModal(p: ReviewModalProps) {
       {phase === 'success' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="swap-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-semibold">{p.xQuote ? 'Order submitted!' : p.wrapType ? (p.wrapType === 'wrap' ? 'Wrapped!' : 'Unwrapped!') : 'Swap success!'}</div>
+          <div className="text-heading-3 font-medium">{p.xQuote ? 'Order submitted!' : p.wrapType ? (p.wrapType === 'wrap' ? 'Wrapped!' : 'Unwrapped!') : 'Swap success!'}</div>
           <p className="text-body-3 text-text-2">{p.xQuote ? 'Fillers are competing to settle your MetaSwapX order. Track it under Orders in your account.' : summary}</p>
           {hash && (
             <CopyButton value={hash} label="Copy transaction hash" className="font-mono text-body-4">
@@ -237,7 +237,7 @@ function AmountBlock({ label, token, amount, price, estimated }: { label: string
           {label}
           {estimated && <span className="text-text-3"> (estimated)</span>}
         </div>
-        <div className="truncate text-heading-3 font-semibold tabular">
+        <div className="truncate text-heading-3 font-medium tabular">
           {formatTokenAmount(amount, token.decimals)} {token.symbol}
         </div>
         {price !== undefined && <div className="text-body-3 text-text-2 tabular">{formatUsd(toNumber(amount, token.decimals) * price)}</div>}

@@ -123,10 +123,10 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="rounded-2xl border border-border bg-surface-1 p-4" data-testid="limit-price-panel">
-        <div className="flex items-center justify-between text-body-3 text-text-2">
+      <div className="rounded-2xl border border-surface-2 bg-surface-2 p-4" data-testid="limit-price-panel">
+        <div className="flex items-center justify-between text-body-2 leading-[22px] text-text-2">
           <span className="flex items-center gap-1.5">
-            When 1 {base && <TokenLogo token={base} size={16} />} <span className="font-semibold text-text-1">{base?.symbol ?? '…'}</span> is worth
+            When 1 {base && <TokenLogo token={base} size={16} />} <span className="text-text-1">{base?.symbol ?? '…'}</span> is worth
           </span>
           <button
             type="button"
@@ -141,7 +141,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
             <ArrowUpDown size={16} />
           </button>
         </div>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-1 flex items-center gap-3">
           <input
             inputMode="decimal"
             placeholder="0"
@@ -155,15 +155,15 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
                 setPriceText(v)
               }
             }}
-            className="h-11 min-w-0 flex-1 bg-transparent text-[36px] leading-[44px] font-medium tracking-[-0.01em] outline-none tabular"
+            className="h-[54px] min-w-0 flex-1 bg-transparent text-[36px] leading-[54px] font-medium outline-none tabular placeholder:text-text-3"
           />
           {quote && (
-            <span className="flex shrink-0 items-center gap-1.5 text-body-1 font-semibold">
-              <TokenLogo token={quote} size={24} /> {quote.symbol}
+            <span className="flex shrink-0 items-center gap-1 text-body-2 leading-[22px]">
+              <TokenLogo token={quote} size={20} /> {quote.symbol}
             </span>
           )}
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           {[0, 1, 5, 10].map((pct) => {
             const target = marketPrice ? marketPrice * (1 + pct / 100) : undefined
             const active = !!target && !!canonicalPrice && Math.abs(canonicalPrice / target - 1) < 0.0005
@@ -175,8 +175,8 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
                 onClick={() => setPreset(pct)}
                 data-testid={`limit-preset-${pct}`}
                 className={cn(
-                  'h-8 rounded-full border px-3 text-body-3 font-semibold transition-colors disabled:opacity-40',
-                  active ? 'border-accent bg-accent-tint text-accent' : 'border-border text-text-2 hover:bg-surface-2 hover:text-text-1',
+                  'h-7 rounded-full border border-border px-2 text-body-2 leading-[18px] font-semibold transition-colors disabled:opacity-40',
+                  active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-3 hover:text-text-1',
                 )}
               >
                 {pct === 0 ? 'Market' : `${inverted ? '-' : '+'}${pct}%`}
@@ -208,9 +208,10 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         balance={wallet.address ? inBal : undefined}
         onMax={() => inBal !== undefined && inputToken && setAmountText(toInputString(inBal, inputToken.decimals, inputToken.decimals))}
         usdValue={inputToken && amountIn && prices[inputToken.address.toLowerCase()] !== undefined ? toNumber(amountIn, inputToken.decimals) * prices[inputToken.address.toLowerCase()]! : undefined}
-        variant="sell"
+        variant="buy"
+        className="rounded-2xl"
       />
-      <div className="relative z-[1] -my-[18px] flex justify-center">
+      <div className="relative z-[1] -my-[22px] flex justify-center">
         <button
           type="button"
           aria-label="Switch tokens"
@@ -238,9 +239,10 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         tokenFilter={erc20Only}
         usdValue={outputToken && minOut && prices[outputToken.address.toLowerCase()] !== undefined ? toNumber(minOut, outputToken.decimals) * prices[outputToken.address.toLowerCase()]! : undefined}
         variant="buy"
+        className="rounded-2xl"
       />
 
-      <div className="mt-1 flex items-center justify-between gap-2 rounded-2xl border border-border px-4 py-2.5">
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
         <span className="text-body-3 text-text-2">Expiry</span>
         <div className="flex flex-wrap justify-end gap-1" role="radiogroup" aria-label="Expiry">
           {EXPIRY_OPTIONS.map((e) => (
@@ -251,7 +253,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
               aria-checked={expiry === e.key}
               onClick={() => setExpiry(e.key)}
               data-testid={`expiry-${e.key}`}
-              className={cn('h-8 rounded-full px-3 text-body-3 font-semibold transition-colors', expiry === e.key ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+              className={cn('h-7 rounded-full border border-border px-2 text-body-3 leading-4 font-semibold transition-colors', expiry === e.key ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
             >
               {e.label}
             </button>
@@ -265,12 +267,12 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         </Banner>
       )}
 
-      <Button size="xl" fullWidth className="mt-1" data-testid="limit-cta" disabled={cta.disabled} onClick={cta.onClick} variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}>
+      <Button size="xl" fullWidth style={{ height: 54, borderRadius: 20 }} data-testid="limit-cta" disabled={cta.disabled} onClick={cta.onClick} variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}>
         {cta.label}
       </Button>
 
-      <div className="mt-1 flex items-start gap-2 rounded-2xl bg-surface-2 px-4 py-3 text-body-4 text-text-2">
-        <Info size={16} className="mt-px shrink-0" />
+      <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface-2 p-4 text-body-3 leading-5 text-text-1">
+        <Info size={16} className="mt-0.5 shrink-0 text-text-2" />
         <span>
           Limit orders are gasless MetaSwapX intents. Fillers execute them when it is profitable, so they may not fill exactly when the market touches your price.{' '}
           <Link to="/metaswapx" className="font-semibold text-accent hover:underline">
@@ -367,7 +369,7 @@ function LimitReviewModal(p: {
       {phase === 'done' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="limit-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-semibold">Order placed</div>
+          <div className="text-heading-3 font-medium">Order placed</div>
           <p className="text-body-3 text-text-2">Your order is open for {p.expiryLabel}. It fills when a filler can pay at least your limit price.</p>
           <Button fullWidth size="lg" onClick={() => p.onOpenChange(false)}>
             Close
@@ -378,7 +380,7 @@ function LimitReviewModal(p: {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-body-3 text-text-2">You sell</div>
-              <div className="text-heading-3 font-semibold tabular">
+              <div className="text-heading-3 font-medium tabular">
                 {formatTokenAmount(p.amountIn, p.inputToken.decimals)} {p.inputToken.symbol}
               </div>
               {p.usdIn !== undefined && <div className="text-body-3 text-text-2">{formatUsd(p.usdIn)}</div>}
@@ -388,7 +390,7 @@ function LimitReviewModal(p: {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-body-3 text-text-2">You receive at least</div>
-              <div className="text-heading-3 font-semibold tabular">
+              <div className="text-heading-3 font-medium tabular">
                 {formatTokenAmount(p.minOut, p.outputToken.decimals)} {p.outputToken.symbol}
               </div>
             </div>

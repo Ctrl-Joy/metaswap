@@ -58,115 +58,123 @@ export function ConnectModal() {
   const devConnector = groups.dev.find((c) => c.id === devWalletId(devIndex))
 
   return (
-    <Modal open={open} onOpenChange={setOpen} title="Connect a wallet" width={420} testId="connect-modal">
-      <div className="flex flex-col gap-2">
-        {groups.dev.length > 0 && (
-          <div className="rounded-2xl border border-border bg-surface-2 p-3" data-testid="dev-wallet-section">
-            <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-accent-tint text-accent">
-                <Code2 size={20} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 font-semibold">
-                  Dev wallet <Badge tone="accent">Devnet</Badge>
-                </div>
-                <div className="text-body-4 text-text-2">Unlocked Anvil test accounts. No extension needed.</div>
+    <Modal
+      open={open}
+      onOpenChange={setOpen}
+      title="Connect a wallet"
+      width={368}
+      testId="connect-modal"
+      overlay={false}
+      hideClose
+      className="md:top-[73px]! md:right-3! md:left-auto! md:translate-x-0! md:translate-y-0! md:rounded-[20px]! [&_h2]:text-center [&_h2]:text-body-2 [&_h2]:font-medium"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-0.5 overflow-hidden rounded-2xl" data-testid="connect-options">
+          {groups.dev.length > 0 && (
+            <div className="bg-surface-2 p-3" data-testid="dev-wallet-section">
+              <div className="flex items-center gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-tint text-accent">
+                  <Code2 size={18} />
+                </span>
+                <span className="min-w-0 flex-1 text-body-2 leading-[22px]">Dev wallet</span>
+                <Badge tone="accent">Devnet</Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-5 gap-1" role="radiogroup" aria-label="Dev wallet account" data-testid="dev-account-select">
+                {ANVIL_ACCOUNTS.map((addr, i) => (
+                  <button
+                    key={addr}
+                    type="button"
+                    role="radio"
+                    aria-checked={devIndex === i}
+                    data-testid={`dev-account-${i}`}
+                    title={addr}
+                    onClick={() => {
+                      setDevIndex(i)
+                      safeStorage.setItem(DEV_ACCOUNT_KEY, String(i))
+                    }}
+                    className={cn(
+                      'flex flex-col items-center rounded-xl border px-1 py-1.5 text-body-4 transition-colors',
+                      devIndex === i ? 'border-accent bg-accent-tint text-text-1' : 'border-transparent bg-surface-3 text-text-2 hover:bg-surface-3-hover hover:text-text-1',
+                    )}
+                  >
+                    <span className="font-semibold">#{i}</span>
+                    <span className="font-mono text-[10px] opacity-80">{addr.slice(2, 6)}</span>
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Dev wallet account" data-testid="dev-account-select">
-              {ANVIL_ACCOUNTS.map((addr, i) => (
-                <button
-                  key={addr}
-                  type="button"
-                  role="radio"
-                  aria-checked={devIndex === i}
-                  data-testid={`dev-account-${i}`}
-                  title={addr}
-                  onClick={() => {
-                    setDevIndex(i)
-                    safeStorage.setItem(DEV_ACCOUNT_KEY, String(i))
-                  }}
-                  className={cn(
-                    'flex flex-col items-center rounded-xl px-1 py-1.5 text-body-4 transition-colors',
-                    devIndex === i ? 'bg-accent-fill text-white' : 'bg-surface-3 text-text-2 hover:bg-surface-3-hover hover:text-text-1',
-                  )}
-                >
-                  <span className="font-semibold">#{i}</span>
-                  <span className="font-mono text-[10px] opacity-80">{addr.slice(2, 6)}</span>
-                </button>
-              ))}
+          )}
+          {groups.injected.map((c) => (
+            <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => connect(c)} badge="Detected" />
+          ))}
+          {groups.injected.length === 0 && (
+            <div className="flex items-center gap-3 bg-surface-2 p-3 text-body-3 text-text-2">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-text-2">
+                <ShieldAlert size={18} />
+              </span>
+              <span>No browser wallet detected. Install MetaMask or Rabby, or use the Dev wallet.</span>
             </div>
-            <button
-              type="button"
-              data-testid="connect-dev-wallet"
-              disabled={!devConnector || !!pendingId}
-              onClick={() => devConnector && connect(devConnector)}
-              className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent-fill font-semibold text-white transition-colors hover:bg-accent-fill-hover disabled:opacity-60"
-            >
-              {pendingId === devConnector?.id ? <Spinner size={16} /> : null}
-              Connect account #{devIndex} · {shortenAddress(ANVIL_ACCOUNTS[devIndex]!)}
-            </button>
-            {error && error.id === devConnector?.id && <p className="mt-2 text-body-4 text-critical">{error.message}</p>}
-          </div>
+          )}
+          {groups.others.map((c) => (
+            <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => connect(c)} />
+          ))}
+        </div>
+
+        {groups.dev.length > 0 && (
+          <>
+            <div className="flex items-center gap-3 px-3 text-body-4 text-text-3" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div>
+              <button
+                type="button"
+                data-testid="connect-dev-wallet"
+                disabled={!devConnector || !!pendingId}
+                onClick={() => devConnector && connect(devConnector)}
+                className="flex h-[46px] w-full items-center justify-center gap-2 rounded-2xl bg-accent-fill px-4 text-body-2 font-semibold text-white transition-colors hover:bg-accent-fill-hover disabled:opacity-60"
+              >
+                {pendingId === devConnector?.id ? <Spinner size={16} /> : null}
+                Connect account #{devIndex} · {shortenAddress(ANVIL_ACCOUNTS[devIndex]!)}
+              </button>
+              {error && error.id === devConnector?.id && <p className="mt-2 text-center text-body-4 text-critical">{error.message}</p>}
+            </div>
+          </>
         )}
 
-        {groups.injected.length > 0 && <SectionLabel>Detected wallets</SectionLabel>}
-        {groups.injected.map((c) => (
-          <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => connect(c)} badge="Detected" />
-        ))}
-        {groups.injected.length === 0 && (
-          <div className="flex items-start gap-3 rounded-2xl border border-dashed border-border px-4 py-3 text-body-3 text-text-2">
-            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-text-3" />
-            <span>No browser wallet detected. Install an EIP-6963 wallet such as MetaMask or Rabby, or use the Dev wallet above.</span>
-          </div>
-        )}
-
-        {groups.others.length > 0 && <SectionLabel>Other wallets</SectionLabel>}
-        {groups.others.map((c) => (
-          <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => connect(c)} />
-        ))}
-
-        <p className="mt-3 text-center text-body-4 text-text-3">
-          MetaChain Devnet is a local test network (chain {DEVNET_CHAIN_ID}). Never connect a wallet that holds real funds you are not prepared to test with.
+        <p className="px-1 text-center text-body-4 font-semibold text-text-3">
+          MetaChain Devnet is a local test network (chain {DEVNET_CHAIN_ID}). Never connect a wallet holding real funds you are not prepared to test with.
         </p>
       </div>
     </Modal>
   )
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 px-1 text-body-4 font-semibold uppercase tracking-[0.08em] text-text-3">{children}</div>
-}
-
 function ConnectorRow({ connector, onClick, pending, error, badge }: { connector: Connector; onClick: () => void; pending: boolean; error?: string; badge?: string }) {
   const Icon = connector.type === 'walletConnect' ? QrCode : Wallet
   return (
-    <div>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={pending}
-        data-testid={`connector-${connector.id}`}
-        className={cn(
-          'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-surface-2-hover',
-          error ? 'bg-critical-tint' : 'bg-surface-2',
-        )}
-      >
-        {connector.icon ? (
-          <img src={connector.icon} alt="" className="size-10 rounded-xl" />
-        ) : (
-          <span className="flex size-10 items-center justify-center rounded-xl bg-surface-3 text-text-2">
-            <Icon size={20} />
-          </span>
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{connector.name === 'Injected' ? 'Browser wallet' : connector.name}</span>
-          {pending && <span className="block text-body-4 text-text-2">Connecting… open your wallet</span>}
-          {error && !pending && <span className="block text-body-4 text-critical">{error} — try again</span>}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={pending}
+      data-testid={`connector-${connector.id}`}
+      className={cn('flex min-h-[62px] w-full items-center gap-3 p-3 text-left transition-colors hover:bg-surface-2-hover', error ? 'bg-critical-tint' : 'bg-surface-2')}
+    >
+      {connector.icon ? (
+        <img src={connector.icon} alt="" className="size-8 rounded-lg" />
+      ) : (
+        <span className="flex size-8 items-center justify-center rounded-lg bg-accent-tint text-accent">
+          <Icon size={18} />
         </span>
-        {badge && !pending && <Badge tone="success">{badge}</Badge>}
-        {pending ? <Spinner size={18} className="text-accent" /> : <ChevronRight size={18} className="text-text-3" />}
-      </button>
-    </div>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body-2 leading-[22px]">{connector.name === 'Injected' ? 'Browser wallet' : connector.name}</span>
+        {pending && <span className="block text-body-4 text-text-2">Connecting… open your wallet</span>}
+        {error && !pending && <span className="block text-body-4 text-critical">{error} — try again</span>}
+      </span>
+      {badge && !pending && <Badge tone="success">{badge}</Badge>}
+      {pending ? <Spinner size={18} className="text-accent" /> : <ChevronRight size={20} className="text-text-2" />}
+    </button>
   )
 }

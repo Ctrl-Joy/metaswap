@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { usePublicClient } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { getAddress, type Address } from 'viem'
-import { Search, Check, AlertTriangle, X } from 'lucide-react'
+import { Search, Check, AlertTriangle, X, TrendingUp, Wallet, Star } from 'lucide-react'
 import { COMMON_BASE_SYMBOLS, type Token } from '@metaswap/sdk'
 import { Modal, TokenLogo, Skeleton, Button, Badge } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -53,7 +53,7 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
   const owned = !query && address ? results.filter((t) => (balances[t.address.toLowerCase()] ?? 0n) > 0n) : []
   const rest = !query && address ? results.filter((t) => !owned.includes(t)) : results
   const flat = [...owned, ...rest]
-  const commonBases = COMMON_BASE_SYMBOLS.map((s) => tokens.find((t) => t.symbol === s)).filter(Boolean) as Token[]
+  const commonBases = (COMMON_BASE_SYMBOLS.map((s) => tokens.find((t) => t.symbol === s)).filter(Boolean) as Token[]).slice(0, 5)
   const unknown = isUnknownAddress(query, all) ? (query.trim() as Address) : undefined
 
   const choose = (t: Token) => {
@@ -92,21 +92,24 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
         onMouseEnter={() => setCursor(i)}
         onClick={() => choose(t)}
         className={cn(
-          'flex h-16 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors',
+          'flex h-[58px] w-full items-center gap-2 rounded-2xl p-2 text-left transition-colors',
           i === cursor ? 'bg-surface-2-hover' : 'hover:bg-surface-2-hover',
           isSelected && 'opacity-60',
         )}
       >
-        <TokenLogo token={t} size={36} chainBadge />
+        <TokenLogo token={t} size={40} chainBadge />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{t.name}</span>
-          <span className="flex items-center gap-1.5 text-body-3 text-text-2">
+          <span className="block truncate text-body-1 font-medium">{t.name}</span>
+          <span className="flex items-center gap-1.5 text-body-3 leading-[18px] text-text-2">
             {t.symbol}
-            {!t.isNative && <span className="font-mono text-body-4 text-text-3">{shortenAddress(t.address)}</span>}
+            {!t.isNative && <span className="text-text-3">{shortenAddress(t.address)}</span>}
             {!isListed(t.address) && <Badge tone="warning">Imported</Badge>}
-            {t.tags?.includes('stablecoin') && <Badge>Stablecoin</Badge>}
+            
           </span>
         </span>
+        {t.tags?.includes('stablecoin') && (!address || !(bal && bal > 0n)) && (
+          <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-body-4 text-text-2">Stablecoins</span>
+        )}
         {address && (
           <span className="shrink-0 text-right">
             {bal === undefined && balancesLoading ? (
@@ -125,10 +128,10 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
   }
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title={title} width={480} tall testId="token-selector">
+    <Modal open={open} onOpenChange={onOpenChange} title={title} width={400} tall testId="token-selector" className="md:h-[min(700px,calc(100dvh-64px))] [&_h2]:font-medium">
       <div className="flex h-full flex-col">
-        <label className="flex h-12 shrink-0 items-center gap-2 rounded-2xl bg-surface-2 px-4 focus-within:ring-1 focus-within:ring-accent">
-          <Search size={18} className="text-text-3" />
+        <label className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-transparent bg-surface-2 px-4 focus-within:border-border">
+          <Search size={20} className="text-text-2" />
           <input
             autoFocus
             value={query}
@@ -137,10 +140,10 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
               setCursor(0)
             }}
             onKeyDown={onKeyDown}
-            placeholder="Search name, symbol or paste address"
+            placeholder="Search tokens"
             aria-label="Search tokens"
             data-testid="token-search"
-            className="w-full bg-transparent text-body-2 outline-none"
+            className="w-full bg-transparent text-body-1 leading-[18px] outline-none placeholder:text-text-3"
             spellCheck={false}
             autoComplete="off"
           />
@@ -152,7 +155,7 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
         </label>
 
         {!query && commonBases.length > 0 && (
-          <div className="mt-3 grid shrink-0 grid-cols-3 gap-2 sm:grid-cols-6" aria-label="Common tokens">
+          <div className="mt-3 grid shrink-0 grid-cols-5 gap-1" aria-label="Common tokens">
             {commonBases.map((t) => {
               const isSel = selected?.address === t.address
               return (
@@ -162,26 +165,26 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
                   disabled={isSel}
                   onClick={() => choose(t)}
                   data-testid={`token-chip-${t.symbol}`}
-                  className="flex flex-col items-center gap-1.5 rounded-xl bg-surface-2 px-1 py-2.5 transition-colors hover:bg-surface-2-hover disabled:opacity-50"
+                  className="flex h-[68px] flex-col items-center justify-center gap-1 rounded-2xl bg-surface-2 px-2 py-3 transition-colors hover:bg-surface-2-hover disabled:opacity-50"
                 >
-                  <TokenLogo token={t} size={28} />
-                  <span className="max-w-full truncate text-body-4 font-semibold">{t.symbol}</span>
+                  <TokenLogo token={t} size={24} chainBadge />
+                  <span className="max-w-full truncate text-body-3 leading-4 font-semibold">{t.symbol}</span>
                 </button>
               )
             })}
           </div>
         )}
 
-        <div ref={listRef} className="-mx-2 mt-3 min-h-[240px] flex-1 overflow-y-auto px-2 scrollbar-thin" role="listbox" aria-label="Tokens">
+        <div ref={listRef} className="-mx-2 mt-1 min-h-[240px] flex-1 overflow-y-auto px-2 scrollbar-thin" role="listbox" aria-label="Tokens">
           {unknown ? (
             <ImportToken address={unknown} onImported={choose} />
           ) : flat.length === 0 ? (
             <p className="py-10 text-center text-body-3 text-text-2">No results for “{query}”.</p>
           ) : (
             <>
-              {owned.length > 0 && <SectionTitle>Your tokens</SectionTitle>}
+              {owned.length > 0 && <SectionTitle icon={<Wallet size={16} />}>Your tokens</SectionTitle>}
               {owned.map((t, i) => row(t, i))}
-              <SectionTitle>{query ? 'Search results' : 'Tokens'}</SectionTitle>
+              <SectionTitle icon={query ? <Star size={16} /> : <TrendingUp size={16} />}>{query ? 'Search results' : 'Tokens by 24H volume'}</SectionTitle>
               {rest.map((t, i) => row(t, i + owned.length))}
             </>
           )}
@@ -191,8 +194,13 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
   )
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="px-3 pt-2 pb-1 text-body-3 text-text-2">{children}</div>
+function SectionTitle({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 px-1 pt-3 pb-1 text-body-2 leading-5 text-text-2">
+      {icon}
+      {children}
+    </div>
+  )
 }
 
 /** Unknown token by address: read metadata on-chain, warn, require acknowledgement (ui-ux.md §3.6). */

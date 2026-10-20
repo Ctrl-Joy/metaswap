@@ -124,7 +124,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
         <div className="flex items-center gap-3">
           <DoubleLogo token0={t0} token1={t1} size={40} />
           <div>
-            <h1 className="text-heading-3 font-semibold" data-testid="position-title">
+            <h1 className="text-heading-3 font-medium" data-testid="position-title">
               {t0.symbol} / {t1.symbol}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-body-4">
@@ -168,7 +168,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
           )}
           <Card className="p-5">
             <div className="text-body-3 text-text-2">Liquidity</div>
-            <div className="mt-1 text-heading-2 font-semibold tabular" data-testid="position-value">
+            <div className="mt-1 text-heading-2 font-medium tabular" data-testid="position-value">
               {formatUsd(usd0 + usd1)}
             </div>
             <div className="mt-4 flex flex-col gap-3">
@@ -180,7 +180,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-body-3 text-text-2">Unclaimed fees</div>
-                <div className="mt-1 text-heading-3 font-semibold tabular" data-testid="fees-value">
+                <div className="mt-1 text-heading-3 font-medium tabular" data-testid="fees-value">
                   {formatUsd(fees0Usd + fees1Usd)}
                 </div>
               </div>
@@ -198,7 +198,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
         </div>
         <Card className="flex h-fit flex-col gap-4 p-5">
           <div className="flex items-center justify-between">
-            <div className="text-body-1 font-semibold">Price range</div>
+            <div className="text-body-1 font-medium">Price range</div>
             <button type="button" onClick={() => setInvert((v) => !v)} data-testid="detail-invert" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-2 px-3 text-body-4 font-semibold text-text-2 hover:text-text-1">
               <ArrowLeftRight size={14} /> {base.symbol} / {quote.symbol}
             </button>
@@ -247,9 +247,9 @@ function TokenRow({ token, amount, usd, pct, testId }: { token: Token; amount: b
 
 function PriceBox({ label, value, unit, testId }: { label: string; value: number; unit: string; testId: string }) {
   return (
-    <div className="rounded-2xl bg-surface-2 p-3 text-center" data-testid={testId}>
+    <div className="rounded-[20px] bg-surface-2 p-4 text-center" data-testid={testId}>
       <div className="text-body-4 text-text-2">{label}</div>
-      <div className="mt-1 text-heading-3 font-semibold tabular">{formatDisplayPrice(value)}</div>
+      <div className="mt-1 text-heading-3 font-medium tabular">{formatDisplayPrice(value)}</div>
       <div className="text-body-4 text-text-3">{unit}</div>
     </div>
   )
@@ -305,7 +305,7 @@ function CollectModal({ open, onOpenChange, pos, t0, t1, account, usd }: { open:
   }
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Collect fees" runner={runner} confirmLabel="Collect" onConfirm={confirm} testId="collect-modal">
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 0)}>{formatTokenAmount(pos.fees0, t0.decimals)}</ReviewRow>
         <ReviewRow label={sym(t1, 1)}>{formatTokenAmount(pos.fees1, t1.decimals)}</ReviewRow>
         <ReviewRow label="Value">{formatUsd(usd)}</ReviewRow>
@@ -423,7 +423,7 @@ function RemoveModal({ open, onOpenChange, pos, t0, t1, account }: { open: boole
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={`Pooled ${sym(t0, 0)}`} testId="remove-amount0">
           {formatTokenAmount(amount0, t0.decimals)}
         </ReviewRow>

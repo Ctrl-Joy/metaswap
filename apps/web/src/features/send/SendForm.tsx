@@ -3,10 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import { sendTransaction, writeContract } from 'wagmi/actions'
 import { usePublicClient } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpDown, CircleCheck, User } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, CircleCheck } from 'lucide-react'
 import { NATIVE_ETH, type Token } from '@metaswap/sdk'
 import { Banner, Button, Identicon, Modal, TokenLogo } from '@/components/ui'
-import { cn } from '@/lib/cn'
 import { erc20Abi } from '@/lib/abis'
 import { formatAmount, formatTokenAmount, formatUsd, shortenAddress } from '@/lib/format'
 import { maxSpendable, parseAmount, sanitizeAmountInput, toInputString, toNumber } from '@/lib/amount'
@@ -15,7 +14,6 @@ import { useUi } from '@/state/ui'
 import { trackTx } from '@/state/transactions'
 import { wagmiConfig } from '@/wallet/wagmi'
 import { useWallet, useSwitchToDevnet } from '@/wallet/hooks'
-import { TokenButton } from '@/features/tokens/CurrencyInputPanel'
 import { TokenSelector } from '@/features/tokens/TokenSelector'
 import { useTokenList, useTokenPrices } from '@/features/tokens/useTokenList'
 import { useTokenBalance } from '@/hooks/useTokenBalances'
@@ -88,57 +86,74 @@ export function SendForm() {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="rounded-2xl border border-border bg-surface-1 p-4" data-testid="send-amount-panel">
-        <div className="text-body-3 text-text-2">You're sending</div>
-        <div className="flex flex-col items-center py-6">
-          <div className="flex max-w-full items-baseline justify-center">
-            {usdMode && <span className={cn('text-[48px] leading-[52px] font-medium', text ? 'text-text-1' : 'text-text-3')}>$</span>}
-            <input
-              inputMode="decimal"
-              placeholder="0"
-              aria-label={usdMode ? 'Amount in USD' : `Amount in ${token.symbol}`}
-              data-testid="send-amount-input"
-              value={text}
-              onChange={(e) => {
-                const v = sanitizeAmountInput(e.target.value, usdMode ? 2 : token.decimals)
-                if (v !== null) setText(v)
-              }}
-              style={{ width: `${Math.max(1, text.length || 1) + 0.5}ch` }}
-              className="max-w-full min-w-[1ch] bg-transparent text-center text-[48px] leading-[52px] font-medium tracking-[-0.02em] outline-none tabular"
-            />
-            {!usdMode && <span className="ml-2 text-heading-3 text-text-2">{token.symbol}</span>}
-          </div>
-          <button type="button" onClick={toggleUsd} disabled={!price} className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-body-3 text-text-2 hover:bg-surface-2 hover:text-text-1 disabled:opacity-50" data-testid="send-usd-toggle">
-            {usdMode ? `${amount ? formatTokenAmount(amount, token.decimals) : '0'} ${token.symbol}` : formatUsd(usdValue ?? 0)}
-            <ArrowUpDown size={14} />
-          </button>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <TokenButton token={token} onClick={() => setSelectorOpen(true)} testId="send-token" />
-          {wallet.address && balance !== undefined && (
-            <div className="flex items-center gap-2 text-body-3 text-text-2">
-              <span className="tabular">
-                Balance: {formatTokenAmount(balance, token.decimals)}
-              </span>
-              <button
-                type="button"
-                className="rounded-full bg-accent-tint px-2 py-0.5 text-body-4 font-semibold text-accent hover:bg-accent-tint-hover"
-                onClick={() => {
-                  setUsdMode(false)
-                  setText(toInputString(maxSpendable(balance, !!token.isNative), token.decimals, token.decimals))
+      <div>
+        <div className="flex min-h-[281px] flex-col rounded-t-2xl border border-border bg-surface-1 px-4 pt-4 pb-5" data-testid="send-amount-panel">
+          <div className="text-body-2 leading-[22px] font-medium">You're sending</div>
+          <div className="flex flex-1 flex-col items-center justify-end">
+            <div className="flex max-w-full items-baseline justify-center">
+              {usdMode && <span className="text-[70px] leading-[84px] font-medium text-text-3">$</span>}
+              <input
+                inputMode="decimal"
+                placeholder="0"
+                aria-label={usdMode ? 'Amount in USD' : `Amount in ${token.symbol}`}
+                data-testid="send-amount-input"
+                value={text}
+                onChange={(e) => {
+                  const v = sanitizeAmountInput(e.target.value, usdMode ? 2 : token.decimals)
+                  if (v !== null) setText(v)
                 }}
-              >
-                Max
-              </button>
+                style={{ width: `${Math.max(1, text.length || 1) + 0.3}ch`, fontSize: text.length > 8 ? 44 : 70 }}
+                className="max-w-full min-w-[1ch] bg-transparent text-center leading-[84px] font-medium outline-none tabular placeholder:text-text-1"
+              />
+              {!usdMode && <span className="ml-2 text-heading-3 text-text-3">{token.symbol}</span>}
             </div>
+            <button
+              type="button"
+              onClick={toggleUsd}
+              disabled={!price}
+              className="mt-4 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-body-2 leading-[22px] text-text-2 hover:text-text-1 disabled:opacity-50"
+              data-testid="send-usd-toggle"
+            >
+              {usdMode ? `${amount ? formatTokenAmount(amount, token.decimals) : '0'} ${token.symbol}` : formatUsd(usdValue ?? 0)}
+              <ArrowUpDown size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="flex h-16 items-center gap-2 rounded-b-2xl border border-t-0 border-border bg-surface-1 px-4">
+          <button
+            type="button"
+            onClick={() => setSelectorOpen(true)}
+            data-testid="send-token"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left"
+          >
+            <TokenLogo token={token} size={36} chainBadge />
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-2 leading-[22px]">{token.symbol}</span>
+              {wallet.address && balance !== undefined && (
+                <span className="block text-body-4 text-text-2 tabular">Balance: {formatTokenAmount(balance, token.decimals)}</span>
+              )}
+            </span>
+          </button>
+          {wallet.address && balance !== undefined && balance > 0n && (
+            <button
+              type="button"
+              className="rounded-full bg-accent-tint px-2 py-0.5 text-body-4 font-semibold text-accent hover:bg-accent-tint-hover"
+              onClick={() => {
+                setUsdMode(false)
+                setText(toInputString(maxSpendable(balance, !!token.isNative), token.decimals, token.decimals))
+              }}
+            >
+              Max
+            </button>
           )}
+          <ChevronDown size={20} className="shrink-0 text-text-2" aria-hidden />
         </div>
       </div>
 
       <label className="mt-1 block rounded-2xl bg-surface-2 p-4" data-testid="send-recipient-panel">
         <span className="text-body-3 text-text-2">To</span>
-        <span className="mt-2 flex items-center gap-3">
-          {check.ok ? <Identicon address={check.address} size={28} /> : <span className="flex size-7 items-center justify-center rounded-full bg-surface-3 text-text-3"><User size={16} /></span>}
+        <span className="mt-1 flex items-center gap-2">
+          {check.ok && <Identicon address={check.address} size={24} />}
           <input
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
@@ -147,7 +162,7 @@ export function SendForm() {
             data-testid="send-recipient"
             spellCheck={false}
             autoComplete="off"
-            className="min-w-0 flex-1 bg-transparent font-mono text-body-2 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-body-2 leading-6 font-medium outline-none placeholder:text-text-2"
           />
         </span>
         {recipient && !check.ok && check.error !== 'empty' && <span className="mt-2 block text-body-4 text-critical" data-testid="recipient-error">{RECIPIENT_ERROR_TEXT[check.error]}</span>}
@@ -167,7 +182,7 @@ export function SendForm() {
         </div>
       )}
 
-      <Button size="xl" fullWidth className="mt-1" data-testid="send-cta" disabled={cta.disabled} onClick={cta.onClick} variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}>
+      <Button size="xl" fullWidth className="mt-1" style={{ height: 54, borderRadius: 20 }} data-testid="send-cta" disabled={cta.disabled} onClick={cta.onClick} variant={cta.tone === 'critical' ? 'critical' : cta.tone === 'warning' ? 'warning' : cta.tone === 'tint' ? 'tint' : 'primary'}>
         {cta.label}
       </Button>
 
@@ -233,7 +248,7 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
       {phase === 'done' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="send-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-semibold">Sent!</div>
+          <div className="text-heading-3 font-medium">Sent!</div>
           <p className="text-body-3 text-text-2">
             {label} to <span className="font-mono">{shortenAddress(p.to)}</span>
           </p>
@@ -246,7 +261,7 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
           <div className="flex items-center justify-between">
             <div>
               <div className="text-body-3 text-text-2">You're sending</div>
-              <div className="text-heading-3 font-semibold tabular">{label}</div>
+              <div className="text-heading-3 font-medium tabular">{label}</div>
               {p.usdValue !== undefined && <div className="text-body-3 text-text-2">{formatUsd(p.usdValue)}</div>}
             </div>
             <TokenLogo token={p.token} size={40} />

@@ -362,36 +362,48 @@ function AccountButton() {
 
 function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const isActive = useActive()
+  const app = NAV_ITEMS.filter((i) => !('wide' in i && i.wide))
+  const more = [{ to: '/earn', label: 'Earn', match: ['/earn'] }, ...NAV_ITEMS.filter((i) => 'wide' in i && i.wide)] as const
+  const link = (item: { to: string; label: string; match: readonly string[]; beta?: boolean }) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      onClick={() => onOpenChange(false)}
+      className={cn('flex h-12 items-center rounded-xl px-3 text-body-1 font-medium', isActive(item.match) ? 'text-text-1' : 'text-text-2 hover:bg-surface-2 hover:text-text-1')}
+    >
+      {item.label}
+      {item.beta && <BetaBadge />}
+    </NavLink>
+  )
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[1190] bg-scrim animate-fade-in" />
-        <Dialog.Content className="fixed inset-y-0 left-0 z-[1200] flex w-[min(320px,85vw)] flex-col bg-surface-1 p-4 shadow-large outline-none animate-fade-in">
-          <div className="mb-4 flex items-center justify-between">
+        <Dialog.Content
+          className="fixed inset-x-0 bottom-0 z-[1200] flex max-h-[85dvh] flex-col rounded-t-3xl border border-b-0 border-border bg-surface-1 px-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-large outline-none animate-sheet-in-bottom"
+          data-testid="mobile-nav"
+        >
+          <div className="mx-auto mt-2 mb-3 h-1 w-10 shrink-0 rounded-full bg-surface-3" aria-hidden />
+          <div className="mb-2 flex items-center justify-between">
             <Dialog.Title className="flex items-center gap-2">
-              <LogoMark size={26} /> <Wordmark />
+              <LogoMark size={24} /> <Wordmark />
             </Dialog.Title>
             <Dialog.Description className="sr-only">Site navigation</Dialog.Description>
             <Dialog.Close asChild>
-              <IconButton label="Close menu">
+              <IconButton label="Close menu" size={36}>
                 <X size={20} />
               </IconButton>
             </Dialog.Close>
           </div>
-          <nav aria-label="Mobile" className="flex flex-col gap-1">
-            {[...NAV_ITEMS.slice(0, 5), { to: '/earn', label: 'Earn', match: ['/earn'] } as const, ...NAV_ITEMS.slice(5)].map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => onOpenChange(false)}
-                className={cn('rounded-xl px-3 py-3 text-body-1 font-medium', isActive(item.match) ? 'bg-surface-2 text-text-1' : 'text-text-2 hover:bg-surface-2')}
-              >
-                {item.label}
-                {'beta' in item && item.beta && <BetaBadge />}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <nav aria-label="Mobile" className="flex flex-col">
+              <div className="px-3 pt-2 pb-1 text-body-3 text-text-2">App</div>
+              {app.map((i) => link(i))}
+              <div className="mt-2 border-t border-border px-3 pt-4 pb-1 text-body-3 text-text-2">More</div>
+              {more.map((i) => link(i))}
+            </nav>
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-border px-3 pt-4">
             <span className="text-body-3 text-text-2">Theme</span>
             <ThemeToggle />
           </div>
