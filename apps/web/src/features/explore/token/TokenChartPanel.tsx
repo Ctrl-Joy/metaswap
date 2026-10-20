@@ -119,10 +119,10 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
             : `Only a few trades so far for ${symbol} in this range. The chart fills in as trading continues.`
         }
         errorText={mode === 'tvl' ? 'TVL history is not available yet.' : 'Chart unavailable right now.'}
-        heightClass="h-[280px] md:h-[380px]"
+        heightClass="h-[300px]"
         footer={
           <ChartControls
-            left={<SegmentedTabs size="sm" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}
+            left={<SegmentedTabs size="md" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}
             right={
               <>
                 {mode === 'price' && (

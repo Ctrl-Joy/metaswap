@@ -414,7 +414,7 @@ export interface StatTile {
   delta: number | null
 }
 
-export function exploreStatTiles(s: ExploreStatsRaw | undefined): StatTile[] {
+export function exploreStatTiles(s: ExploreStatsRaw | undefined, protocolDeltas: { v2?: number | null; v3?: number | null } = {}): StatTile[] {
   return [
     {
       key: 'volume',
@@ -428,8 +428,8 @@ export function exploreStatTiles(s: ExploreStatsRaw | undefined): StatTile[] {
       value: toNum(s?.tvlUsd),
       delta: percentDelta((s?.tvlHistory ?? []).map((p) => ({ time: p.time, value: p.tvlUsd }))),
     },
-    { key: 'v2', label: 'V2 TVL', value: toNum(s?.v2?.tvlUsd), delta: null },
-    { key: 'v3', label: 'V3 TVL', value: toNum(s?.v3?.tvlUsd), delta: null },
+    { key: 'v2', label: 'V2 TVL', value: toNum(s?.v2?.tvlUsd), delta: protocolDeltas.v2 ?? null },
+    { key: 'v3', label: 'V3 TVL', value: toNum(s?.v3?.tvlUsd), delta: protocolDeltas.v3 ?? null },
   ]
 }
 

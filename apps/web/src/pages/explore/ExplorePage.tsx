@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UnderlineTabs } from '@/components/ui'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
-import { ExploreCharts, ExploreStats } from '@/features/explore/ExploreOverview'
+import { ExploreStats } from '@/features/explore/ExploreOverview'
 import { EarnRow, TrendingRow } from '@/features/explore/DiscoveryRows'
 import { AuctionsSection } from '@/features/explore/auctions/AuctionsSection'
+import { ExploreSectionTabs } from '@/features/explore/ExploreTable'
 import { PoolsTable } from '@/features/explore/PoolsTable'
 import { TokensTable } from '@/features/explore/TokensTable'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
@@ -21,8 +21,8 @@ const TAB_PATH: Record<ExploreTab, string> = {
 }
 
 /**
- * Explore: stats strip, charts header, then Tokens · Auctions · Pools · Transactions with URL sync
- * (ui-ux.md §8, STAGE5 §4b). Trending and Earn sit above the Tokens table.
+ * Explore, laid out to Uniswap's explore page (measured): a 1120px column, a stats strip, Trending and
+ * Earn rows, then Tokens · Auctions · Pools · Transactions with URL sync.
  */
 export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
   useDocumentTitle('Explore')
@@ -33,9 +33,8 @@ export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
   const txs = useExploreTransactions({}, 50)
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-4 pt-6 pb-24 md:px-6 md:pt-10" data-testid="explore-page">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="explore-page">
       <ExploreStats />
-      <ExploreCharts />
       {tab === 'tokens' && (
         <>
           <TrendingRow />
@@ -43,9 +42,9 @@ export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
         </>
       )}
       <div className="flex flex-col gap-4">
-        <UnderlineTabs<ExploreTab>
+        <ExploreSectionTabs<ExploreTab>
           value={tab}
-          onChange={(t) => navigate(TAB_PATH[t])}
+          onSelect={(t) => navigate(TAB_PATH[t])}
           items={[
             { value: 'tokens', label: 'Tokens', testId: 'explore-tab-tokens' },
             { value: 'auctions', label: 'Auctions', testId: 'explore-tab-auctions' },

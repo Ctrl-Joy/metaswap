@@ -30,7 +30,7 @@ export function TokenHeader({ symbol, name, address, loading }: { symbol: string
             {loading ? (
               <Skeleton width={180} height={24} />
             ) : (
-              <h1 className="flex flex-wrap items-baseline gap-2 text-heading-3 font-semibold md:text-heading-2">
+              <h1 className="flex flex-wrap items-baseline gap-2 text-[24px] leading-7 font-medium">
                 <span className="truncate">{name}</span>
                 <span className="text-body-1 font-medium text-text-2">{symbol}</span>
               </h1>
@@ -104,14 +104,14 @@ export function TokenStats({
       {items.map((it) => (
         <div key={it.label} className="flex min-w-0 flex-col gap-1" data-testid={it.testId}>
           <span className="text-body-3 text-text-2">{it.label}</span>
-          <span className={cn('text-body-1 font-semibold', loading && 'text-transparent')}>{loading ? <Skeleton width={90} height={20} /> : it.node}</span>
+          <span className={cn('text-[20px] leading-6 font-medium', loading && 'text-transparent')}>{loading ? <Skeleton width={90} height={20} /> : it.node}</span>
         </div>
       ))}
     </section>
   )
 }
 
-export function TokenAbout({ symbol, name, address, topPool }: { symbol: string; name: string; address?: string; topPool?: { address: string; label: string } }) {
+export function TokenAbout({ symbol, address, topPool }: { symbol: string; name?: string; address?: string; topPool?: { address: string; label: string } }) {
   const [open, setOpen] = useState(false)
   const text = tokenDescription(symbol)
   const isNative = !address || address.toLowerCase() === NATIVE_ADDRESS.toLowerCase()
@@ -122,7 +122,7 @@ export function TokenAbout({ symbol, name, address, topPool }: { symbol: string;
   const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 text-body-3 font-semibold text-text-1 transition-colors hover:bg-surface-3'
   return (
     <section aria-label="About" className="flex flex-col gap-3" data-testid="token-about">
-      <h2 className="text-heading-3 font-semibold">About {name}</h2>
+      <h2 className="text-[24px] leading-7 font-medium">About</h2>
       <p className={cn('max-w-[720px] text-body-2 text-text-2', !open && 'line-clamp-2')}>{text}</p>
       <div>
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>

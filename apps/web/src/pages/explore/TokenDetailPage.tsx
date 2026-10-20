@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { UnderlineTabs, Skeleton } from '@/components/ui'
+import { Skeleton } from '@/components/ui'
+import { ExploreSectionTabs } from '@/features/explore/ExploreTable'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useTokenList } from '@/features/tokens/useTokenList'
 import { ApiErrorState, isNotFound, NotFoundState } from '@/features/explore/ExploreStates'
@@ -48,9 +49,9 @@ export default function TokenDetailPage() {
 
   const loading = detail.isLoading && !d
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-24 md:px-6 md:pt-8" data-testid="token-page">
+    <div className="mx-auto w-full max-w-[1120px] px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="token-page">
       <div
-        className="grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,1fr)_380px] lg:[grid-template-areas:'top_swap'_'bottom_swap']"
+        className="grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,1fr)_360px] lg:[grid-template-areas:'top_swap'_'bottom_swap']"
       >
         <div className="flex min-w-0 flex-col gap-6 [grid-area:top]">
           <TokenHeader symbol={symbol} name={name} address={apiAddr} loading={loading} />
@@ -66,6 +67,7 @@ export default function TokenDetailPage() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-10 [grid-area:bottom]">
+          <h2 className="text-[24px] leading-7 font-medium">Stats</h2>
           <TokenStats
             tvl={d?.tvlUsd ?? null}
             marketCap={d?.marketCapUsd ?? null}
@@ -76,9 +78,9 @@ export default function TokenDetailPage() {
           />
           {symbol && <TokenAbout symbol={symbol} name={name} address={apiAddr} topPool={topPool} />}
           <section className="flex flex-col gap-4">
-            <UnderlineTabs<Tab>
+            <ExploreSectionTabs<Tab>
               value={tab}
-              onChange={setTab}
+              onSelect={setTab}
               items={[
                 { value: 'transactions', label: 'Transactions', testId: 'token-tab-transactions' },
                 { value: 'pools', label: 'Pools', testId: 'token-tab-pools' },

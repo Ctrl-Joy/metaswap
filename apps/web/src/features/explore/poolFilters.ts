@@ -66,3 +66,31 @@ export function sumRecentVolume(history: ReadonlyArray<{ time: number; volumeUsd
   const from = nowSec - days * 86_400
   return history.reduce((s, h) => (h.time >= from && h.volumeUsd !== null && Number.isFinite(h.volumeUsd) ? s + h.volumeUsd : s), 0)
 }
+
+/**
+ * "% today" for a sum of pool TVLs: last daily point vs the one before, summed over pools that have both
+ * (a pool created today has no previous day and is left out of both sides). Null without data.
+ */
+export function summedTvlDelta(histories: ReadonlyArray<ReadonlyArray<{ time: number; tvlUsd: number | null }>>): number | null {
+  let last = 0
+  let prev = 0
+  let n = 0
+  for (const h of histories) {
+    const pts = h.filter((p) => p.tvlUsd !== null && Number.isFinite(p.tvlUsd))
+    if (pts.length < 2) continue
+    last += pts[pts.length - 1]!.tvlUsd!
+    prev += pts[pts.length - 2]!.tvlUsd!
+    n++
+  }
+  if (!n || prev <= 0) return null
+  return ((last - prev) / prev) * 100
+}
+
+/** Day-over-day % change of one field of a pool's daily history (TVL or volume). */
+export function poolFieldDelta(history: ReadonlyArray<{ time: number; tvlUsd: number | null; volumeUsd: number | null }> | undefined, field: 'tvlUsd' | 'volumeUsd'): number | null {
+  const pts = (history ?? []).filter((p) => p[field] !== null && Number.isFinite(p[field]))
+  if (pts.length < 2) return null
+  const prev = pts[pts.length - 2]![field]!
+  const last = pts[pts.length - 1]![field]!
+  return prev > 0 ? ((last - prev) / prev) * 100 : null
+}

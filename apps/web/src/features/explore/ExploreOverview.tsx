@@ -13,25 +13,25 @@ function dateLabel(sec: number): string {
   return new Date(sec * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-/** Stats strip: 1D volume, Total TVL, V2 TVL, V3 TVL, each with a "% today" delta when history allows. */
+/** Stats strip, measured on Uniswap: 4 cells split by 1px dividers, 12px labels, 20px values, 12px deltas. */
 export function ExploreStats() {
   const q = useExploreStatsData()
   const tiles = exploreStatTiles(q.data as ExploreStatsRaw | undefined)
   const loading = q.isLoading && !q.data
   return (
-    <section aria-label="Explore statistics" className="grid grid-cols-2 gap-y-6 md:grid-cols-4" data-testid="explore-stats">
+    <section aria-label="Explore statistics" className="grid grid-cols-2 gap-y-5 md:grid-cols-4" data-testid="explore-stats">
       {tiles.map((t, i) => (
-        <div key={t.key} className={cn('flex min-w-0 flex-col gap-1 px-0 md:px-6', i > 0 && 'md:border-l md:border-border', i % 2 === 1 && 'border-l border-border pl-4 md:pl-6', i % 2 === 0 && 'pr-4 md:pr-6')} data-testid={`stat-${t.key}`}>
-          <span className="text-body-3 text-text-2">{t.label}</span>
+        <div key={t.key} className={cn("flex min-w-0 flex-col gap-1", i > 0 && "border-l border-border pl-4 md:pl-6")} data-testid={`stat-${t.key}`}>
+          <span className="text-[12px] leading-4 text-text-2">{t.label}</span>
           {loading ? (
-            <Skeleton width={120} height={30} />
+            <Skeleton width={120} height={22} />
           ) : (
-            <span className="text-heading-3 font-semibold tabular md:text-heading-2">{formatUsd(t.value, { compact: true })}</span>
+            <span className="text-[20px] leading-6 font-medium tabular">{formatUsd(t.value, { compact: true })}</span>
           )}
           {t.delta !== null && !loading && (
-            <span className="text-body-3">
-              <PercentChange value={t.delta} />
-              <span className="ml-1 text-text-2">today</span>
+            <span className="text-[12px] leading-4">
+              <PercentChange value={t.delta} className="text-[12px]" />
+              <span className="ml-1 text-text-1">today</span>
             </span>
           )}
         </div>

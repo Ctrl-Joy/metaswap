@@ -1,21 +1,23 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowDownUp, Plus, ArrowLeftRight } from 'lucide-react'
-import { Badge, buttonClass, Card, CopyButton, DoubleLogo, IconButton, Skeleton, Usd } from '@/components/ui'
+import { Badge, buttonClass, Card, CopyButton, DoubleLogo, IconButton, PercentChange, Skeleton, Usd } from '@/components/ui'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { CHAIN_SLUG } from '@/config'
 import { formatAmount, formatPercent, shortenAddress } from '@/lib/format'
-import { usePoolDetail, useExploreTransactions } from '@/features/explore/api'
+import { usePoolDetail, usePoolHistory, useExploreTransactions } from '@/features/explore/api'
 import { ApiErrorState, isNotFound, NotFoundState } from '@/features/explore/ExploreStates'
 import { PoolChartPanel } from '@/features/explore/pool/PoolChartPanel'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
 import { balanceShares, feeLabel, tokenOf, volumeOverTvl } from '@/features/explore/transforms'
+import { poolFieldDelta } from '@/features/explore/poolFilters'
 
 /** Pool detail: header with invert, chart tabs, balances, stats, Swap and Add liquidity, transactions. */
 export default function PoolDetailPage() {
   const { chain, address = '' } = useParams()
   const pool = usePoolDetail(address)
   const txs = useExploreTransactions({ pool: address }, 50)
+  const dayHist = usePoolHistory(address || undefined, 'day')
   const [invert, setInvert] = useState(false)
   const d = pool.data
   const t0 = tokenOf(d?.token0)
@@ -38,7 +40,7 @@ export default function PoolDetailPage() {
   const addHref = `/positions/create?currencyA=${t0.address}&currencyB=${t1.address}&fee=${d?.fee ?? ''}&version=${d?.version ?? 'v3'}`
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-24 md:px-6 md:pt-8" data-testid="pool-page">
+    <div className="mx-auto w-full max-w-[1120px] px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="pool-page">
       <nav aria-label="Breadcrumb" className="text-body-3 text-text-2">
         <Link to="/explore/pools" className="hover:text-text-1">
           Pools
@@ -47,7 +49,7 @@ export default function PoolDetailPage() {
         <span className="text-text-1">{loading ? '...' : `${t0.symbol} / ${t1.symbol}`}</span>
       </nav>
 
-      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'side'_'bottom'] lg:grid-cols-[minmax(0,1fr)_340px] lg:[grid-template-areas:'top_side'_'bottom_side']">
+      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'side'_'bottom'] lg:grid-cols-[minmax(0,1fr)_360px] lg:[grid-template-areas:'top_side'_'bottom_side']">
         <div className="flex min-w-0 flex-col gap-6 [grid-area:top]">
           <header className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -59,7 +61,7 @@ export default function PoolDetailPage() {
                 )}
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <div className="flex items-center gap-2">
-                    <h1 className="truncate text-heading-3 font-semibold md:text-heading-2">
+                    <h1 className="truncate text-[24px] leading-7 font-medium">
                       {loading ? <Skeleton width={160} height={28} /> : `${sym0} / ${sym1}`}
                     </h1>
                     <IconButton label="Invert pair" size={32} onClick={() => setInvert((v) => !v)} data-testid="invert-pair">
@@ -79,14 +81,7 @@ export default function PoolDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:max-w-[520px]">
-              <Link to={swapHref} className={buttonClass({ variant: 'secondary', size: 'lg', fullWidth: true })} data-testid="pool-swap">
-                <ArrowLeftRight size={16} aria-hidden /> Swap
-              </Link>
-              <Link to={addHref} className={buttonClass({ variant: 'primary', size: 'lg', fullWidth: true })} data-testid="pool-add-liquidity">
-                <Plus size={16} aria-hidden /> Add liquidity
-              </Link>
-            </div>
+
           </header>
 
           {d ? (
@@ -97,6 +92,14 @@ export default function PoolDetailPage() {
         </div>
 
         <aside className="flex min-w-0 flex-col gap-5 [grid-area:side] lg:sticky lg:top-24 lg:self-start" data-testid="pool-side">
+          <div className="grid grid-cols-2 gap-3">
+            <Link to={swapHref} className={buttonClass({ variant: 'secondary', size: 'lg', fullWidth: true })} data-testid="pool-swap">
+              <ArrowLeftRight size={16} aria-hidden /> Swap
+            </Link>
+            <Link to={addHref} className={buttonClass({ variant: 'primary', size: 'lg', fullWidth: true })} data-testid="pool-add-liquidity">
+              <Plus size={16} aria-hidden /> Add liquidity
+            </Link>
+          </div>
           <Card className="flex flex-col gap-4 p-5">
             <div className="text-body-3 text-text-2">Pool balances</div>
             {loading ? (
@@ -132,11 +135,11 @@ export default function PoolDetailPage() {
           </Card>
 
           <Card className="grid grid-cols-2 gap-x-4 gap-y-5 p-5" data-testid="pool-stats">
-            <Stat label="TVL" value={<Usd value={d?.tvlUsd ?? null} compact />} loading={loading} />
+            <Stat label="TVL" value={<Usd value={d?.tvlUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'tvlUsd')} testId="pool-stat-tvl" />
             <Stat label="APR" value={d && d.apr !== null ? formatPercent(d.apr, { digits: 2 }) : '-'} loading={loading} />
-            <Stat label="1D volume" value={<Usd value={d?.volume24hUsd ?? null} compact />} loading={loading} />
+            <Stat label="1D volume" value={<Usd value={d?.volume24hUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'volumeUsd')} testId="pool-stat-volume" />
             <Stat label="1D fees" value={<Usd value={d?.fees24hUsd ?? null} />} loading={loading} />
-            <Stat label="1D vol / TVL" value={ratio === null ? '-' : formatPercent(ratio * 100, { digits: 2 })} loading={loading} />
+            <Stat label="1D vol / TVL" value={ratio === null ? '-' : ratio.toFixed(2)} loading={loading} />
             <Stat label="7D volume" value={<Usd value={d?.volume7dUsd ?? null} compact />} loading={loading} />
           </Card>
 
@@ -166,7 +169,7 @@ export default function PoolDetailPage() {
         </aside>
 
         <section className="flex min-w-0 flex-col gap-4 [grid-area:bottom]">
-          <h2 className="text-heading-3 font-semibold">Transactions</h2>
+          <h2 className="text-[24px] leading-7 font-medium">Transactions</h2>
           <TransactionsTable rows={txs.data} isLoading={txs.isLoading} error={txs.error} onRetry={() => txs.refetch()} emptyText="No swaps or liquidity changes in this pool yet." testId="pool-transactions" perspective={d ? sym0 : undefined} />
         </section>
       </div>
@@ -174,11 +177,14 @@ export default function PoolDetailPage() {
   )
 }
 
-function Stat({ label, value, loading }: { label: string; value: ReactNode; loading: boolean }) {
+function Stat({ label, value, loading, delta, testId }: { label: string; value: ReactNode; loading: boolean; delta?: number | null; testId?: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1" data-testid={testId}>
       <span className="text-body-4 text-text-2">{label}</span>
-      <span className="text-body-1 font-semibold tabular">{loading ? <Skeleton width={70} height={18} /> : value}</span>
+      <span className="flex flex-wrap items-baseline gap-x-2 text-[24px] leading-7 font-medium tabular">
+        {loading ? <Skeleton width={70} height={18} /> : value}
+        {!loading && delta !== null && delta !== undefined && <PercentChange value={delta} className="text-body-4 font-medium" />}
+      </span>
     </div>
   )
 }

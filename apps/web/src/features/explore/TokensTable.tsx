@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronDown, Search, Smile, TrendingUp, LayoutGrid } from 'lucide-react'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
-import { Badge, PercentChange, Popover, SortTh, Table, TableSkeleton, Td, Th, THead, Tr, TokenLogo, Usd } from '@/components/ui'
+import { PercentChange, Popover, TokenLogo, Usd } from '@/components/ui'
 import { CHAIN_SLUG } from '@/config'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { Sparkline } from './charts/SvgCharts'
 import { ApiErrorState } from './ExploreStates'
+import { ExSortTh, ExTable, ExTableSkeleton, ExTd, ExTh, ExTHead, ExTr } from './ExploreTable'
 import { useTrendingTokens } from './discoveryApi'
 import { CATEGORY_LABEL, MORE_CATEGORIES, PRIMARY_CATEGORIES, matchesCategory, parseCategory, tokenBadges, type TokenCategory } from './discovery'
 import { filterTokenRows, sortRows, type SortDir } from './transforms'
@@ -36,6 +37,11 @@ export function tokenHref(address: string): string {
   return `/explore/tokens/${CHAIN_SLUG}/${path}`
 }
 
+/** Tag badge, Uniswap style: bordered pill, 12px secondary text. */
+export function TagBadge({ label }: { label: string }) {
+  return <span className="inline-flex h-[22px] shrink-0 items-center rounded-full border border-border px-1.5 text-[12px] leading-4 text-text-2">{label}</span>
+}
+
 /** Sortable, searchable token list. The category chip lives in `?category=` so links can deep-link to it. */
 export function TokensTable({
   rows,
@@ -57,6 +63,7 @@ export function TokensTable({
   const category = parseCategory(params.get('category'))
   const [moreOpen, setMoreOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const trending = useTrendingTokens()
   const trendingSet = useMemo(() => new Set((trending.data ?? []).map((t) => t.address.toLowerCase())), [trending.data])
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'volume', dir: 'desc' })
@@ -90,6 +97,8 @@ export function TokensTable({
   if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load tokens" />
 
   const moreActive = MORE_CATEGORIES.some((c) => c.value === category)
+  const chipClass = (active: boolean) =>
+    cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')
 
   return (
     <div className="flex flex-col gap-4" data-testid="tokens-section">
@@ -99,19 +108,8 @@ export function TokensTable({
             const Icon = CHIP_ICON[c.value]
             const active = category === c.value
             return (
-              <button
-                key={c.value}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                data-testid={`chip-${c.value}`}
-                onClick={() => setCategory(c.value)}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150',
-                  active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
-                )}
-              >
-                {Icon && <Icon size={14} aria-hidden />}
+              <button key={c.value} type="button" role="tab" aria-selected={active} data-testid={`chip-${c.value}`} onClick={() => setCategory(c.value)} className={chipClass(active)}>
+                {Icon && <Icon size={16} aria-hidden />}
                 {c.label}
               </button>
             )
@@ -121,19 +119,10 @@ export function TokensTable({
             onOpenChange={setMoreOpen}
             align="start"
             trigger={
-              <button
-                type="button"
-                data-testid="chip-more"
-                aria-haspopup="menu"
-                aria-expanded={moreOpen}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150',
-                  moreActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
-                )}
-              >
-                <LayoutGrid size={14} aria-hidden />
+              <button type="button" data-testid="chip-more" aria-haspopup="menu" aria-expanded={moreOpen} className={chipClass(moreActive)}>
+                <LayoutGrid size={16} aria-hidden />
                 {moreActive ? CATEGORY_LABEL[category] : 'More'}
-                <ChevronDown size={14} aria-hidden />
+                <ChevronDown size={16} aria-hidden />
               </button>
             }
             className="w-[200px] p-2"
@@ -165,43 +154,57 @@ export function TokensTable({
               data-testid="volume-range"
               value={range}
               onChange={(e) => onRangeChange(e.target.value as RangeKey)}
-              className="h-9 rounded-full border border-border bg-surface-1 pr-8 pl-3 text-body-3 font-semibold text-text-1 outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="h-10 rounded-xl border border-border bg-surface-1 pr-8 pl-3.5 text-body-2 font-medium text-text-1 outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               {RANGE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {o.value === 'ALL' ? 'All time' : `${o.label} volume`}
                 </option>
               ))}
             </select>
           </label>
-          <label className="relative flex w-[180px] items-center sm:w-[220px]">
-            <Search size={16} className="pointer-events-none absolute left-3 text-text-3" aria-hidden />
-            <span className="sr-only">Search tokens</span>
-            <input
-              data-testid="token-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tokens"
-              className="h-9 w-full rounded-full border border-border bg-surface-1 pr-3 pl-9 text-body-3 text-text-1 outline-none placeholder:text-text-3 focus-visible:ring-2 focus-visible:ring-focus"
-            />
-          </label>
+          {searchOpen ? (
+            <label className="relative flex w-[220px] items-center">
+              <Search size={16} className="pointer-events-none absolute left-3 text-text-3" aria-hidden />
+              <span className="sr-only">Search tokens</span>
+              <input
+                autoFocus
+                data-testid="token-search"
+                type="search"
+                value={query}
+                onBlur={() => !query && setSearchOpen(false)}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search tokens"
+                className="h-10 w-full rounded-xl border border-border bg-surface-1 pr-3 pl-9 text-body-2 text-text-1 outline-none placeholder:text-text-3 focus-visible:ring-2 focus-visible:ring-focus"
+              />
+            </label>
+          ) : (
+            <button
+              type="button"
+              aria-label="Search tokens"
+              data-testid="token-search-open"
+              onClick={() => setSearchOpen(true)}
+              className="flex h-10 w-[44px] items-center justify-center rounded-xl border border-border bg-surface-1 text-text-2 hover:text-text-1"
+            >
+              <Search size={18} aria-hidden />
+            </button>
+          )}
         </div>
       </div>
 
-      <Table minWidth={760} className="scrollbar-thin">
-        <THead>
-          <Th className="sticky left-0 z-[2] w-12 bg-surface-2">#</Th>
-          <Th className="sticky left-12 z-[2] bg-surface-2">Token</Th>
-          <SortTh label="Price" active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
-          <SortTh label="1H" active={effectiveSort.key === 'change1h'} direction={effectiveSort.dir} onClick={() => toggleSort('change1h')} />
-          <SortTh label="1D" active={effectiveSort.key === 'change24h'} direction={effectiveSort.dir} onClick={() => toggleSort('change24h')} />
-          <SortTh label="FDV" active={effectiveSort.key === 'fdv'} direction={effectiveSort.dir} onClick={() => toggleSort('fdv')} />
-          <SortTh label={`Volume ${RANGE_OPTIONS.find((o) => o.value === range)?.label ?? ''}`} active={effectiveSort.key === 'volume'} direction={effectiveSort.dir} onClick={() => toggleSort('volume')} />
-          <Th align="right">1D chart</Th>
-        </THead>
+      <ExTable minWidth={760}>
+        <ExTHead>
+          <ExTh className="sticky left-0 z-[2] w-12">#</ExTh>
+          <ExTh className="sticky left-12 z-[2]">Token</ExTh>
+          <ExSortTh label="Price" active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
+          <ExSortTh label="1H" active={effectiveSort.key === 'change1h'} direction={effectiveSort.dir} onClick={() => toggleSort('change1h')} />
+          <ExSortTh label="1D" active={effectiveSort.key === 'change24h'} direction={effectiveSort.dir} onClick={() => toggleSort('change24h')} />
+          <ExSortTh label="FDV" active={effectiveSort.key === 'fdv'} direction={effectiveSort.dir} onClick={() => toggleSort('fdv')} />
+          <ExSortTh label="Volume" active={effectiveSort.key === 'volume'} direction={effectiveSort.dir} onClick={() => toggleSort('volume')} />
+          <ExTh align="right">1D chart</ExTh>
+        </ExTHead>
         {isLoading && !rows ? (
-          <TableSkeleton rows={8} cols={8} />
+          <ExTableSkeleton rows={8} cols={8} />
         ) : visible.length === 0 ? (
           <tbody>
             <tr>
@@ -217,48 +220,46 @@ export function TokensTable({
               const href = tokenHref(r.address)
               const badges = tokenBadges(r)
               return (
-                <Tr key={r.address} className="group" onClick={() => navigate(href)} data-testid="token-row" data-symbol={r.symbol}>
-                  <Td className="sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover">{rank}</Td>
-                  <Td className="sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover">
+                <ExTr key={r.address} className="group" onClick={() => navigate(href)} data-testid="token-row" data-symbol={r.symbol}>
+                  <ExTd className="sticky left-0 z-[1] w-12 bg-bg text-text-2 group-hover:bg-surface-2-hover">{rank}</ExTd>
+                  <ExTd className="sticky left-12 z-[1] bg-bg group-hover:bg-surface-2-hover">
                     <Link to={href} className="flex items-center gap-3 focus-visible:outline-none" onClick={(e) => e.stopPropagation()}>
-                      <TokenLogo token={{ symbol: r.symbol, address: r.address }} size={28} />
+                      <TokenLogo token={{ symbol: r.symbol, address: r.address }} size={32} />
                       <span className="flex min-w-0 flex-col">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="truncate font-semibold text-text-1">{r.name}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-body-2 font-medium text-text-1">{r.name}</span>
                           {badges.slice(0, 2).map((b) => (
-                            <Badge key={b} tone="neutral" className="shrink-0 !px-1.5 !py-0 text-[11px]">
-                              {b}
-                            </Badge>
+                            <TagBadge key={b} label={b} />
                           ))}
                         </span>
-                        <span className="text-body-4 text-text-2">{r.symbol}</span>
+                        <span className="text-body-3 text-text-2">{r.symbol}</span>
                       </span>
                     </Link>
-                  </Td>
-                  <Td align="right" className="text-text-1">
+                  </ExTd>
+                  <ExTd align="right" className="text-text-1">
                     {formatPrice(r.priceUsd)}
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <PercentChange value={r.change1h} />
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <PercentChange value={r.change24h} />
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <Usd value={r.fdvUsd} compact />
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <Usd value={r.volumeUsd} compact />
-                  </Td>
-                  <Td align="right">
-                    <Sparkline values={r.sparkline} className="ml-auto" />
-                  </Td>
-                </Tr>
+                  </ExTd>
+                  <ExTd align="right">
+                    <Sparkline values={r.sparkline} width={96} height={32} className="ml-auto" />
+                  </ExTd>
+                </ExTr>
               )
             })}
           </tbody>
         )}
-      </Table>
+      </ExTable>
     </div>
   )
 }

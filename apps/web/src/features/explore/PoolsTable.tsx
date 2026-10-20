@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Search, SlidersHorizontal } from 'lucide-react'
-import { Badge, buttonClass, DoubleLogo, SortTh, Table, TableSkeleton, Td, Th, THead, Tr, Usd } from '@/components/ui'
+import { Badge, buttonClass, DoubleLogo, Usd } from '@/components/ui'
+import { ExSortTh, ExTableSkeleton, ExTd, ExTh, ExTHead, ExTr, ExTable } from './ExploreTable'
 import { CHAIN_SLUG } from '@/config'
 import { formatPercent } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -100,18 +101,18 @@ export function PoolsTable({
           )}
         </div>
       )}
-      <Table minWidth={860}>
-        <THead>
-          <Th className="sticky left-0 z-[2] w-12 bg-surface-2">#</Th>
-          <Th className="sticky left-12 z-[2] bg-surface-2">Pool</Th>
-          <SortTh label="TVL" active={sort.key === 'tvl'} direction={sort.dir} onClick={() => toggle('tvl')} />
-          <SortTh label="1D vol" active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggle('volume')} />
-          <SortTh label="30D vol" active={sort.key === 'volume30d'} direction={sort.dir} onClick={() => toggle('volume30d')} />
-          <SortTh label="1D vol/TVL" active={sort.key === 'ratio'} direction={sort.dir} onClick={() => toggle('ratio')} />
-          <SortTh label="Pool APR" active={sort.key === 'apr'} direction={sort.dir} onClick={() => toggle('apr')} />
-        </THead>
+      <ExTable minWidth={860}>
+        <ExTHead>
+          <ExTh className="sticky left-0 z-[2] w-12 bg-surface-2">#</ExTh>
+          <ExTh className="sticky left-12 z-[2] bg-surface-2">Pool</ExTh>
+          <ExSortTh label="TVL" active={sort.key === 'tvl'} direction={sort.dir} onClick={() => toggle('tvl')} />
+          <ExSortTh label="1D vol" active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggle('volume')} />
+          <ExSortTh label="30D vol" active={sort.key === 'volume30d'} direction={sort.dir} onClick={() => toggle('volume30d')} />
+          <ExSortTh label="1D vol/TVL" active={sort.key === 'ratio'} direction={sort.dir} onClick={() => toggle('ratio')} />
+          <ExSortTh label="Pool APR" active={sort.key === 'apr'} direction={sort.dir} onClick={() => toggle('apr')} />
+        </ExTHead>
         {isLoading && !pools ? (
-          <TableSkeleton rows={8} cols={7} />
+          <ExTableSkeleton rows={8} cols={7} />
         ) : visible.length === 0 ? (
           <tbody>
             <tr>
@@ -129,9 +130,9 @@ export function PoolsTable({
               const rank = (pools ?? []).indexOf(p) + 1
               const href = poolHref(p.address)
               return (
-                <Tr key={p.address} className="group" onClick={() => navigate(href)} data-testid="pool-row" data-pool={p.address} data-version={p.version} data-index={i}>
-                  <Td className="sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover">{rank}</Td>
-                  <Td className="sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover">
+                <ExTr key={p.address} className="group" onClick={() => navigate(href)} data-testid="pool-row" data-pool={p.address} data-version={p.version} data-index={i}>
+                  <ExTd className="sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover">{rank}</ExTd>
+                  <ExTd className="sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover">
                     <Link to={href} className="flex items-center gap-3 focus-visible:outline-none" onClick={(e) => e.stopPropagation()}>
                       <DoubleLogo token0={{ symbol: t0.symbol, address: t0.address }} token1={{ symbol: t1.symbol, address: t1.address }} size={28} />
                       <span className="flex min-w-0 flex-col">
@@ -144,26 +145,26 @@ export function PoolsTable({
                         </span>
                       </span>
                     </Link>
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <Usd value={p.tvlUsd} compact />
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <Usd value={p.volume24hUsd} compact />
-                  </Td>
-                  <Td align="right" data-testid="pool-vol30d">
+                  </ExTd>
+                  <ExTd align="right" data-testid="pool-vol30d">
                     {v30(p) === null ? <span className="text-text-3">-</span> : <Usd value={v30(p)} compact />}
-                  </Td>
-                  <Td align="right" className={cn(volumeOverTvl(p.volume24hUsd, p.tvlUsd) === null && 'text-text-3')} data-testid="pool-vol-tvl">
+                  </ExTd>
+                  <ExTd align="right" className={cn(volumeOverTvl(p.volume24hUsd, p.tvlUsd) === null && 'text-text-3')} data-testid="pool-vol-tvl">
                     {formatRatio(volumeOverTvl(p.volume24hUsd, p.tvlUsd))}
-                  </Td>
-                  <Td align="right">{p.apr === null ? '-' : formatPercent(p.apr, { digits: 2 })}</Td>
-                </Tr>
+                  </ExTd>
+                  <ExTd align="right">{p.apr === null ? '-' : formatPercent(p.apr, { digits: 2 })}</ExTd>
+                </ExTr>
               )
             })}
           </tbody>
         )}
-      </Table>
+      </ExTable>
     </div>
   )
 }

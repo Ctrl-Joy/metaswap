@@ -17,14 +17,14 @@ export function TrendingRow() {
     <section aria-label="Trending" className="flex flex-col gap-4" data-testid="trending-row">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-heading-3 font-semibold">Trending</h2>
+          <h2 className="text-[18px] leading-6 font-medium">Trending</h2>
           <Tooltip content="The tokens with the most activity and price movement over the last 24 hours.">
             <button type="button" aria-label="About trending" className="inline-flex text-text-3 hover:text-text-2">
               <Info size={16} />
             </button>
           </Tooltip>
         </div>
-        <Link to="/explore/tokens?category=trending" className="text-body-2 font-semibold text-text-2 hover:text-text-1">
+        <Link to="/explore/tokens?category=trending" className="text-[14px] leading-4 font-semibold text-text-2 hover:text-text-1">
           View all
         </Link>
       </div>
@@ -37,12 +37,12 @@ export function TrendingRow() {
                 to={tokenHref(t.address)}
                 data-testid="trending-card"
                 data-symbol={t.symbol}
-                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-1-hover"
+                className="flex h-[66px] min-w-0 items-center gap-3 rounded-[16px] border border-border bg-surface-1 px-3 transition-colors hover:bg-surface-1-hover"
               >
                 <TokenLogo token={{ symbol: t.symbol, address: t.address }} size={36} />
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-body-2 font-semibold text-text-1">{t.name}</span>
-                  <span className="flex items-center gap-1.5 text-body-3 text-text-2">
+                  <span className="truncate text-[16px] leading-[22px] font-medium text-text-1">{t.name}</span>
+                  <span className="flex items-center gap-1.5 text-[14px] leading-[18px] text-text-2">
                     <span className="truncate">{t.symbol}</span>
                     <PercentChange value={t.change24h} className="text-body-3" />
                   </span>
@@ -63,9 +63,9 @@ export function EarnRow() {
   if (!q.isLoading && vaults.length === 0) return null
   return (
     <section aria-label="Earn" className="flex flex-col gap-4 md:flex-row md:items-center md:gap-10" data-testid="earn-row">
-      <div className="flex flex-col gap-1 md:w-[220px] md:shrink-0">
-        <h2 className="text-heading-3 font-semibold">Earn</h2>
-        <p className="text-body-3 text-text-2">Deposit for yield with no lockup</p>
+      <div className="flex flex-col gap-1 md:w-[376px] md:shrink-0">
+        <h2 className="text-[24px] leading-7 font-medium">Earn</h2>
+        <p className="text-[14px] leading-[18px] text-text-2">Deposit for yield with no lockup</p>
       </div>
       <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
         {q.isLoading && !q.data
@@ -76,12 +76,12 @@ export function EarnRow() {
                 to={`/earn/${encodeURIComponent(v.id)}`}
                 data-testid="earn-card"
                 data-vault={v.id}
-                className={cn('flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-1-hover')}
+                className={cn('flex h-[66px] items-center gap-3 rounded-[16px] border border-border bg-surface-1 px-4 transition-colors hover:bg-surface-1-hover')}
               >
                 <TokenLogo token={{ symbol: v.logoSymbol }} size={36} />
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-body-2 font-semibold text-text-1">{v.symbol}</span>
-                  <span className="text-body-3 font-semibold text-accent tabular">{v.apyPct === null ? 'APY -' : `${v.apyPct.toFixed(2)}% APY`}</span>
+                  <span className="truncate text-[16px] leading-[22px] font-medium text-text-1">{v.symbol}</span>
+                  <span className="text-[14px] leading-[18px] font-medium text-accent tabular">{v.apyPct === null ? 'APY -' : `${v.apyPct.toFixed(2)}% APY`}</span>
                 </div>
               </Link>
             ))}

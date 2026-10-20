@@ -182,11 +182,8 @@ export function usePoolTicks(address: string | undefined, enabled: boolean) {
   })
 }
 
-/**
- * 30-day volume per pool, summed client-side from each pool's daily history (the list endpoint only has
- * 24h/7d). Returns a map keyed by lower-cased pool address; missing entries are still loading.
- */
-export function usePools30dVolume(addresses: readonly string[]) {
+/** Daily history for many pools at once (shared cache with usePoolHistory(…, 'day')). Keyed by lower-cased address. */
+export function usePoolsDayHistories(addresses: readonly string[]): Record<string, PoolHistoryPoint[]> {
   const results = useQueries({
     queries: addresses.map((address) => ({
       queryKey: ['api', 'pools', address, 'history', 'day'],
@@ -195,9 +192,20 @@ export function usePools30dVolume(addresses: readonly string[]) {
       retry: 0,
     })),
   })
-  const out: Record<string, number | null> = {}
+  const out: Record<string, PoolHistoryPoint[]> = {}
   results.forEach((r, i) => {
-    if (r.data) out[addresses[i]!.toLowerCase()] = sumRecentVolume(r.data, 30)
+    if (r.data) out[addresses[i]!.toLowerCase()] = r.data
   })
+  return out
+}
+
+/**
+ * 30-day volume per pool, summed client-side from each pool's daily history (the list endpoint only has
+ * 24h/7d). Returns a map keyed by lower-cased pool address; missing entries are still loading.
+ */
+export function usePools30dVolume(addresses: readonly string[]) {
+  const hist = usePoolsDayHistories(addresses)
+  const out: Record<string, number | null> = {}
+  for (const [k, h] of Object.entries(hist)) out[k] = sumRecentVolume(h, 30)
   return out
 }

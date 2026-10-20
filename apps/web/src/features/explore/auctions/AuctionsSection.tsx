@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BadgeCheck, Plus, Search, Sparkles, Rocket, CheckCircle2 } from 'lucide-react'
-import { Badge, buttonClass, Card, Skeleton, SortTh, Table, TableSkeleton, Td, Th, THead, Tr, TokenLogo, Usd } from '@/components/ui'
+import { Badge, buttonClass, Card, Skeleton, TokenLogo, Usd } from '@/components/ui'
+import { ExSortTh, ExTableSkeleton, ExTd, ExTh, ExTHead, ExTr, ExTable } from '../ExploreTable'
 import { formatDuration, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { useNow, ApiErrorState } from '../ExploreStates'
@@ -223,16 +224,16 @@ export function AuctionsSection() {
           })}
         </div>
 
-        <Table minWidth={820}>
-          <THead>
-            <Th>Token</Th>
-            <SortTh label="FDV at floor" active={sort.key === 'fdv'} direction={sort.dir} onClick={() => toggle('fdv')} />
-            <SortTh label="Bid volume" active={sort.key === 'bid'} direction={sort.dir} onClick={() => toggle('bid')} />
-            <SortTh label="Launch threshold" active={sort.key === 'threshold'} direction={sort.dir} onClick={() => toggle('threshold')} />
-            <Th align="right">Status</Th>
-          </THead>
+        <ExTable minWidth={820}>
+          <ExTHead>
+            <ExTh>Token</ExTh>
+            <ExSortTh label="FDV at floor" active={sort.key === 'fdv'} direction={sort.dir} onClick={() => toggle('fdv')} />
+            <ExSortTh label="Bid volume" active={sort.key === 'bid'} direction={sort.dir} onClick={() => toggle('bid')} />
+            <ExSortTh label="Launch threshold" active={sort.key === 'threshold'} direction={sort.dir} onClick={() => toggle('threshold')} />
+            <ExTh align="right">Status</ExTh>
+          </ExTHead>
           {q.isLoading && !q.data ? (
-            <TableSkeleton rows={6} cols={5} />
+            <ExTableSkeleton rows={6} cols={5} />
           ) : visible.length === 0 ? (
             <tbody>
               <tr>
@@ -251,8 +252,8 @@ export function AuctionsSection() {
           ) : (
             <tbody>
               {visible.map((a) => (
-                <Tr key={a.id} className="group" onClick={() => navigate(`/launches/${encodeURIComponent(a.id)}`)} data-testid="auction-row" data-auction={a.id}>
-                  <Td>
+                <ExTr key={a.id} className="group" onClick={() => navigate(`/launches/${encodeURIComponent(a.id)}`)} data-testid="auction-row" data-auction={a.id}>
+                  <ExTd>
                     <span className="flex items-center gap-3">
                       <TokenLogo token={{ symbol: a.symbol, logoURI: a.logoURI ?? undefined }} size={28} />
                       <span className="flex min-w-0 items-center gap-1.5">
@@ -261,12 +262,12 @@ export function AuctionsSection() {
                         <VerifiedMark verified={a.verified} />
                       </span>
                     </span>
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <Usd value={a.fdvAtFloorUsd} compact />
-                  </Td>
-                  <Td align="right">{a.bidVolumeUsd === null ? <span className="text-text-3">-</span> : <Usd value={a.bidVolumeUsd} compact />}</Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">{a.bidVolumeUsd === null ? <span className="text-text-3">-</span> : <Usd value={a.bidVolumeUsd} compact />}</ExTd>
+                  <ExTd align="right">
                     {a.thresholdUsd === null ? (
                       <span className="text-text-3">-</span>
                     ) : (
@@ -275,15 +276,15 @@ export function AuctionsSection() {
                         <span className="text-body-4 text-text-2">{a.thresholdMetPct === null ? '-' : `${formatPercent(a.thresholdMetPct, { digits: 2 })} met`}</span>
                       </div>
                     )}
-                  </Td>
-                  <Td align="right">
+                  </ExTd>
+                  <ExTd align="right">
                     <StatusCell a={a} now={now} />
-                  </Td>
-                </Tr>
+                  </ExTd>
+                </ExTr>
               ))}
             </tbody>
           )}
-        </Table>
+        </ExTable>
       </section>
     </div>
   )

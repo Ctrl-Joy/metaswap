@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { SegmentedTabs, Table, TableSkeleton, Td, Th, THead, Tr, Usd } from '@/components/ui'
+import { SegmentedTabs, Usd } from '@/components/ui'
+import { ExTableSkeleton, ExTd, ExTh, ExTHead, ExTr, ExTable } from './ExploreTable'
 import { formatAmount, formatRelativeTime, shortenAddress } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { ApiErrorState, useNow } from './ExploreStates'
@@ -70,17 +71,17 @@ export function TransactionsTable({
           ariaLabel="Transaction type"
         />
       )}
-      <Table minWidth={620}>
-        <THead>
-          <Th>Time</Th>
-          <Th>Type</Th>
-          <Th align="right">USD</Th>
-          <Th align="right">Token amount</Th>
-          <Th align="right">Token amount</Th>
-          <Th>Wallet</Th>
-        </THead>
+      <ExTable minWidth={620}>
+        <ExTHead>
+          <ExTh>Time</ExTh>
+          <ExTh>Type</ExTh>
+          <ExTh align="right">USD</ExTh>
+          <ExTh align="right">Token amount</ExTh>
+          <ExTh align="right">Token amount</ExTh>
+          <ExTh>Wallet</ExTh>
+        </ExTHead>
         {isLoading && !rows ? (
-          <TableSkeleton rows={6} cols={6} />
+          <ExTableSkeleton rows={6} cols={6} />
         ) : visible.length === 0 ? (
           <tbody>
             <tr>
@@ -95,31 +96,31 @@ export function TransactionsTable({
               const label = txLabel(tx, perspective)
               const [first, ...rest] = label.text.split(' ')
               return (
-              <Tr key={tx.id} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb}>
-                <Td className="text-text-2" title={new Date(tx.timeMs).toLocaleString()}>
+              <ExTr height={56} key={tx.id} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb}>
+                <ExTd className="text-text-2" title={new Date(tx.timeMs).toLocaleString()}>
                   {formatRelativeTime(tx.timeMs, now)}
-                </Td>
-                <Td title={label.text} data-testid="tx-label">
+                </ExTd>
+                <ExTd title={label.text} data-testid="tx-label">
                   <span className={cn('font-semibold', VERB_CLASS[label.verb])}>{first}</span> <span className="text-text-1">{rest.join(' ')}</span>
-                </Td>
-                <Td align="right">
+                </ExTd>
+                <ExTd align="right">
                   <Usd value={tx.usd} />
-                </Td>
-                <Td align="right" className="text-text-1">
+                </ExTd>
+                <ExTd align="right" className="text-text-1">
                   {formatAmount(tx.legs[0]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[0]?.symbol}</span>
-                </Td>
-                <Td align="right" className="text-text-1">
+                </ExTd>
+                <ExTd align="right" className="text-text-1">
                   {formatAmount(tx.legs[1]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[1]?.symbol}</span>
-                </Td>
-                <Td className="text-text-2" title={tx.wallet ?? undefined}>
+                </ExTd>
+                <ExTd className="text-text-2" title={tx.wallet ?? undefined}>
                   {tx.wallet ? shortenAddress(tx.wallet) : '-'}
-                </Td>
-              </Tr>
+                </ExTd>
+              </ExTr>
               )
             })}
           </tbody>
         )}
-      </Table>
+      </ExTable>
       {filtered.length > visible.length && (
         <button
           type="button"

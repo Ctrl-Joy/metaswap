@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { SegmentedTabs, Skeleton } from '@/components/ui'
 import { formatAmount, formatUsd } from '@/lib/format'
 import { ChartControls, ChartFrame, type ChartStatus } from '../charts/ChartFrame'
+import { ExploreSectionTabs } from '../ExploreTable'
 import { TimeChart, type HoverInfo } from '../charts/TimeChart'
 import { DepthChart, LiquidityHistogram } from '../charts/SvgCharts'
 import { usePoolHistory, usePoolTicks } from '../api'
@@ -89,7 +90,7 @@ export function PoolChartPanel({
 
   return (
     <section className="flex flex-col gap-4" data-testid="pool-chart-panel">
-      <SegmentedTabs size="md" ariaLabel="Pool chart" value={tab} onChange={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="flex-wrap" />
+      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="flex-wrap" />
       <ChartFrame
         testId="pool-chart"
         status={status}
@@ -100,7 +101,7 @@ export function PoolChartPanel({
         heightClass="h-[260px] md:h-[340px]"
         header={
           <div className="flex flex-col gap-0.5">
-            <span className="text-heading-3 font-semibold tabular" data-testid="pool-headline">
+            <span className="text-[24px] leading-7 font-medium tabular" data-testid="pool-headline">
               {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '-') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
             </span>
             <span className="text-body-3 text-text-2" data-testid="pool-headline-label">{hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}</span>
