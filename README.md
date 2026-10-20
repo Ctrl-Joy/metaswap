@@ -2,8 +2,10 @@
 
 An end-to-end, working recreation of the Uniswap web app's functionality and UX under its own brand:
 
-- **MetaSwap**: swap, limit, send, explore (tokens, pools, transactions, charts) and liquidity
-  positions (V2 + V3 concentrated liquidity).
+- **MetaSwap**: swap, limit, send, buy (devnet faucet), explore (tokens, pools, transactions, auctions,
+  trending, charts), liquidity positions (V2 + V3, migrate), portfolio, Earn vaults and Launches
+  (token launch auctions that graduate into V3 pools). Pages are pixel-matched to measured Uniswap
+  layouts (`docs/analysis/measured/`) and update in real time over WebSocket.
 - **MetaSwapX**: gasless, signed Dutch-auction intent orders, filled on-chain by a filler bot
   (inspired by UniswapX).
 - **MetaChain**: the planned MetaSwap chain. Today this is the local **MetaChain Devnet** (Anvil,
@@ -27,9 +29,10 @@ npm run dev
 1. Starts Anvil on `:8545`, with its clock set 30 days in the past.
 2. Deploys every contract.
 3. Seeds 8 tokens and 13 pools.
-4. Replays **30 days of hourly trading** so every chart range has history (about 8 minutes).
-5. Starts the API on `:8787`, a **live market simulator** that keeps prices moving, and the web
-   app on **http://127.0.0.1:5173**.
+4. Replays **30 days of hourly trading** — swaps, token launches (graduated, failed, live, upcoming),
+   Earn deposits and a ~$3.5k demo wallet — so every chart range has history (about 10 minutes).
+5. Starts PostgreSQL (if installed), the API on `:8787` (REST + WebSocket `/ws`), a **live market
+   simulator** that keeps prices moving, and the web app on **http://127.0.0.1:5173**.
 
 Ctrl+C stops everything. Each launch is a fresh chain.
 
