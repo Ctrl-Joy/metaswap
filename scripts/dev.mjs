@@ -244,8 +244,9 @@ if (!(await rpcReady(saved.ok ? 120_000 : 20_000))) {
 }
 
 if (saved.ok) {
-  // the generated sdk files may be missing in a fresh checkout or after a clean
-  await run('node', ['packages/sdk/scripts/sync.mjs'], root)
+  // the generated sdk files may be missing in a fresh checkout or after a clean (the hosted
+  // image ships them with the snapshot and has no compiled contracts to sync from)
+  if (!existsSync(join(root, 'packages/sdk/src/generated/abis.ts'))) await run('node', ['packages/sdk/scripts/sync.mjs'], root)
   log('chain ready: resumed saved chain')
 } else {
   const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
