@@ -321,7 +321,7 @@ function NetworkPill() {
   return (
     <Link
       to="/metachain"
-      className="mr-1 hidden h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-body-3 font-medium text-text-2 transition-colors hover:text-text-1 tablet:inline-flex lg:hidden xl:inline-flex"
+      className="mr-1 hidden h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-body-3 font-medium text-text-2 transition-colors hover:text-text-1 tablet:inline-flex lg:hidden min-[1440px]:inline-flex"
       title="MetaChain Devnet (chain 31337)"
     >
       <span className="size-2 rounded-full bg-success" aria-hidden />
