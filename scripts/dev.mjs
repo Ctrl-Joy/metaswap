@@ -5,11 +5,12 @@
 //   node scripts/dev.mjs --chain-only anvil + deploy + seed + sync, then keep anvil running
 //   node scripts/dev.mjs --no-web     everything except the web dev server
 //   node scripts/dev.mjs --no-market  no live market simulator (scripts/market.ts --live)
+//   node scripts/dev.mjs --fresh      ignore the saved chain in .dev/chain and rebuild from scratch
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -169,29 +170,84 @@ if (existsSync(anvilTmp)) {
   }
 }
 
+// ---------- persistent chain ----------
+// The chain (state, blocks, receipts, logs) is saved to .dev/chain/state.json every
+// STATE_INTERVAL seconds and reloaded on the next launch, so restarts are instant and keep every
+// trade, position and order. A saved chain is reused only when it was built from the same
+// contracts and deployment; otherwise (or with --fresh) a new chain is built from scratch.
+const chainDir = join(root, '.dev', 'chain')
+const stateFile = join(chainDir, 'state.json')
+const metaFile = join(chainDir, 'meta.json')
+const deploymentFile = join(contractsDir, 'deployments', '31337.json')
+const stateInterval = String(process.env.STATE_INTERVAL ?? 30)
+mkdirSync(chainDir, { recursive: true })
+
+function hashTree(dir) {
+  const h = createHash('sha256')
+  const walk = (d) => {
+    for (const entry of readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const p = join(d, entry.name)
+      if (entry.isDirectory()) walk(p)
+      else h.update(entry.name).update(readFileSync(p))
+    }
+  }
+  walk(dir)
+  return h.digest('hex')
+}
+const contractsHash = hashTree(join(contractsDir, 'src')) + ':' + hashTree(join(contractsDir, 'script'))
+const fileHash = (p) => createHash('sha256').update(readFileSync(p)).digest('hex')
+
+function savedChainUsable() {
+  if (args.has('--fresh') || process.env.FRESH === '1') return { ok: false, why: '--fresh requested' }
+  if (!existsSync(stateFile) || !existsSync(metaFile) || !existsSync(deploymentFile)) return { ok: false, why: 'no saved chain' }
+  try {
+    const meta = JSON.parse(readFileSync(metaFile, 'utf8'))
+    if (meta.contractsHash !== contractsHash) return { ok: false, why: 'contracts changed since the chain was saved' }
+    if (meta.deploymentHash !== fileHash(deploymentFile)) return { ok: false, why: 'deployment file changed' }
+    return { ok: true, meta }
+  } catch {
+    return { ok: false, why: 'unreadable chain metadata' }
+  }
+}
+
+const saved = savedChainUsable()
 // Start the chain's clock in the past so scripts/market.ts --history can replay HISTORY_DAYS of hourly
 // trading up to "now" — every chart range then has real data. HISTORY_DAYS=0 disables it.
 const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
 // --prune-history: keep only recent states in memory and persist none to disk. Without it anvil
 // writes every historical state under ~/.foundry/anvil/tmp — tens of GB for a replayed month plus a
 // live market. Blocks, receipts and logs are kept, which is all the indexer needs.
-const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512']
-if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
+const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512', '--state', stateFile, '--state-interval', stateInterval]
+if (saved.ok) {
+  log(`resuming saved chain from ${saved.meta.createdAt} (use --fresh to rebuild)`)
+} else {
+  log(`building a new chain: ${saved.why}`)
+  rmSync(stateFile, { force: true })
+  rmSync(metaFile, { force: true })
+  if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
+}
 start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
-if (!(await rpcReady())) {
+if (!(await rpcReady(saved.ok ? 120_000 : 20_000))) {
   log('anvil did not start')
   shutdown(1)
 }
 
-const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
-await run('forge', ['build'], contractsDir)
-await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
-if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
-if (existsSync(join(contractsDir, 'script/DeployStage5.s.sol'))) await run('forge', forgeScript('script/DeployStage5.s.sol'), contractsDir)
-await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
-await run('node', ['packages/sdk/scripts/sync.mjs'], root)
-if (historyDays > 0) await run('npx', ['tsx', 'scripts/market.ts', '--history'], root)
-log('chain ready: contracts deployed, pools seeded, sdk synced' + (historyDays > 0 ? `, ${historyDays}d history generated` : ''))
+if (saved.ok) {
+  // the generated sdk files may be missing in a fresh checkout or after a clean
+  await run('node', ['packages/sdk/scripts/sync.mjs'], root)
+  log('chain ready: resumed saved chain')
+} else {
+  const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
+  await run('forge', ['build'], contractsDir)
+  await run('forge', forgeScript('script/DeployAMM.s.sol'), contractsDir)
+  if (existsSync(join(contractsDir, 'script/DeployX.s.sol'))) await run('forge', forgeScript('script/DeployX.s.sol'), contractsDir)
+  if (existsSync(join(contractsDir, 'script/DeployStage5.s.sol'))) await run('forge', forgeScript('script/DeployStage5.s.sol'), contractsDir)
+  await run('forge', forgeScript('script/Seed.s.sol'), contractsDir)
+  await run('node', ['packages/sdk/scripts/sync.mjs'], root)
+  if (historyDays > 0) await run('npx', ['tsx', 'scripts/market.ts', '--history'], root)
+  writeFileSync(metaFile, JSON.stringify({ createdAt: new Date().toISOString(), contractsHash, deploymentHash: fileHash(deploymentFile), historyDays }, null, 2))
+  log('chain ready: contracts deployed, pools seeded, sdk synced' + (historyDays > 0 ? `, ${historyDays}d history generated` : '') + ' — saved to .dev/chain for instant restarts')
+}
 
 if (!args.has('--chain-only')) {
   await ensurePostgres()
