@@ -1,14 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createPublicClient, createWalletClient, defineChain, erc20Abi, http, parseAbi, type Address } from 'viem'
+import { createPublicClient, createWalletClient, defineChain, erc20Abi, http, parseAbi, parseUnits, type Address } from 'viem'
 
 // Read the synced deployment directly (Node ESM can't import the sdk's JSON without import attributes).
 const deployment = JSON.parse(readFileSync(join(import.meta.dirname, '../../../packages/sdk/src/generated/deployment.json'), 'utf8')) as {
   contracts: Record<string, Address>
   tokens: Array<{ symbol: string; address: Address; decimals: number }>
 }
-const metachainDevnet = defineChain({ id: 31337, name: 'MetaChain Devnet', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: ['http://127.0.0.1:8545'] } } })
+const metachainDevnet = defineChain({ id: 31337, name: 'MetaChain Devnet', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [process.env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'] } } })
 
 export const RPC = process.env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'
 export const API = process.env.VITE_API_URL ?? 'http://127.0.0.1:8787'
@@ -41,6 +41,29 @@ export async function balanceOf(symbol: string, owner: Address): Promise<bigint>
 export async function mint(symbol: string, to: Address, amount: bigint) {
   const hash = await wallet(to).writeContract({ address: token(symbol).address, abi: parseAbi(['function mint(address to, uint256 amount)']), functionName: 'mint', args: [to, amount] })
   await pub.waitForTransactionReceipt({ hash })
+}
+
+/**
+ * Devnet-only test funding. The Dev wallet accounts hold small personal portfolios (market.ts
+ * normalizeDevWallets), so specs top up what they spend: ETH via anvil_setBalance (only ever
+ * raised), test tokens via the open TestERC20 mint (only the shortfall).
+ */
+export async function fund(owner: Address, opts: { eth?: bigint; tokens?: Record<string, bigint> } = {}) {
+  const eth = opts.eth ?? parseUnits('100', 18)
+  if ((await pub.getBalance({ address: owner })) < eth) {
+    await pub.request({ method: 'anvil_setBalance' as never, params: [owner, `0x${eth.toString(16)}`] as never })
+  }
+  for (const [symbol, amount] of Object.entries(opts.tokens ?? {})) {
+    const have = await balanceOf(symbol, owner)
+    if (have >= amount) continue
+    if (symbol === 'WETH') await wrapEth(owner, amount - have)
+    else await mint(symbol, owner, amount - have)
+  }
+}
+
+/** Fund every Dev wallet account for a spec (ETH for gas/swaps plus a stable float). */
+export async function fundDevAccounts(indexes: number[] = [0, 1, 2, 3, 4], opts: { eth?: bigint; tokens?: Record<string, bigint> } = {}) {
+  for (const i of indexes) await fund(ACCOUNTS[i]!, { eth: opts.eth, tokens: opts.tokens ?? { mUSDC: parseUnits('20000', 6) } })
 }
 
 export async function wrapEth(owner: Address, amount: bigint) {

@@ -2,7 +2,12 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAbi, parseUnits, zeroAddress, type Address } from 'viem'
-import { ACCOUNTS, balanceOf, connectDevWallet, eventually, mint, pub, requireStack, token, wallet, wrapEth } from './helpers'
+import { ACCOUNTS, balanceOf, connectDevWallet, eventually, mint, pub, requireStack, token, wallet, wrapEth, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 // the positions/launches area positions flows against the live devnet. Account #3 is the LP, #4 generates swap fees.
 const deployment = JSON.parse(readFileSync(join(import.meta.dirname, '../../../packages/sdk/src/generated/deployment.json'), 'utf8')) as {

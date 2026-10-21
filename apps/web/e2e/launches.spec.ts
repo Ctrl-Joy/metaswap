@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { erc20Abi, parseAbi, parseUnits, zeroAddress, type Address } from 'viem'
-import { ACCOUNTS, API, balanceOf, connectDevWallet, eventually, mint, pickToken, pub, requireStack, reviewAndConfirm, token } from './helpers'
+import { ACCOUNTS, API, balanceOf, connectDevWallet, eventually, mint, pickToken, pub, requireStack, reviewAndConfirm, token, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 // the positions/launches area launches flows on a real chain.
 // - Default: the shared stack (:5173 web, :8545 chain, :8787 API). Settlement waits for the 2-minute

@@ -3,6 +3,8 @@
 //   npx tsx scripts/market.ts --history   replay HISTORY_DAYS of hourly trading up to "now" (run once,
 //                                          right after Seed, on a chain whose genesis timestamp was set
 //                                          HISTORY_DAYS in the past via anvil --timestamp)
+//   npx tsx scripts/market.ts --normalize give the Dev wallet accounts #0–#5 realistic personal portfolios on an
+//                                          existing chain (also done by --history; idempotent)
 //   npx tsx scripts/market.ts --live      keep trading gently in real time (every LIVE_INTERVAL_SECONDS)
 //                                          so 1H changes, live transaction feeds and charts keep moving
 //
@@ -19,8 +21,10 @@
 // Trades come from Anvil accounts #10–#14 (dev.mjs starts anvil with 20 unlocked accounts); bids
 // also come from #15–#18. #19 is the demo wallet (GET /accounts/demo): a small (~$2–5k) realistic
 // portfolio built during the replay — a few tokens, one V3 position, an Earn deposit and one launch
-// bid — that keeps acting every 1–3 minutes in live mode. The Dev wallet/e2e accounts #0–#4 and the
-// filler (#9) are never touched (#0 only signs launchpad owner calls). Local devnet only.
+// bid — that keeps acting every 1–3 minutes in live mode. The Dev wallet accounts #0–#5 hand Seed's
+// protocol liquidity and inventory to the treasury (#8) and get $2k–$30k personal portfolios with a
+// little activity (normalizeDevWallets). #0 also signs launchpad owner calls; the filler (#9) is never
+// touched. Local devnet only.
 //
 // Env: METASWAP_RPC (default http://127.0.0.1:8545), METASWAP_DEPLOYMENT_FILE (default: the synced sdk copy).
 import { readFileSync } from 'node:fs'
@@ -48,7 +52,7 @@ import {
   type Deployment,
 } from '../packages/sdk/src/index'
 
-const MODE = process.argv.includes('--live') ? 'live' : 'history'
+const MODE = process.argv.includes('--live') ? 'live' : process.argv.includes('--normalize') ? 'normalize' : 'history'
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS ?? 30)
 const STEP_SECONDS = Number(process.env.HISTORY_STEP_SECONDS ?? 3600)
 const LIVE_INTERVAL_SECONDS = Number(process.env.LIVE_INTERVAL_SECONDS ?? 20)
@@ -227,6 +231,19 @@ async function send(from: Address, to: Address, data: { abi: unknown; functionNa
   const p = (queues.get(key) ?? Promise.resolve()).catch(() => undefined).then(run)
   queues.set(key, p)
   return p
+}
+
+/** Plain ETH transfer (same per-account queue as send). */
+async function sendValue(from: Address, to: Address, value: bigint) {
+  const key = from.toLowerCase()
+  const run = async () => {
+    const hash = await wallet.sendTransaction({ account: from, to, value, chain } as never)
+    sent++
+    return hash as Hex
+  }
+  const p = (queues.get(key) ?? Promise.resolve()).catch(() => undefined).then(run)
+  queues.set(key, p)
+  return waitMined(await p)
 }
 
 // Anvil can hand back a tx hash a moment before its block is sealed, so poll for the receipt.
@@ -694,11 +711,44 @@ async function earnActivity(day: number, weth: Address) {
   }
 }
 
-// ---------- demo wallet (#19) ----------
-// A believable small portfolio: ETH, WETH, mUSDC, META, mARB, a WETH/mUSDC V3 position, a meUSDC
-// deposit and one bid on the MANGO launch (claimed when it settles). Everything it holds comes
-// from its own on-chain actions after an initial balance, so the API's event-sourced history is exact.
+// ---------- personal wallets: demo (#19) and the Dev wallet accounts (#0–#5) ----------
+// The demo holds a believable small portfolio: ETH, WETH, mUSDC, META, mARB, a WETH/mUSDC V3
+// position, a meUSDC deposit and one bid on the MANGO launch (claimed when it settles). Everything
+// it holds comes from its own on-chain actions after an initial balance, so the API's
+// event-sourced history is exact.
+//
+// Seed mints protocol-scale inventory to #0–#5 and gives #0 all V2 LP and full-range V3
+// positions. normalizeDevWallets() hands all of that to the treasury (#8), so pools and charts are
+// unchanged, and gives each Dev wallet account a small personal portfolio ($2k–$30k) funded by
+// treasury transfers at the current price.
 const DEMO_START_ETH = parseEther('1.3')
+const TREASURY: Address = '0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f' // #8: protocol liquidity + inventory
+const DEV_ACCOUNTS: Address[] = [
+  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', // #0
+  '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', // #1
+  '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC', // #2
+  '0x90F79bf6EB2c4f870365E785982E1f101E93b906', // #3
+  '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65', // #4
+  '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc', // #5
+]
+interface Starter {
+  eth: number
+  /** USD worth of each token, transferred from the treasury */
+  tokens: Record<string, number>
+  /** a small concentrated V3 position: [tokenA, tokenB, USD per side] */
+  position?: [string, string, number]
+  /** an Earn deposit: [vault symbol, USD] */
+  earn?: [string, number]
+}
+const STARTERS: Starter[] = [
+  { eth: 3.2, tokens: { mUSDC: 4_000, META: 1_800, mWBTC: 2_500 }, position: ['WETH', 'mUSDC', 350] }, // #0 ≈ $17k
+  { eth: 1.4, tokens: { mUSDT: 1_200, mLINK: 600 }, earn: ['meUSDC', 900] }, // #1 ≈ $6.5k
+  { eth: 6.5, tokens: { mUSDC: 2_200, mDAI: 1_500, mARB: 900 }, position: ['META', 'WETH', 250] }, // #2 ≈ $23k
+  { eth: 0.9, tokens: { mUSDC: 650, META: 300 } }, // #3 ≈ $3.4k
+  { eth: 2.4, tokens: { mUSDC: 3_000, mUSDT: 800, mWBTC: 1_200 }, earn: ['meETH', 1_500] }, // #4 ≈ $13k
+  { eth: 1.1, tokens: { mDAI: 400 } }, // #5
+]
+
 const demoRand = (() => {
   let x = Number(process.env.DEMO_SEED ?? (MODE === 'live' ? Date.now() % 2 ** 31 : 7))
   return () => {
@@ -706,7 +756,10 @@ const demoRand = (() => {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296
   }
 })()
-const demo = { ready: false, bidPlaced: false, tokenId: null as bigint | null, approved: new Set<string>() }
+const demo = { ready: false, bidPlaced: false }
+/** V3 position per personal account (fee claims) */
+const personalPositions = new Map<string, bigint>()
+const approvedPairs = new Set<string>()
 
 const sym = (s: string) => tokens.find((t) => t.symbol === s)!
 const demoPool = (a: string, b: string) => {
@@ -715,91 +768,94 @@ const demoPool = (a: string, b: string) => {
 }
 const toRaw = (symbol: string, usdAmount: number) => BigInt(Math.floor((usdAmount / usd[symbol]) * 10 ** sym(symbol).decimals))
 
-async function demoApprove(token: Address, spender: Address) {
-  const k = `${token}:${spender}`.toLowerCase()
-  if (demo.approved.has(k)) return
-  const allowance = (await pub.readContract({ address: token, abi: testErc20Abi, functionName: 'allowance', args: [DEMO, spender] })) as bigint
-  if (allowance < maxUint256 / 2n) await sendWait(DEMO, token, { abi: testErc20Abi, functionName: 'approve', args: [spender, maxUint256] })
-  demo.approved.add(k)
+async function approveOnce(who: Address, token: Address, spender: Address) {
+  const k = `${who}:${token}:${spender}`.toLowerCase()
+  if (approvedPairs.has(k)) return
+  const allowance = (await pub.readContract({ address: token, abi: testErc20Abi, functionName: 'allowance', args: [who, spender] })) as bigint
+  if (allowance < maxUint256 / 2n) await sendWait(who, token, { abi: testErc20Abi, functionName: 'approve', args: [spender, maxUint256] })
+  approvedPairs.add(k)
 }
 
-/** Wrap ETH so the demo holds at least `amount` WETH. */
-async function demoWrap(weth: Address, amount: bigint) {
-  const bal = await balanceOf(weth, DEMO)
-  if (bal < amount) await sendWait(DEMO, weth, { abi: weth9Abi, functionName: 'deposit', args: [] }, amount - bal)
+/** Wrap ETH so `who` holds at least `amount` WETH. */
+async function wrapTo(who: Address, weth: Address, amount: bigint) {
+  const bal = await balanceOf(weth, who)
+  if (bal < amount) await sendWait(who, weth, { abi: weth9Abi, functionName: 'deposit', args: [] }, amount - bal)
 }
 
-/** Swap `usdAmount` of one token for another through their V3 pool (both must pair with WETH or each other). */
-async function demoSwap(router: Address, from: string, to: string, usdAmount: number) {
+/** Swap `usdAmount` of one token for another through their V3 pool. */
+async function personalSwap(who: Address, router: Address, from: string, to: string, usdAmount: number) {
   const a = sym(from)
   const b = sym(to)
   const pool = demoPool(a.address, b.address)
   if (!pool) return false
   const amountIn = toRaw(from, usdAmount)
-  if (amountIn === 0n || (await balanceOf(a.address, DEMO)) < amountIn) return false
-  await demoApprove(a.address, router)
-  await sendWait(DEMO, router, {
+  if (amountIn === 0n || (await balanceOf(a.address, who)) < amountIn) return false
+  await approveOnce(who, a.address, router)
+  await sendWait(who, router, {
     abi: swapRouter02Abi,
     functionName: 'exactInputSingle',
-    args: [{ tokenIn: a.address, tokenOut: b.address, fee: pool.fee, recipient: DEMO, amountIn, amountOutMinimum: 0n, sqrtPriceLimitX96: 0n }],
+    args: [{ tokenIn: a.address, tokenOut: b.address, fee: pool.fee, recipient: who, amountIn, amountOutMinimum: 0n, sqrtPriceLimitX96: 0n }],
   })
   return true
+}
+
+/** Mint a concentrated (about ±20%) V3 position from `who`'s own tokens. */
+async function mintPosition(who: Address, symA: string, symB: string, usdEach: number) {
+  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
+  const pool = demoPool(sym(symA).address, sym(symB).address)
+  if (!npm || !pool) return
+  const slot = (await pub.readContract({ address: pool.address, abi: v3PoolAbi, functionName: 'slot0' })) as readonly [bigint, number, ...unknown[]]
+  const spacing = pool.fee === 500 ? 10 : pool.fee === 3000 ? 60 : pool.fee === 100 ? 1 : 200
+  const tick = Number(slot[1])
+  const lower = Math.floor((tick - 1800) / spacing) * spacing
+  const upper = Math.ceil((tick + 1800) / spacing) * spacing
+  const aIs0 = pool.token0.toLowerCase() === sym(symA).address.toLowerCase()
+  const amtA = toRaw(symA, usdEach)
+  const amtB = toRaw(symB, usdEach)
+  await approveOnce(who, sym(symA).address, npm)
+  await approveOnce(who, sym(symB).address, npm)
+  const r = await sendWait(
+    who,
+    npm,
+    {
+      abi: nonfungiblePositionManagerAbi,
+      functionName: 'mint',
+      args: [
+        {
+          token0: pool.token0,
+          token1: pool.token1,
+          fee: pool.fee,
+          tickLower: lower,
+          tickUpper: upper,
+          amount0Desired: aIs0 ? amtA : amtB,
+          amount1Desired: aIs0 ? amtB : amtA,
+          amount0Min: 0n,
+          amount1Min: 0n,
+          recipient: who,
+          deadline: 2n ** 40n,
+        },
+      ],
+    },
+    0n,
+    DEPLOY_GAS,
+  )
+  for (const l of r.logs) {
+    try {
+      const ev = decodeEventLog({ abi: nonfungiblePositionManagerAbi, data: l.data, topics: l.topics })
+      if (ev.eventName === 'IncreaseLiquidity') personalPositions.set(who.toLowerCase(), (ev.args as { tokenId: bigint }).tokenId)
+    } catch {}
+  }
 }
 
 async function demoSetup(router: Address, weth: Address) {
   const bal = await pub.getBalance({ address: DEMO })
   // a fresh chain gives every dev account 10,000 ETH; the demo starts with a small, realistic stack
   if (bal > parseEther('100')) await rpc('anvil_setBalance', [DEMO, '0x' + DEMO_START_ETH.toString(16)])
-  await demoWrap(weth, toRaw('WETH', 1_750))
-  await demoSwap(router, 'WETH', 'mUSDC', 950)
-  await demoSwap(router, 'WETH', 'META', 300)
-  await demoSwap(router, 'WETH', 'mARB', 200)
-  // one V3 position: WETH/mUSDC 0.3%, about ±20% around the current price
-  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
-  const pool = demoPool(sym('WETH').address, sym('mUSDC').address)
-  if (npm && pool) {
-    const slot = (await pub.readContract({ address: pool.address, abi: v3PoolAbi, functionName: 'slot0' })) as readonly [bigint, number, ...unknown[]]
-    const spacing = pool.fee === 500 ? 10 : pool.fee === 3000 ? 60 : pool.fee === 100 ? 1 : 200
-    const tick = Number(slot[1])
-    const lower = Math.floor((tick - 1800) / spacing) * spacing
-    const upper = Math.ceil((tick + 1800) / spacing) * spacing
-    const isWeth0 = pool.token0.toLowerCase() === sym('WETH').address.toLowerCase()
-    const wethAmt = toRaw('WETH', 160)
-    const usdcAmt = toRaw('mUSDC', 160)
-    await demoApprove(sym('WETH').address, npm)
-    await demoApprove(sym('mUSDC').address, npm)
-    const r = await sendWait(
-      DEMO,
-      npm,
-      {
-        abi: nonfungiblePositionManagerAbi,
-        functionName: 'mint',
-        args: [
-          {
-            token0: pool.token0,
-            token1: pool.token1,
-            fee: pool.fee,
-            tickLower: lower,
-            tickUpper: upper,
-            amount0Desired: isWeth0 ? wethAmt : usdcAmt,
-            amount1Desired: isWeth0 ? usdcAmt : wethAmt,
-            amount0Min: 0n,
-            amount1Min: 0n,
-            recipient: DEMO,
-            deadline: 2n ** 40n,
-          },
-        ],
-      },
-      0n,
-      DEPLOY_GAS,
-    )
-    for (const l of r.logs) {
-      try {
-        const ev = decodeEventLog({ abi: nonfungiblePositionManagerAbi, data: l.data, topics: l.topics })
-        if (ev.eventName === 'IncreaseLiquidity') demo.tokenId = (ev.args as { tokenId: bigint }).tokenId
-      } catch {}
-    }
-  }
+  await wrapTo(DEMO, weth, toRaw('WETH', 1_750))
+  await personalSwap(DEMO, router, 'WETH', 'mUSDC', 950)
+  await personalSwap(DEMO, router, 'WETH', 'META', 300)
+  await personalSwap(DEMO, router, 'WETH', 'mARB', 200)
+  await mintPosition(DEMO, 'WETH', 'mUSDC', 160)
   demo.ready = true
   log('demo wallet ready')
 }
@@ -814,56 +870,136 @@ async function demoBid(now: number) {
   await sendWait(DEMO, l.auction, { abi: auctionAbi, functionName: 'bidETH', args: [l.tick * 14n] }, amount)
 }
 
-async function demoEarn(weth: Address, deposit: boolean, usdAmount: number) {
-  const vault = (deployment.vaults ?? []).find((v) => v.symbol === 'meUSDC')
+/** Deposit into (or withdraw part of) an Earn vault. */
+async function personalEarn(who: Address, deposit: boolean, usdAmount: number, vaultSymbol = 'meUSDC') {
+  const vault = (deployment.vaults ?? []).find((v) => v.symbol === vaultSymbol)
   if (!vault) return false
   if (!deposit) {
-    await earnWithdrawPart(DEMO, vault, 0.05 + demoRand() * 0.1)
+    await earnWithdrawPart(who, vault, 0.05 + demoRand() * 0.1)
     return true
   }
-  const amount = toRaw('mUSDC', usdAmount)
-  if ((await balanceOf(vault.asset, DEMO)) < amount) return false
-  await demoApprove(vault.asset, vault.address)
-  await sendWait(DEMO, vault.address, { abi: vaultAbi, functionName: 'deposit', args: [amount, DEMO] })
-  void weth
+  const asset = byAddress[vault.asset.toLowerCase()]
+  const amount = toRaw(asset.symbol, usdAmount)
+  if (asset.symbol === 'WETH') {
+    // the ETH vault takes native ETH
+    if ((await pub.getBalance({ address: who })) < amount) return false
+    await sendWait(who, vault.address, { abi: vaultAbi, functionName: 'depositETH', args: [who] }, amount)
+    return true
+  }
+  if ((await balanceOf(vault.asset, who)) < amount) return false
+  await approveOnce(who, vault.asset, vault.address)
+  await sendWait(who, vault.address, { abi: vaultAbi, functionName: 'deposit', args: [amount, who] })
   return true
 }
 
-/** Collect the V3 position's fees ("claim"). */
-async function demoCollect() {
+/** Collect the account's V3 position fees ("claim"). */
+async function personalCollect(who: Address) {
   const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
-  if (!npm || demo.tokenId === null) return false
+  const tokenId = personalPositions.get(who.toLowerCase())
+  if (!npm || tokenId === undefined) return false
   const max = 2n ** 128n - 1n
-  await sendWait(DEMO, npm, { abi: nonfungiblePositionManagerAbi, functionName: 'collect', args: [{ tokenId: demo.tokenId, recipient: DEMO, amount0Max: max, amount1Max: max }] })
+  await sendWait(who, npm, { abi: nonfungiblePositionManagerAbi, functionName: 'collect', args: [{ tokenId, recipient: who, amount0Max: max, amount1Max: max }] })
   return true
 }
 
 /** One small action: a trade, an Earn deposit/withdrawal, or a fee claim ($5–60). */
-async function demoAct(router: Address, weth: Address) {
-  if (!demo.ready) return
+async function personalAct(who: Address, router: Address, weth: Address) {
   const size = 5 + demoRand() * 55
   const r = demoRand()
   let done = false
   if (r < 0.2) {
-    await demoWrap(weth, toRaw('WETH', size))
-    done = await demoSwap(router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
-  } else if (r < 0.5) done = await demoSwap(router, pick(['mUSDC', 'META', 'mARB']), 'WETH', size)
-  else if (r < 0.65) done = await demoSwap(router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
-  else if (r < 0.8) done = await demoEarn(weth, true, size)
-  else if (r < 0.9) done = await demoEarn(weth, false, 0)
-  else done = await demoCollect()
-  // fall back to a plain trade so every slot produces visible activity
-  if (!done) await demoSwap(router, 'WETH', 'mUSDC', size)
-  if (MODE === 'live') log(`demo wallet acted (${size.toFixed(0)})`)
+    await wrapTo(who, weth, toRaw('WETH', size))
+    done = await personalSwap(who, router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
+  } else if (r < 0.5) done = await personalSwap(who, router, pick(['mUSDC', 'META', 'mARB']), 'WETH', size)
+  else if (r < 0.65) done = await personalSwap(who, router, 'WETH', pick(['mUSDC', 'META', 'mARB']), size)
+  else if (r < 0.8) done = await personalEarn(who, true, size)
+  else if (r < 0.9) done = await personalEarn(who, false, 0)
+  else done = await personalCollect(who)
+  // fall back to a wrap + plain trade so every slot produces visible activity
+  if (!done) {
+    await wrapTo(who, weth, toRaw('WETH', size))
+    await personalSwap(who, router, 'WETH', 'mUSDC', size)
+  }
+  return size
 }
 
-/** Live mode: find the demo's V3 position again (restarts) from its NFTs. */
+async function demoAct(router: Address, weth: Address) {
+  if (!demo.ready) return
+  const size = await personalAct(DEMO, router, weth)
+  if (MODE === 'live') log(`demo wallet acted ($${size.toFixed(0)})`)
+}
+
+/** Live mode / restarts: find the personal accounts' V3 positions again (newest NFT each). */
 async function demoDiscover() {
   const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
-  if (!npm) return
-  const n = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'balanceOf', args: [DEMO] })) as bigint
-  if (n > 0n) demo.tokenId = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'tokenOfOwnerByIndex', args: [DEMO, n - 1n] })) as bigint
+  if (npm) {
+    for (const who of [DEMO, ...DEV_ACCOUNTS]) {
+      const n = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'balanceOf', args: [who] })) as bigint
+      if (n > 0n && n < 5n) personalPositions.set(who.toLowerCase(), (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'tokenOfOwnerByIndex', args: [who, n - 1n] })) as bigint)
+    }
+  }
   demo.ready = true
+}
+
+const erc721TransferAbi = parseAbi(['function transferFrom(address from, address to, uint256 tokenId)'])
+const erc20TransferAbi = parseAbi(['function transfer(address to, uint256 amount) returns (bool)', 'function balanceOf(address) view returns (uint256)'])
+
+/**
+ * Give the Dev wallet accounts (#0–#5) realistic personal portfolios. Idempotent: an account is
+ * normalized only while it still looks like Seed's protocol inventory (V2 LP, more than one V3
+ * NFT, or > 100 ETH). Moves its LP tokens, position NFTs, vault shares and every ERC20 balance to
+ * the treasury, sets its ETH, then funds its starter portfolio from the treasury.
+ */
+async function normalizeDevWallets(router: Address, weth: Address) {
+  const npm = deployment.contracts.NonfungiblePositionManager as Address | undefined
+  const lpTokens = deployment.pools.v2.map((p) => p.address as Address)
+  const vaultShares = (deployment.vaults ?? []).map((v) => v.address)
+  const erc20s = [...new Set([...tokens.map((t) => t.address), ...lpTokens, ...vaultShares].map((a) => a.toLowerCase()))] as Address[]
+  if ((await pub.getBalance({ address: TREASURY })) < parseEther('100000')) await rpc('anvil_setBalance', [TREASURY, '0x' + parseEther('1000000').toString(16)])
+  let changed = 0
+  for (const [i, who] of DEV_ACCOUNTS.entries()) {
+    const [eth, nfts, lp] = await Promise.all([
+      pub.getBalance({ address: who }),
+      npm ? (pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'balanceOf', args: [who] }) as Promise<bigint>) : Promise.resolve(0n),
+      Promise.all(lpTokens.map((a) => pub.readContract({ address: a, abi: erc20TransferAbi, functionName: 'balanceOf', args: [who] }) as Promise<bigint>)),
+    ])
+    if (eth <= parseEther('100') && nfts <= 1n && lp.every((b) => b === 0n)) continue
+    changed++
+    // 1) protocol inventory → treasury (LP, positions, shares, tokens)
+    if (npm) {
+      for (let n = nfts; n > 0n; n--) {
+        const id = (await pub.readContract({ address: npm, abi: nonfungiblePositionManagerAbi, functionName: 'tokenOfOwnerByIndex', args: [who, 0n] })) as bigint
+        await sendWait(who, npm, { abi: erc721TransferAbi, functionName: 'transferFrom', args: [who, TREASURY, id] })
+      }
+    }
+    for (const t of erc20s) {
+      const bal = (await pub.readContract({ address: t, abi: erc20TransferAbi, functionName: 'balanceOf', args: [who] })) as bigint
+      if (bal > 0n) await sendWait(who, t, { abi: erc20TransferAbi, functionName: 'transfer', args: [TREASURY, bal] })
+    }
+    // 2) starter portfolio: ETH, then tokens from the treasury at the current price
+    const s = STARTERS[i]
+    const earnEth = s.earn && sym('WETH') && (deployment.vaults ?? []).find((v) => v.symbol === s.earn![0])?.asset.toLowerCase() === weth.toLowerCase() ? s.earn[1] / usd.WETH : 0
+    // ETH by a real transfer to/from the treasury (not anvil_setBalance) so the indexed history stays exact
+    const targetEth = parseEther((s.eth + earnEth).toFixed(6))
+    const nowEth = await pub.getBalance({ address: who })
+    if (nowEth > targetEth) await sendValue(who, TREASURY, nowEth - targetEth - parseEther('0.001'))
+    else if (nowEth < targetEth) await sendValue(TREASURY, who, targetEth - nowEth)
+    const want: Record<string, number> = { ...s.tokens }
+    if (s.position) for (const k of [s.position[0], s.position[1]]) want[k] = (want[k] ?? 0) + s.position[2] * 1.02
+    if (s.earn && !earnEth) {
+      const vault = (deployment.vaults ?? []).find((v) => v.symbol === s.earn![0])
+      if (vault) want[byAddress[vault.asset.toLowerCase()].symbol] = (want[byAddress[vault.asset.toLowerCase()].symbol] ?? 0) + s.earn[1]
+    }
+    for (const [symbol, usdAmount] of Object.entries(want)) {
+      const amount = toRaw(symbol, usdAmount)
+      if ((await balanceOf(sym(symbol).address, TREASURY)) < amount) await sendWait(TREASURY, sym(symbol).address, { abi: testErc20Abi, functionName: 'mint', args: [TREASURY, amount] })
+      await sendWait(TREASURY, sym(symbol).address, { abi: erc20TransferAbi, functionName: 'transfer', args: [who, amount] })
+    }
+    if (s.position) await mintPosition(who, s.position[0], s.position[1], s.position[2])
+    if (s.earn) await personalEarn(who, true, s.earn[1], s.earn[0])
+  }
+  if (changed) log(`dev wallets #0–#5 normalized (${changed}): protocol liquidity and inventory now held by the treasury ${TREASURY}`)
+  void router
 }
 
 // ---------- modes ----------
@@ -893,6 +1029,7 @@ async function runHistory(router: Address, weth: Address) {
   }
   const hasStage5 = Boolean(deployment.contracts.Launchpad && deployment.contracts.DevnetPad)
   if (!hasStage5) log('no launchpads in the deployment: skipping launches and earn')
+  await normalizeDevWallets(router, weth)
   await demoSetup(router, weth)
   const lastDay = -1
   let doneDay = lastDay
@@ -913,10 +1050,12 @@ async function runHistory(router: Address, weth: Address) {
       if (day !== doneDay) {
         doneDay = day
         await earnActivity(day, weth)
-        if (day === 1) await demoEarn(weth, true, 320)
+        if (day === 1) await personalEarn(DEMO, true, 320)
       }
       // the demo acts about once a day, at a random hour
       if (day >= 1 && demoRand() < 1 / 24) await demoAct(router, weth)
+      // Dev wallet accounts: a few actions a day between them, so each has some activity
+      if (day >= 1 && demoRand() < 3 / 24) await personalAct(pick(DEV_ACCOUNTS.slice(0, 5)), router, weth)
       await demoBid(Number((await pub.getBlock()).timestamp))
       const blockTs = Number((await pub.getBlock()).timestamp)
       for (const plan of LAUNCHES) {
@@ -944,6 +1083,7 @@ async function runHistory(router: Address, weth: Address) {
     }
   }
 
+  await normalizeDevWallets(router, weth)
   // hand the clock back to real time and resume 1s interval mining
   await rpc('evm_setNextBlockTimestamp', [Math.floor(Date.now() / 1000)])
   await rpc('evm_mine')
@@ -1036,7 +1176,11 @@ async function main() {
   const router = contractAddress('SwapRouter02')
   const weth = contractAddress('WETH9')
   if (MODE === 'live') await runLive(router, weth)
-  else await runHistory(router, weth)
+  else if (MODE === 'normalize') {
+    // existing chain: price from the pools, then give #0–#5 personal portfolios
+    await loadCurrentPrices()
+    await normalizeDevWallets(router, weth)
+  } else await runHistory(router, weth)
 }
 
 main().catch((err) => {

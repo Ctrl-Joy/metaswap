@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { erc20Abi, formatUnits, type Address } from 'viem'
-import { ACCOUNTS, API, connectDevWallet, pub, requireStack } from './helpers'
+import { ACCOUNTS, API, connectDevWallet, pub, requireStack, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 test.describe('portfolio', () => {
   test('signed out: demo wallet with connect banner, tabs as sub-routes, live strip', async ({ page }) => {

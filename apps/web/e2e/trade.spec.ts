@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { parseUnits } from 'viem'
-import { ACCOUNTS, balanceOf, connectDevWallet, eventually, mint, pickToken, requireStack, reviewAndConfirm } from './helpers'
+import { ACCOUNTS, balanceOf, connectDevWallet, eventually, mint, pickToken, requireStack, reviewAndConfirm, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 test.describe('trade flows on the live devnet', () => {
   // Swaps need the API (quotes); wrap / send / validation only need the chain.

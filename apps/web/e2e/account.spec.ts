@@ -77,3 +77,30 @@ test.describe.serial('devnet local account', () => {
     await expect(page.getByTestId('drawer-address')).toHaveText(`${addr.slice(0, 6)}...${addr.slice(-4)}`)
   })
 })
+
+test.describe('WalletConnect (MetaSwap Mobile)', () => {
+  for (const width of [375, 1440])
+    test(`QR replaces our panel at ${width}px and dismissing it brings the panel back`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/swap')
+      await page.getByTestId('connect-button').click()
+      await page.getByTestId('connect-mobile').click()
+      const wc = page.locator('wcm-modal, w3m-modal').first()
+      test.skip((await page.getByTestId('walletconnect-setup').count()) > 0, 'VITE_WALLETCONNECT_PROJECT_ID is not set')
+      await expect(page.getByTestId('connect-modal')).toBeHidden()
+      await expect(wc).toBeAttached({ timeout: 20_000 })
+      // WalletConnect renders in a shadow root; hit-testing returns its host element. Probe the middle and
+      // the lower part of the screen (where our bottom sheet used to sit): WalletConnect must be on top.
+      await expect
+        .poll(async () =>
+          page.evaluate(() =>
+            [0.5, 0.75].map((f) => document.elementFromPoint(innerWidth / 2, innerHeight * f)?.tagName.toLowerCase() ?? ''),
+          ),
+        { timeout: 20_000 })
+        .toEqual(expect.arrayContaining([expect.stringMatching(/^(wcm|w3m)-modal$/)]))
+      const hits = await page.evaluate(() => [0.5, 0.75].map((f) => document.elementFromPoint(innerWidth / 2, innerHeight * f)?.closest('[data-testid="connect-modal"]') ? 'ours' : 'other'))
+      expect(hits).not.toContain('ours')
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('connect-modal')).toBeVisible({ timeout: 15_000 })
+    })
+})

@@ -2,7 +2,12 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAbi, parseEther, type Address } from 'viem'
-import { ACCOUNTS, connectDevWallet, pub, requireStack, token, wallet } from './helpers'
+import { ACCOUNTS, connectDevWallet, pub, requireStack, token, wallet, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 // Real-time updates over the API WebSocket: no reload, no REST refetch in between.
 // A swap made from another account (viem, straight to the chain) must show up in the open

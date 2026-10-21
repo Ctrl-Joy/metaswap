@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { parseUnits } from 'viem'
-import { ACCOUNTS, API, connectDevWallet, requireStack, wrapEth } from './helpers'
+import { ACCOUNTS, API, connectDevWallet, requireStack, wrapEth, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 test.describe('MetaSwapX limit orders', () => {
   test.beforeEach(async () => {

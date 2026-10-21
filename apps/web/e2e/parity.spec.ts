@@ -2,7 +2,12 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { erc20Abi, maxUint256, parseAbi, parseUnits, zeroAddress, type Address } from 'viem'
-import { ACCOUNTS, connectDevWallet, eventually, mint, pub, requireStack, token, wallet, wrapEth } from './helpers'
+import { ACCOUNTS, connectDevWallet, eventually, mint, pub, requireStack, token, wallet, wrapEth, fundDevAccounts } from './helpers'
+
+// Dev wallet accounts hold small personal portfolios: top up what these specs spend (devnet only)
+test.beforeAll(async () => {
+  await fundDevAccounts().catch(() => {}) // stack down → specs skip via requireStack
+})
 
 // the parity review parity fixes (docs/analysis/parity-audit.md): trade chart toggle, search keyboard navigation,
 // explore pool filters + search, range strategies, V2 → V3 migration. Account #2 is used for the
