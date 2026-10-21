@@ -27,3 +27,7 @@ packages/sdk/src/generated/
 
 # local dev runtime (anvil log etc.)
 .dev/
+
+# Uniswap reference screenshots/measurements: kept locally only (not redistributed)
+docs/analysis/screens/
+docs/analysis/measured/
