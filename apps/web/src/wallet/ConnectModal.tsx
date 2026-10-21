@@ -108,6 +108,23 @@ export function ConnectModal() {
     }
   }
 
+  /**
+   * WalletConnect: like Uniswap, the QR replaces our panel. Close the panel while WalletConnect's own
+   * modal is up; if the QR is dismissed (or fails) bring the panel back on the main view.
+   */
+  async function connectWalletConnect(c: Connector) {
+    setError(null)
+    setView('main')
+    setOpen(false)
+    try {
+      await connectAsync({ connector: c, chainId: DEVNET_CHAIN_ID })
+    } catch (e) {
+      const err = parseTxError(e)
+      setOpen(true)
+      if (err.kind !== 'rejected') setError({ id: c.id, message: err.message })
+    }
+  }
+
   async function createAccount() {
     if (!groups.local) return
     setError(null)
@@ -146,7 +163,7 @@ export function ConnectModal() {
                 testId="connect-mobile"
                 disabled={busy}
                 sub={pendingId === groups.wc?.id ? 'Scan the QR code with your wallet…' : error && error.id === groups.wc?.id ? <span className="text-critical">{error.message}</span> : undefined}
-                onClick={() => (groups.wc ? void connect(groups.wc) : setView('mobile'))}
+                onClick={() => (groups.wc ? void connectWalletConnect(groups.wc) : setView('mobile'))}
                 right={pendingId === groups.wc?.id ? <Spinner size={18} className="text-accent" /> : <QrCode size={20} className="text-text-2" />}
               />
               <OptionRow icon={<Wallet size={18} />} label="Other wallets" testId="connect-other-wallets" onClick={() => setView('other')} right={<ChevronRight size={20} className="text-text-2" />} />

@@ -12,6 +12,7 @@ export {
   InfoTip,
   Popover,
   SegmentedTabs,
+  PillGroup,
   UnderlineTabs,
   PercentChange,
   Usd,

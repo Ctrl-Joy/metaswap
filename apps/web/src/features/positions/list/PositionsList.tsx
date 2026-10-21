@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { BannerPattern } from '@/features/portfolio/ConnectBanner'
+import { usePools30dVolume } from '@/features/explore/api'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowRight, ChevronRight, Droplet, Layers, Plus } from 'lucide-react'
 import type { Address } from 'viem'
@@ -55,11 +57,7 @@ export function PositionsList() {
         {!address ? (
           <>
             <div className="relative mt-14 flex min-h-[180px] flex-col items-center justify-center overflow-hidden rounded-[20px] bg-accent-tint px-6 py-8 text-center" data-testid="positions-gate">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 opacity-40"
-                style={{ backgroundImage: 'linear-gradient(var(--ms-accent-tint) 1px, transparent 1px), linear-gradient(90deg, var(--ms-accent-tint) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
-              />
+              <BannerPattern />
               <h2 className="relative text-heading-3 font-medium">Connect your wallet</h2>
               <p className="relative mt-2 text-body-2 text-text-2">To view your positions and rewards you must connect your wallet.</p>
               <button
@@ -122,10 +120,11 @@ function poolHref(row: ExplorePoolRowW3) {
   return `/positions/create?currencyA=${a}&currencyB=${b}${row.version === 'v2' ? '&version=v2' : `&fee=${row.fee}`}`
 }
 
-/** Signed-out "Top pools" table (Uniswap /positions): #, Pool, TVL, 1D vol, 7D vol, 1D vol/TVL, Pool APR. */
+/** Signed-out "Top pools" table (Uniswap /positions): #, Pool, TVL, 1D vol, 30D vol (summed from daily history), 1D vol/TVL, Pool APR. */
 function TopPoolsTable() {
   const q = useAllPools()
   const rows = (q.data ?? []).slice(0, 10)
+  const vol30 = usePools30dVolume(rows.map((r) => r.address))
   const cols = 'grid grid-cols-[28px_minmax(0,1fr)_88px] md:grid-cols-[52px_minmax(0,1fr)_repeat(5,minmax(0,140px))] items-center gap-x-3 px-4 md:px-5'
   return (
     <section className="mt-10" data-testid="top-pools" aria-labelledby="top-pools-title">
@@ -141,7 +140,7 @@ function TopPoolsTable() {
             <ArrowDown size={14} className="mr-0.5 inline align-[-2px]" />
             1D vol
           </span>
-          <span className="hidden text-right md:block">7D vol</span>
+          <span className="hidden text-right md:block">30D vol</span>
           <span className="hidden text-right md:block">1D vol/TVL</span>
           <span className="hidden text-right md:block">Pool APR</span>
         </div>
@@ -175,7 +174,7 @@ function TopPoolsTable() {
                   </span>
                   <span className="text-right tabular">{formatUsd(r.tvlUsd, { compact: true })}</span>
                   <span className="hidden text-right tabular md:block">{formatUsd(r.volume24hUsd, { compact: true })}</span>
-                  <span className="hidden text-right tabular md:block">{formatUsd(r.volume7dUsd, { compact: true })}</span>
+                  <span className="hidden text-right tabular md:block">{formatUsd(vol30[r.address.toLowerCase()] ?? null, { compact: true })}</span>
                   <span className="hidden text-right tabular md:block">{r.tvlUsd ? (r.volume24hUsd / r.tvlUsd).toFixed(2) : '-'}</span>
                   <span className="hidden text-right tabular md:block">{formatPercent(r.apr)}</span>
                 </Link>

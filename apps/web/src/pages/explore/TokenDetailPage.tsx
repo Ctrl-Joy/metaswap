@@ -49,12 +49,12 @@ export default function TokenDetailPage() {
 
   const loading = detail.isLoading && !d
   return (
-    <div className="mx-auto w-full max-w-[1120px] px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="token-page">
+    <div className="mx-auto w-full max-w-[1280px] px-4 pt-6 pb-24 md:px-10 md:pt-12" data-testid="token-page">
+      <TokenHeader symbol={symbol} name={name} address={apiAddr} loading={loading} />
       <div
-        className="grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,1fr)_360px] lg:[grid-template-areas:'top_swap'_'bottom_swap']"
+        className="mt-8 grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,760px)_360px] lg:justify-between lg:[grid-template-areas:'top_swap'_'bottom_swap']"
       >
         <div className="flex min-w-0 flex-col gap-6 [grid-area:top]">
-          <TokenHeader symbol={symbol} name={name} address={apiAddr} loading={loading} />
           {d ? (
             <TokenChartPanel address={apiAddr} symbol={symbol} latestPriceUsd={d.priceUsd} apiChange24h={d.change24h} />
           ) : (
@@ -66,8 +66,8 @@ export default function TokenDetailPage() {
           <TokenSwapWidget key={apiAddr} address={apiAddr} symbol={symbol} token={token} />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-10 [grid-area:bottom]">
-          <h2 className="text-[24px] leading-7 font-medium">Stats</h2>
+        <div className="flex min-w-0 flex-col gap-10 pt-[42px] [grid-area:bottom]">
+          <h2 className="-mb-6 text-[24px] leading-7 font-medium">Stats</h2>
           <TokenStats
             tvl={d?.tvlUsd ?? null}
             marketCap={d?.marketCapUsd ?? null}

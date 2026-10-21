@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { SegmentedTabs, Skeleton } from '@/components/ui'
+import { PillGroup, Skeleton } from '@/components/ui'
 import { formatAmount, formatUsd } from '@/lib/format'
-import { ChartControls, ChartFrame, type ChartStatus } from '../charts/ChartFrame'
+import { ChartFrame, type ChartStatus } from '../charts/ChartFrame'
 import { ExploreSectionTabs } from '../ExploreTable'
 import { TimeChart, type HoverInfo } from '../charts/TimeChart'
 import { DepthChart, LiquidityHistogram } from '../charts/SvgCharts'
@@ -83,14 +83,23 @@ export function PoolChartPanel({
 
   const showRange = tab === 'price' || tab === 'volume' || (tab === 'liquidity' && !isV3)
   const rangeFooter = showRange ? (
-    <SegmentedTabs size="sm" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `pool-range-${r}` }))} />
+    <PillGroup ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `pool-range-${r}` }))} />
   ) : (
     <span className="text-body-3 text-text-2">{isV3 ? 'Snapshot of current liquidity' : 'V2 pools chart TVL history'}</span>
   )
 
   return (
-    <section className="flex flex-col gap-4" data-testid="pool-chart-panel">
-      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="flex-wrap" />
+    <section className="relative flex flex-col" data-testid="pool-chart-panel">
+      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="mb-9 flex-wrap" />
+      {/* Uniswap overlays the readout on the chart's top-left corner (24px value, 16px label). */}
+      <div className="pointer-events-none absolute top-[60px] left-0 z-[2] flex flex-col">
+        <span className="text-[24px] leading-9 font-medium tabular" data-testid="pool-headline">
+          {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
+        </span>
+        <span className="text-body-2 leading-5 text-text-2" data-testid="pool-headline-label">
+          {hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}
+        </span>
+      </div>
       <ChartFrame
         testId="pool-chart"
         status={status}
@@ -98,16 +107,8 @@ export function PoolChartPanel({
         onRetry={() => { void history.refetch(); void ticks.refetch() }}
         emptyTitle={tab === 'depth' && !isV3 ? 'Depth is for v3 pools' : 'Not enough history yet'}
         emptyText={tab === 'depth' && !isV3 ? 'V2 pools hold liquidity across the full curve, so there is no tick depth to show.' : 'Pool history fills in as swaps and liquidity changes are indexed.'}
-        heightClass="h-[260px] md:h-[340px]"
-        header={
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[24px] leading-7 font-medium tabular" data-testid="pool-headline">
-              {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '-') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
-            </span>
-            <span className="text-body-3 text-text-2" data-testid="pool-headline-label">{hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}</span>
-          </div>
-        }
-        footer={<ChartControls left={rangeFooter} right={null} />}
+        heightClass="h-[300px] md:h-[356px]"
+        footer={<div className="flex justify-end">{rangeFooter}</div>}
       >
         {status === 'ready' && tab === 'price' && <TimeChart kind="line" data={priceSeries} formatValue={(v) => formatAmount(v)} onHover={setHover} testId="pool-price-chart" ariaLabel="Pool price" className="size-full" />}
         {status === 'ready' && tab === 'volume' && <TimeChart kind="bar" data={volumeSeries} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHover} testId="pool-volume-chart" ariaLabel="Pool volume" className="size-full" />}

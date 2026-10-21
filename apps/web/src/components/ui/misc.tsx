@@ -314,3 +314,41 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
     </div>
   )
 }
+
+/**
+ * Uniswap's chart pill capsule (range / mode / chart-type): 34px tall, radius 20, hairline border,
+ * 4px padding, 8px gap; 24px pills (2px 8px padding, 12px/535); selected pill = surface-3 fill.
+ */
+export function PillGroup<T extends string>({
+  items,
+  value,
+  onChange,
+  ariaLabel,
+  className,
+}: {
+  items: Array<{ value: T; label: ReactNode; testId?: string; title?: string }>
+  value: T
+  onChange: (v: T) => void
+  ariaLabel: string
+  className?: string
+}) {
+  return (
+    <div role="tablist" aria-label={ariaLabel} className={cn('inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1', className)}>
+      {items.map((it) => (
+        <button
+          key={it.value}
+          type="button"
+          role="tab"
+          aria-selected={value === it.value}
+          aria-label={it.title}
+          title={it.title}
+          data-testid={it.testId}
+          onClick={() => onChange(it.value)}
+          className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-body-4 font-semibold transition-colors', value === it.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  )
+}

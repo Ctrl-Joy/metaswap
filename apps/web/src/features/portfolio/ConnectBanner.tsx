@@ -5,7 +5,7 @@ import { Button } from '@/components/ui'
  * spirit of Uniswap's banner art but drawn with MetaSwap's own geometry (stacked squares from the logo,
  * rings, petals). Pure SVG, coloured by `currentColor` (accent), so it follows the theme.
  */
-function BannerPattern() {
+export function BannerPattern() {
   return (
     <svg className="pointer-events-none absolute inset-0 size-full text-accent" aria-hidden preserveAspectRatio="xMidYMid slice" viewBox="0 0 1152 216">
       <defs>

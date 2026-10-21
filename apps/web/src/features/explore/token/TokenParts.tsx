@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftRight, Droplets, FileCode2, Globe, Rocket, Share2 } from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, Droplets, FileCode2, Globe, Rocket, Share2 } from 'lucide-react'
 import { useLaunchDetail, useLaunches } from '@/features/launches/api'
 import { CHAIN_SLUG } from '@/config'
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
-import { Badge, Button, Card, CopyButton, IconButton, Skeleton, TokenLogo, Usd } from '@/components/ui'
+import { Button, Card, CopyButton, IconButton, Skeleton, TokenLogo, Usd } from '@/components/ui'
 import { formatUsd, shortenAddress } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { extremes, toCandles } from '../transforms'
@@ -15,31 +15,36 @@ export function TokenHeader({ symbol, name, address, loading }: { symbol: string
   const isNative = address === NATIVE_ADDRESS
   const [copied, setCopied] = useState(false)
   return (
-    <header className="flex flex-col gap-4">
-      <nav aria-label="Breadcrumb" className="text-body-3 text-text-2">
+    <header className="flex flex-col gap-7 border-b border-border pb-5">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-body-2 leading-6 text-text-2">
         <Link to="/explore/tokens" className="hover:text-text-1">
           Tokens
         </Link>
-        <span className="mx-1.5 text-text-3">&gt;</span>
+        <ChevronRight size={16} aria-hidden />
         <span className="text-text-1">{symbol || '...'}</span>
       </nav>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          {loading ? <Skeleton width={44} height={44} /> : <TokenLogo token={{ symbol, address }} size={44} />}
-          <div className="flex min-w-0 flex-col gap-1">
+          {loading ? <Skeleton width={56} height={56} rounded="full" /> : <TokenLogo token={{ symbol, address }} size={56} />}
+          <div className="flex min-w-0 flex-col gap-2">
             {loading ? (
               <Skeleton width={180} height={24} />
             ) : (
               <h1 className="flex flex-wrap items-baseline gap-2 text-[24px] leading-7 font-medium">
                 <span className="truncate">{name}</span>
-                <span className="text-body-1 font-medium text-text-2">{symbol}</span>
+                <span className="text-body-1 text-text-2">{symbol}</span>
               </h1>
             )}
-            <div className="flex flex-wrap items-center gap-2 text-body-3 text-text-2">
-              <Badge tone="neutral">MetaChain Devnet</Badge>
+            <div className="flex flex-wrap items-center gap-3 text-body-3 font-semibold text-text-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="flex size-4 items-center justify-center rounded-[5px] bg-accent-tint">
+                  <span className="size-1.5 rounded-full bg-success" />
+                </span>
+                MetaChain Devnet
+              </span>
               {!isNative && (
                 <CopyButton value={address} label="Copy token address" className="text-body-3">
-                  <span className="font-mono">{shortenAddress(address, 6)}</span>
+                  <span>{shortenAddress(address)}</span>
                 </CopyButton>
               )}
               {isNative && <span>Native token</span>}
@@ -100,11 +105,11 @@ export function TokenStats({
     },
   ]
   return (
-    <section aria-label="Token statistics" className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3" data-testid="token-stats">
+    <section aria-label="Token statistics" className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3" data-testid="token-stats">
       {items.map((it) => (
         <div key={it.label} className="flex min-w-0 flex-col gap-1" data-testid={it.testId}>
           <span className="text-body-3 text-text-2">{it.label}</span>
-          <span className={cn('text-[20px] leading-6 font-medium', loading && 'text-transparent')}>{loading ? <Skeleton width={90} height={20} /> : it.node}</span>
+          <span className={cn('text-[24px] leading-8 font-medium', loading && 'text-transparent')}>{loading ? <Skeleton width={110} height={28} /> : it.node}</span>
         </div>
       ))}
     </section>

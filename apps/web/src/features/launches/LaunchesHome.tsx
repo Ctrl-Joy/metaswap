@@ -153,7 +153,7 @@ function FilterChip({ active, onClick, icon, children, testId }: { active: boole
       aria-selected={active}
       onClick={onClick}
       data-testid={testId}
-      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 py-2 text-body-3 font-semibold whitespace-nowrap transition-colors', active ? 'bg-surface-2 text-text-1' : 'text-text-2 hover:text-text-1')}
+      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 py-2 text-body-3 font-semibold whitespace-nowrap transition-colors', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
     >
       {icon}
       {children}
@@ -163,13 +163,13 @@ function FilterChip({ active, onClick, icon, children, testId }: { active: boole
 
 function Dropdown({ value, onChange, children, ariaLabel, testId, leading, className }: { value: string; onChange: (v: string) => void; children: ReactNode; ariaLabel: string; testId?: string; leading?: ReactNode; className?: string }) {
   return (
-    <label className={cn('relative inline-flex h-12 items-center gap-2 rounded-2xl border-[0.8px] border-border bg-surface-1 pr-3 pl-4 text-body-2 font-semibold hover:bg-surface-2', className)}>
+    <label className={cn('relative inline-flex h-10 items-center gap-2 rounded-xl border-[0.8px] border-border bg-surface-1 pr-1.5 pl-3 text-body-3 font-semibold hover:bg-surface-2', className)}>
       {leading}
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} data-testid={testId} className="absolute inset-0 cursor-pointer opacity-0">
         {children}
       </select>
       <span className="pointer-events-none truncate">{leading ? null : ariaLabelValue(children, value)}</span>
-      <ChevronDown size={18} className="pointer-events-none shrink-0 text-text-2" />
+      <ChevronDown size={20} className="pointer-events-none shrink-0 text-text-2" />
     </label>
   )
 }

@@ -335,3 +335,42 @@ Rebuilt from Uniswap's open-source interface (`apps/web/src/components/AccountDr
 - "Create account" makes a devnet-only local key, funds it with 100 ETH plus faucets, and connects it.
 - "Log in" reconnects that key.
 - A devnet terms line closes the panel.
+
+## Final pixel sweep (the parity review, 2026-10-21)
+
+Screens are in `docs/analysis/screens/final/` as `before-*` and `after-*` (1440 dark).
+
+### Pool page
+- Rebuilt to the measured layout: 1120px content, a 99px header with a bottom rule, 56px pair logo, a v3·fee chip pair, and the address.
+- 680px chart/transactions column plus a 360px side column with:
+  - Swap / Add liquidity tiles (174×46, accent tint);
+  - the Stats card (360 wide, r20, surface-2, p20, gap 24; 18px labels, 36/44 values, grey Δ with a coloured triangle);
+  - Links rows with 32px address chips.
+- Chart readout overlays the chart, with the range capsule right-aligned underneath.
+- Transactions table uses the pool layout: token symbols as headers, 50px rows, no filter chips.
+
+### Limit
+- Sell/Buy panels are 120px: 14px label, 36px row, no fiat line.
+- 40px switch button with 4px panel gap.
+- 144px price card.
+- "Buy" label, and Uniswap's warning copy.
+
+### Range capsule (`PillGroup`)
+- 34px tall, r20 border, 24px pills.
+- Used on the token chart (range, chart type 86px, mode) and the pool chart.
+
+### Token page
+- 1200px content and a full-width header with a rule.
+- 760 | 360 columns; 56px logo; network row.
+- Price overlaid on the chart.
+- 24px stat values.
+- Swap widget gets its own tab row and gear, with no outer frame.
+
+### Other fixes
+- **Positions:** banner art, and 30D vol instead of 7D.
+- **Launches:** 40px r12 launchpad dropdown, and surface-3 selected chip.
+- **WalletConnect:** the QR replaces our connect panel; dismissing the QR brings the panel back.
+
+### Still different
+- The create-position version picker is a v3|v2 segmented control. Uniswap uses a "v4 position ⌄" dropdown, which doesn't apply: there is no v4.
+- Launches and auction pages could not be compared with data, because the shared chain was down during the sweep.

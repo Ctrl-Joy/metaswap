@@ -92,7 +92,7 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
         onMouseEnter={() => setCursor(i)}
         onClick={() => choose(t)}
         className={cn(
-          'flex h-[58px] w-full items-center gap-2 rounded-2xl p-2 text-left transition-colors',
+          'flex h-16 w-full items-center gap-2 rounded-2xl p-2 text-left transition-colors',
           i === cursor ? 'bg-surface-2-hover' : 'hover:bg-surface-2-hover',
           isSelected && 'opacity-60',
         )}
@@ -130,7 +130,7 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
   return (
     <Modal open={open} onOpenChange={onOpenChange} title={title} width={400} tall testId="token-selector" className="md:h-[min(700px,calc(100dvh-64px))] [&_h2]:font-medium">
       <div className="flex h-full flex-col">
-        <label className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-transparent bg-surface-2 px-4 focus-within:border-border">
+        <label className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-transparent bg-surface-2 px-4">
           <Search size={20} className="text-text-2" />
           <input
             autoFocus

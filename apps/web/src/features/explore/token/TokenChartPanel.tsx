@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CandlestickChart, LineChart } from 'lucide-react'
-import { LiveNumber, PercentChange, SegmentedTabs, Skeleton, Usd } from '@/components/ui'
+import { LiveNumber, PercentChange, PillGroup, Skeleton, Usd } from '@/components/ui'
 import { formatPrice, formatUsd } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { ChartControls, ChartFrame, type ChartStatus } from '../charts/ChartFrame'
@@ -84,9 +84,9 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
   const fmt = mode === 'price' ? (v: number) => formatPrice(v) : (v: number) => formatUsd(v, { compact: true })
 
   return (
-    <section className="flex flex-col gap-4" data-testid="token-chart-panel">
-      <div className="flex flex-col gap-1">
-        <div className="text-heading-2 font-semibold tabular md:text-heading-1" data-testid="token-price" aria-live="polite">
+    <section className="relative flex flex-col" data-testid="token-chart-panel">
+      <div className="pointer-events-none absolute top-0 left-0 z-[2] flex flex-col gap-1">
+        <div className="text-heading-2 font-medium tabular" data-testid="token-price" aria-live="polite">
           {headValue === null ? <Skeleton width={180} height={44} /> : mode === 'price' ? hover ? formatPrice(headValue) : <LiveNumber value={headValue} format={(n) => formatPrice(n)} /> : <Usd value={headValue} compact />}
         </div>
         <div className="flex items-center gap-2 text-body-2">
@@ -119,25 +119,25 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
             : `Only a few trades so far for ${symbol} in this range. The chart fills in as trading continues.`
         }
         errorText={mode === 'tvl' ? 'TVL history is not available yet.' : 'Chart unavailable right now.'}
-        heightClass="h-[300px]"
+        heightClass="h-[300px] md:h-[372px]"
         footer={
           <ChartControls
-            left={<div className="rounded-xl border border-border p-1"><SegmentedTabs size="sm" ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} /></div>}
+            left={<PillGroup ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}
             right={
               <>
                 {mode === 'price' && (
-                  <SegmentedTabs
-                    size="sm"
+                  <PillGroup
                     ariaLabel="Chart type"
                     value={type}
                     onChange={setType}
+                    className="[&>button]:w-[34px]"
                     items={[
-                      { value: 'line', label: <LineChart size={14} aria-label="Line" />, testId: 'chart-type-line' },
-                      { value: 'candles', label: <CandlestickChart size={14} aria-label="Candlesticks" />, testId: 'chart-type-candles' },
+                      { value: 'line', label: <LineChart size={16} />, title: 'Line', testId: 'chart-type-line' },
+                      { value: 'candles', label: <CandlestickChart size={16} />, title: 'Candlesticks', testId: 'chart-type-candles' },
                     ]}
                   />
                 )}
-                <SegmentedTabs size="sm" ariaLabel="Chart mode" value={mode} onChange={(m) => { setMode(m); setHover(null) }} items={MODES.map((m) => ({ value: m.value, label: m.label, testId: `mode-${m.value}` }))} />
+                <PillGroup ariaLabel="Chart mode" value={mode} onChange={(m) => { setMode(m); setHover(null) }} items={MODES.map((m) => ({ value: m.value, label: m.label, testId: `mode-${m.value}` }))} />
               </>
             }
           />

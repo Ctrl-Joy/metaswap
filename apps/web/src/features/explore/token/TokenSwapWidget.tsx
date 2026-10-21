@@ -3,6 +3,15 @@ import { ArrowLeftRight } from 'lucide-react'
 import { NATIVE_ADDRESS, type Token } from '@metaswap/sdk'
 import { ButtonLink, Card } from '@/components/ui'
 import { SwapForm } from '@/features/swap/SwapForm'
+import { SettingsPopover } from '@/features/settings/SettingsPopover'
+import { cn } from '@/lib/cn'
+
+const TABS = [
+  { to: '/swap', label: 'Swap' },
+  { to: '/limit', label: 'Limit' },
+  { to: '/send', label: 'Send' },
+  { to: '/buy', label: 'Buy' },
+] as const
 
 /**
  * Embedded swap card with this token preselected as the output (ui-ux.md §9.2). Reuses the web shell's
@@ -25,8 +34,24 @@ export function TokenSwapWidget({ address, symbol, token }: { address: string; s
       </Card>
     )
   }
+  // Uniswap's token page embeds the trade card with its own tab row (Swap active) and no outer frame.
   return (
-    <div className="rounded-2xl border border-border bg-surface-1 p-2" data-testid="token-swap-widget">
+    <div className="flex flex-col gap-1" data-testid="token-swap-widget">
+      <div className="mb-1 flex items-center justify-between">
+        <nav aria-label="Trade" className="flex items-center gap-3 p-1">
+          {TABS.map((t) => (
+            <Link
+              key={t.to}
+              to={t.to === '/swap' ? `/swap?outputCurrency=${address}` : t.to}
+              aria-current={t.to === '/swap' ? 'page' : undefined}
+              className={cn('rounded-full px-3 py-2 text-body-3 font-semibold transition-colors', t.to === '/swap' ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+        <SettingsPopover />
+      </div>
       <SwapForm key={address} defaultOutput={token} />
     </div>
   )

@@ -37,6 +37,7 @@ export function TransactionsTable({
   emptyText = 'No transactions yet. Swaps and liquidity changes appear here as they happen.',
   testId = 'transactions-table',
   perspective,
+  pair,
 }: {
   rows: TxRow[] | undefined
   isLoading: boolean
@@ -47,6 +48,11 @@ export function TransactionsTable({
   testId?: string
   /** Token symbol the page is about: swaps then read "Buy X" / "Sell X" (token and pool pages). */
   perspective?: string
+  /**
+   * Pool-page layout (Uniswap pool tx table): token symbols as the two amount headers, 50px header and
+   * rows without separators, white 14px headers, verb + token coloured, amounts without unit suffix.
+   */
+  pair?: [string, string]
 }) {
   const now = useNow(10_000)
   const [kind, setKind] = useState<KindFilter>('all')
@@ -72,14 +78,14 @@ export function TransactionsTable({
           ariaLabel="Transaction type"
         />
       )}
-      <ExTable minWidth={620}>
+      <ExTable minWidth={pair ? 600 : 620} className={cn(pair && '[&_td]:px-3 [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th]:px-3 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5 [&_thead_tr]:h-[50px] [&_th]:text-text-1')}>
         <ExTHead>
           <ExTh>Time</ExTh>
           <ExTh>Type</ExTh>
           <ExTh align="right">USD</ExTh>
-          <ExTh align="right">Token amount</ExTh>
-          <ExTh align="right">Token amount</ExTh>
-          <ExTh>Wallet</ExTh>
+          <ExTh align="right">{pair ? pair[0] : 'Token amount'}</ExTh>
+          <ExTh align="right">{pair ? pair[1] : 'Token amount'}</ExTh>
+          <ExTh align={pair ? 'right' : 'left'}>Wallet</ExTh>
         </ExTHead>
         {isLoading && !rows ? (
           <ExTableSkeleton rows={6} cols={6} />
@@ -97,23 +103,39 @@ export function TransactionsTable({
               const label = txLabel(tx, perspective)
               const [first, ...rest] = label.text.split(' ')
               return (
-              <ExTr height={56} key={tx.id} rowRef={enter(tx.id)} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb}>
+              <ExTr height={56} key={tx.id} rowRef={enter(tx.id)} data-testid="tx-row" data-kind={tx.kind} data-verb={label.verb} className={cn(pair && 'h-[50px] border-t-0')}>
                 <ExTd className="text-text-2" title={new Date(tx.timeMs).toLocaleString()}>
                   {formatRelativeTime(tx.timeMs, now)}
                 </ExTd>
                 <ExTd title={label.text} data-testid="tx-label">
-                  <span className={cn('font-semibold', VERB_CLASS[label.verb])}>{first}</span> <span className="text-text-1">{rest.join(' ')}</span>
+                  {pair ? (
+                    <span className={VERB_CLASS[label.verb]}>{label.text}</span>
+                  ) : (
+                    <>
+                      <span className={cn('font-semibold', VERB_CLASS[label.verb])}>{first}</span> <span className="text-text-1">{rest.join(' ')}</span>
+                    </>
+                  )}
                 </ExTd>
                 <ExTd align="right">
                   <Usd value={tx.usd} />
                 </ExTd>
-                <ExTd align="right" className="text-text-1">
-                  {formatAmount(tx.legs[0]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[0]?.symbol}</span>
-                </ExTd>
-                <ExTd align="right" className="text-text-1">
-                  {formatAmount(tx.legs[1]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[1]?.symbol}</span>
-                </ExTd>
-                <ExTd className="text-text-2" title={tx.wallet ?? undefined}>
+                {pair ? (
+                  pair.map((sym) => (
+                    <ExTd key={sym} align="right" className="text-text-1">
+                      {formatAmount(tx.legs.find((l) => l.symbol === sym)?.amount ?? null, 5)}
+                    </ExTd>
+                  ))
+                ) : (
+                  <>
+                    <ExTd align="right" className="text-text-1">
+                      {formatAmount(tx.legs[0]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[0]?.symbol}</span>
+                    </ExTd>
+                    <ExTd align="right" className="text-text-1">
+                      {formatAmount(tx.legs[1]?.amount ?? null, 5)} <span className="text-text-2">{tx.legs[1]?.symbol}</span>
+                    </ExTd>
+                  </>
+                )}
+                <ExTd className={cn('text-text-2', pair && 'text-right text-text-1')} title={tx.wallet ?? undefined}>
                   {tx.wallet ? shortenAddress(tx.wallet) : '-'}
                 </ExTd>
               </ExTr>

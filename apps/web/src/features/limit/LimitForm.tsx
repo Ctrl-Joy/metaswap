@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUpDown, Info, CircleCheck } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUpDown, CircleCheck } from 'lucide-react'
 import { contractAddress, deployment, type Token } from '@metaswap/sdk'
 import { Banner, Button, Modal, TokenLogo } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -135,7 +135,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
               setInverted((v) => !v)
               if (typedPrice > 0) setPriceText(priceToInput(1 / typedPrice))
             }}
-            className="inline-flex size-8 items-center justify-center rounded-full hover:bg-surface-3 hover:text-text-1"
+            className="-my-1 inline-flex size-[22px] items-center justify-center rounded-md hover:text-text-1"
             data-testid="limit-invert"
           >
             <ArrowUpDown size={16} />
@@ -163,7 +163,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
             </span>
           )}
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
           {[0, 1, 5, 10].map((pct) => {
             const target = marketPrice ? marketPrice * (1 + pct / 100) : undefined
             const active = !!target && !!canonicalPrice && Math.abs(canonicalPrice / target - 1) < 0.0005
@@ -209,6 +209,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         onMax={() => inBal !== undefined && inputToken && setAmountText(toInputString(inBal, inputToken.decimals, inputToken.decimals))}
         usdValue={inputToken && amountIn && prices[inputToken.address.toLowerCase()] !== undefined ? toNumber(amountIn, inputToken.decimals) * prices[inputToken.address.toLowerCase()]! : undefined}
         variant="buy"
+        compact
         className="rounded-2xl"
       />
       <div className="relative z-[1] -my-[22px] flex justify-center">
@@ -220,13 +221,13 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
             setOutputToken(inputToken)
             setPriceTouched(false)
           }}
-          className="flex size-12 items-center justify-center rounded-2xl border-4 border-bg bg-surface-2 hover:bg-surface-2-hover"
+          className="flex size-10 items-center justify-center rounded-xl border-4 border-bg bg-surface-2 hover:bg-surface-2-hover"
         >
           <ArrowDown size={20} />
         </button>
       </div>
       <CurrencyInputPanel
-        label="Buy (at least)"
+        label="Buy"
         testId="limit-output"
         token={outputToken}
         value={outputText}
@@ -239,6 +240,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         tokenFilter={erc20Only}
         usdValue={outputToken && minOut && prices[outputToken.address.toLowerCase()] !== undefined ? toNumber(minOut, outputToken.decimals) * prices[outputToken.address.toLowerCase()]! : undefined}
         variant="buy"
+        compact
         className="rounded-2xl"
       />
 
@@ -272,11 +274,11 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
       </Button>
 
       <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface-2 p-4 text-body-3 leading-5 text-text-1">
-        <Info size={16} className="mt-0.5 shrink-0 text-text-2" />
+        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-text-2" />
         <span>
-          Limit orders are gasless MetaSwapX intents. Fillers execute them when it is profitable, so they may not fill exactly when the market touches your price.{' '}
+          Limits may not execute exactly when tokens reach the specified price.{' '}
           <Link to="/metaswapx" className="font-semibold text-accent hover:underline">
-            How it works
+            Learn more
           </Link>
         </span>
       </div>
