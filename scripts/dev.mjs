@@ -6,12 +6,13 @@
 //   node scripts/dev.mjs --no-web     everything except the web dev server
 //   node scripts/dev.mjs --no-market  no live market simulator (scripts/market.ts --live)
 //   node scripts/dev.mjs --fresh      ignore the saved chain in .dev/chain and rebuild from scratch
+//   node scripts/dev.mjs --lan        expose the chain on your Wi-Fi so phone wallets (WalletConnect) can use it
 //
 // Ctrl+C stops every process this script started.
 import { spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createHash, randomBytes } from 'node:crypto'
-import { homedir } from 'node:os'
+import { homedir, networkInterfaces } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -47,17 +48,18 @@ function run(cmd, cmdArgs, cwd) {
   })
 }
 
-function start(name, cmd, cmdArgs, cwd, { logFile } = {}) {
+function start(name, cmd, cmdArgs, cwd, { logFile, extraEnv } = {}) {
+  const childEnv = extraEnv ? { ...env, ...extraEnv } : env
   log(`starting ${name}${logFile ? ` (log: ${logFile})` : ''}`)
   if (logFile) {
     mkdirSync(dirname(logFile), { recursive: true })
     const out = openSync(logFile, 'w')
-    const child = spawn(cmd, cmdArgs, { cwd, env, stdio: ['ignore', out, out], shell: process.platform === 'win32' })
+    const child = spawn(cmd, cmdArgs, { cwd, env: childEnv, stdio: ['ignore', out, out], shell: process.platform === 'win32' })
     child.on('exit', (code) => log(`${name} exited (${code})`))
     children.push(child)
     return child
   }
-  const child = spawn(cmd, cmdArgs, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' })
+  const child = spawn(cmd, cmdArgs, { cwd, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' })
   const prefix = `\x1b[36m[${name}]\x1b[0m `
   child.stdout.on('data', (d) => process.stdout.write(prefix + d.toString().replace(/\n(?=.)/g, `\n${prefix}`)))
   child.stderr.on('data', (d) => process.stderr.write(prefix + d.toString().replace(/\n(?=.)/g, `\n${prefix}`)))
@@ -210,6 +212,14 @@ function savedChainUsable() {
   }
 }
 
+// --lan: make the chain reachable from phones on the same Wi-Fi (WalletConnect mobile wallets send
+// transactions through their own RPC connection to the chain). Windows Firewall will ask once.
+const lanIp = args.has('--lan')
+  ? Object.values(networkInterfaces()).flat().find((i) => i && i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.'))?.address
+  : undefined
+if (args.has('--lan') && !lanIp) log('--lan: no network address found; continuing on localhost only')
+const publicRpc = lanIp ? `http://${lanIp}:8545` : undefined
+
 const saved = savedChainUsable()
 // Start the chain's clock in the past so scripts/market.ts --history can replay HISTORY_DAYS of hourly
 // trading up to "now" — every chart range then has real data. HISTORY_DAYS=0 disables it.
@@ -218,6 +228,7 @@ const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
 // writes every historical state under ~/.foundry/anvil/tmp — tens of GB for a replayed month plus a
 // live market. Blocks, receipts and logs are kept, which is all the indexer needs.
 const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512', '--state', stateFile, '--state-interval', stateInterval]
+if (lanIp) anvilArgs.push('--host', '0.0.0.0')
 if (saved.ok) {
   log(`resuming saved chain from ${saved.meta.createdAt} (use --fresh to rebuild)`)
 } else {
@@ -253,6 +264,7 @@ if (!args.has('--chain-only')) {
   await ensurePostgres()
   if (existsSync(join(root, 'services/api/package.json'))) start('api', 'npm', ['run', 'dev', '-w', '@metaswap/api'], root)
   if (!args.has('--no-market') && process.env.MARKET_LIVE !== '0') start('market', 'npx', ['tsx', 'scripts/market.ts', '--live'], root)
-  if (!args.has('--no-web') && existsSync(join(root, 'apps/web/package.json'))) start('web', 'npm', ['run', 'dev', '-w', '@metaswap/web'], root)
+  if (!args.has('--no-web') && existsSync(join(root, 'apps/web/package.json'))) start('web', 'npm', ['run', 'dev', '-w', '@metaswap/web'], root, publicRpc ? { extraEnv: { VITE_RPC_URL: publicRpc } } : {})
 }
+if (publicRpc) log(`LAN mode: wallets on your Wi-Fi reach the chain at ${publicRpc} (chain id 31337)`)
 log('running — Ctrl+C to stop')
