@@ -4,7 +4,7 @@
 # Built from the export produced by `node scripts/publish-hf.mjs`.
 FROM node:24-bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 # Foundry's anvil + cast (official release binaries; amd64 or arm64 to match the host)
 RUN ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/') \

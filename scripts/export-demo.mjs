@@ -5,12 +5,11 @@
 // deploy/snapshot/ (the saved chain, deployment and generated sdk files). On the server:
 //   tar -xzf metaswap-demo.tar.gz && docker build -t metaswap . && docker run -d -p 80:7860 metaswap
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, createReadStream, createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
-import { createGzip } from 'node:zlib'
+import { gzipSync } from 'node:zlib'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sh = (cmd, args, cwd) => {
@@ -38,7 +37,20 @@ for (const d of ['docs/analysis/screens', 'docs/analysis/measured']) rmSync(join
 
 const snap = join(app, 'deploy', 'snapshot')
 mkdirSync(join(snap, 'sdk'), { recursive: true })
-await pipeline(createReadStream(join(root, '.dev/chain/state.json')), createGzip({ level: 9 }), createWriteStream(join(snap, 'state.json.gz')))
+// anvil rewrites state.json every --state-interval seconds; retry until we read a complete copy
+let state
+for (let i = 0; ; i++) {
+  const buf = readFileSync(join(root, '.dev/chain/state.json'))
+  try {
+    JSON.parse(buf.toString('utf8'))
+    state = buf
+    break
+  } catch {
+    if (i >= 20) throw new Error('.dev/chain/state.json is not valid JSON (is anvil mid-save?)')
+    await new Promise((r) => setTimeout(r, 1000))
+  }
+}
+writeFileSync(join(snap, 'state.json.gz'), gzipSync(state, { level: 9 }))
 copyFileSync(join(root, '.dev/chain/meta.json'), join(snap, 'meta.json'))
 copyFileSync(join(root, 'packages/contracts/deployments/31337.json'), join(snap, 'deployment.json'))
 const gen = join(root, 'packages/sdk/src/generated')
