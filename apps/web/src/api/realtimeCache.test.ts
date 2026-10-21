@@ -60,7 +60,11 @@ describe('applyRealtimeEvent', () => {
     expect(c.getQueryData<Array<{ priceUsd: number }>>(['api', 'explore', 'tokens', 'rows', '1D'])!.map((r) => r.priceUsd)).toEqual([2, 5])
     expect(c.getQueryData<Array<{ priceUsd: number }>>(['api', 'explore', 'tokens', 'volume', 'desc'])![0]!.priceUsd).toBe(2)
     expect(c.getQueryData(['api', 'tokens', 'detail', T, {}])).toEqual({ priceUsd: 2, change24h: 0 })
-    expect(c.getQueryData(['api', 'tokens', T, 'price-line', '1D'])).toEqual([{ time: 100, value: 1 }, { time: 400, value: 2 }])
+    // 100s after the last point (≥ LIVE_STEP): a new live point is appended so the chart moves
+    expect(c.getQueryData(['api', 'tokens', T, 'price-line', '1D'])).toEqual([{ time: 100, value: 1 }, { time: 400, value: 1 }, { time: 500, value: 2 }])
+    // within LIVE_STEP of the last point: the last point is updated in place
+    applyRealtimeEvent(c, ev('prices', 'prices', { timestamp: 510, prices: { [T]: 3 } }), ctx())
+    expect(c.getQueryData(['api', 'tokens', T, 'price-line', '1D'])).toEqual([{ time: 100, value: 1 }, { time: 400, value: 1 }, { time: 500, value: 3 }])
   })
 
   it('explore txs: prepends normalised rows into unfiltered and matching filtered lists only', () => {

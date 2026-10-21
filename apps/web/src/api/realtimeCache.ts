@@ -81,12 +81,18 @@ export function invalidateWalletReads(qc: QueryClient, ctx: BridgeContext) {
 type Point = { time: number; value: number }
 
 /** Update the last point in place (same bucket) or append a newer one, so the chart's last point moves live. */
+/** Minimum seconds between appended live chart points. */
+export const LIVE_STEP = 30
+
 export function upsertLastPoint<P extends Record<string, unknown> & { time: number }>(series: P[], time: number, patch: Partial<P>): P[] {
   if (!series.length) return series
   const last = series[series.length - 1]!
   if (time <= last.time) return [...series.slice(0, -1), { ...last, ...patch }]
+  // Append a new live point once LIVE_STEP seconds have passed (or sooner on fine-grained series),
+  // so charts visibly move with the market instead of only nudging the last bucket — a 1D chart
+  // would otherwise grow just once every 5 minutes, a 1M chart every 4 hours.
   const prev = series.length > 1 ? series[series.length - 2]!.time : last.time - 60
-  const step = Math.max(1, last.time - prev)
+  const step = Math.min(LIVE_STEP, Math.max(1, last.time - prev))
   if (time - last.time < step) return [...series.slice(0, -1), { ...last, ...patch }]
   return [...series, { ...last, ...patch, time } as P]
 }
