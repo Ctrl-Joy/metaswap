@@ -27,7 +27,7 @@ fi
 echo "[update] building (a few minutes)"
 (cd metaswap.new && sudo docker build -q -t metaswap .)
 sudo docker rm -f metaswap >/dev/null 2>&1 || true
-sudo docker run -d --name metaswap --restart unless-stopped -p 80:7860 \
+sudo docker run -d --name metaswap --restart unless-stopped --memory 16g --memory-swap 20g -e STATE_INTERVAL=120 -p 80:7860 \
   ${WC_ID:+-e VITE_WALLETCONNECT_PROJECT_ID=$WC_ID} metaswap >/dev/null
 sudo rm -rf metaswap && mv metaswap.new metaswap
 sudo docker image prune -f >/dev/null
