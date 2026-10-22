@@ -101,15 +101,26 @@ sudo docker logs -f metaswap
 
 ## Updating later
 
-1. On your PC, rebuild the bundle with `node scripts/export-demo.mjs`.
-2. Copy it again with the `scp` command from step 2.
-3. On the server, remove the old container:
+1. Commit your changes. The bundle is built from the last commit, so uncommitted edits are not included.
+2. On your PC, rebuild the bundle:
 
 ```bash
-sudo docker rm -f metaswap
+node scripts/export-demo.mjs
 ```
 
-4. Repeat steps 5 and 6.
+3. Copy it to the server:
+
+```bash
+scp -i %USERPROFILE%\.ssh\oracle.key .dev\metaswap-demo.tar.gz ubuntu@YOUR_IP:~
+```
+
+4. Rebuild and restart on the server. This keeps the server's live chain, including trades made on the site.
+
+```bash
+ssh -i %USERPROFILE%\.ssh\oracle.key ubuntu@YOUR_IP "tar -xzf metaswap-demo.tar.gz ./deploy/update.sh -O | sh"
+```
+
+The site is back about 2 minutes after the script finishes. To start the server over from your PC's chain instead, append ` -s -- --reset-chain` after `sh` in that command.
 
 ## Notes
 
