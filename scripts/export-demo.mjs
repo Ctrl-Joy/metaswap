@@ -37,18 +37,22 @@ for (const d of ['docs/analysis/screens', 'docs/analysis/measured']) rmSync(join
 
 const snap = join(app, 'deploy', 'snapshot')
 mkdirSync(join(snap, 'sdk'), { recursive: true })
-// anvil rewrites state.json every --state-interval seconds; retry until we read a complete copy
+// anvil rewrites state.json every --state-interval seconds; retry until we read a complete copy.
+// The file can exceed V8's max string length, so check that it is stable and closes its object
+// instead of parsing it.
+const stateFile = join(root, '.dev/chain/state.json')
 let state
 for (let i = 0; ; i++) {
-  const buf = readFileSync(join(root, '.dev/chain/state.json'))
-  try {
-    JSON.parse(buf.toString('utf8'))
+  const before = statSync(stateFile).mtimeMs
+  const buf = readFileSync(stateFile)
+  let end = buf.length - 1
+  while (end > 0 && buf[end] <= 0x20) end--
+  if (buf[0] === 0x7b && buf[end] === 0x7d && statSync(stateFile).mtimeMs === before && buf.length === statSync(stateFile).size) {
     state = buf
     break
-  } catch {
-    if (i >= 20) throw new Error('.dev/chain/state.json is not valid JSON (is anvil mid-save?)')
-    await new Promise((r) => setTimeout(r, 1000))
   }
+  if (i >= 30) throw new Error('.dev/chain/state.json looks incomplete (is anvil mid-save?)')
+  await new Promise((r) => setTimeout(r, 1000))
 }
 writeFileSync(join(snap, 'state.json.gz'), gzipSync(state, { level: 9 }))
 copyFileSync(join(root, '.dev/chain/meta.json'), join(snap, 'meta.json'))
