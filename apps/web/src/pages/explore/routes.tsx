@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { lazyRetry as lazy } from '@/lib/lazyRetry'
 import type { RouteObject } from 'react-router-dom'
 
 // Owned by the explore area (explore + token/pool detail + charts). The root router mounts these as-is,

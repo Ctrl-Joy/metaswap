@@ -9,9 +9,10 @@ if [ ! -f apps/web/dist/index.html ]; then
 fi
 
 # Anvil rewrites state.json in place, so a freeze or crash mid-write leaves a truncated file that anvil
-# refuses to load. A complete file ends with "}". If it does not, restore the last verified backup.
+# refuses to load. A complete file ends with the closing "historical_states" field. If it does not, restore the last verified backup.
 CHAIN=.dev/chain
-complete() { [ -s "$1" ] && [ "$(tail -c 1 "$1")" = "}" ]; }
+# anvil ends a finished dump with "historical_states":null}; a cut-off file can still end in "}" so check the tail
+complete() { [ -s "$1" ] && tail -c 60 "$1" | grep -q '"historical_states":null}$'; }
 if [ -f "$CHAIN/state.json" ] && ! complete "$CHAIN/state.json"; then
   if complete "$CHAIN/state.good.json"; then
     echo "[start] state.json is incomplete, restoring the last good backup"

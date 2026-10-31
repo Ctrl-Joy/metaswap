@@ -231,6 +231,11 @@ const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20
 if (lanIp) anvilArgs.push('--host', '0.0.0.0')
 if (saved.ok) {
   log(`resuming saved chain from ${saved.meta.createdAt} (use --fresh to rebuild)`)
+  // Do not mine real-time blocks yet: the saved chain's clock may be days behind (server down, laptop
+  // asleep). market.ts --catchup first replays hourly trading across that gap so charts stay continuous,
+  // then switches 1s block mining on. Without this the gap is skipped and every chart is a flat line.
+  const bt = anvilArgs.indexOf('--block-time')
+  anvilArgs.splice(bt, 2, '--no-mining')
 } else {
   log(`building a new chain: ${saved.why}`)
   rmSync(stateFile, { force: true })
@@ -248,6 +253,18 @@ if (saved.ok) {
   // image ships them with the snapshot and has no compiled contracts to sync from)
   if (!existsSync(join(root, 'packages/sdk/src/generated/abis.ts'))) await run('node', ['packages/sdk/scripts/sync.mjs'], root)
   log('chain ready: resumed saved chain')
+  // Fill the time since the chain last ran, then resume 1s blocks. Never fatal: whatever happens, mining
+  // is switched back on below so the site does not stall on a chain that is not producing blocks.
+  if (historyDays > 0) {
+    await new Promise((done) => {
+      const child = spawn('npx', ['tsx', 'scripts/market.ts', '--catchup'], { cwd: root, env, stdio: 'inherit', shell: process.platform === 'win32' })
+      child.on('exit', (code) => {
+        if (code !== 0) log(`catch-up ended with exit ${code}; continuing`)
+        done()
+      })
+    })
+  }
+  await fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'evm_setIntervalMining', params: [1] }) }).catch(() => {})
 } else {
   const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
   await run('forge', ['build'], contractsDir)

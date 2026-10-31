@@ -85,7 +85,15 @@ function serveStatic(req, res) {
   const url = new URL(req.url ?? '/', 'http://x')
   const safe = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '')
   let file = join(WEB_DIR, safe)
-  if (!file.startsWith(WEB_DIR) || !existsSync(file) || statSync(file).isDirectory()) file = join(WEB_DIR, 'index.html')
+  if (!file.startsWith(WEB_DIR) || !existsSync(file) || statSync(file).isDirectory()) {
+    // a missing script/style/image must be a real 404, not the app shell: a stale tab asking for an old
+    // chunk would otherwise get HTML back and fail with a confusing module-type error
+    if (/^assets[/\\]/.test(safe) || /\.(js|mjs|css|map|png|jpe?g|svg|webp|ico|woff2?)$/i.test(safe)) {
+      res.writeHead(404, { 'content-type': 'text/plain', 'cache-control': 'no-store' })
+      return res.end('Not found')
+    }
+    file = join(WEB_DIR, 'index.html')
+  }
   if (!existsSync(file)) {
     res.writeHead(503, { 'content-type': 'text/plain' })
     return res.end('MetaSwap is starting up — refresh in a minute.')

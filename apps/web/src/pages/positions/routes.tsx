@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { lazyRetry as lazy } from '@/lib/lazyRetry'
 import type { RouteObject } from 'react-router-dom'
 
 // Owned by the positions/launches area (positions: create/add/remove/collect, v2 + v3). Mounted by src/routes.tsx.

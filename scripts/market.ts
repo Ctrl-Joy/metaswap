@@ -52,7 +52,8 @@ import {
   type Deployment,
 } from '../packages/sdk/src/index'
 
-const MODE = process.argv.includes('--live') ? 'live' : process.argv.includes('--normalize') ? 'normalize' : 'history'
+const MODE = process.argv.includes('--live') ? 'live' : process.argv.includes('--normalize') ? 'normalize' : process.argv.includes('--catchup') ? 'catchup' : 'history'
+const CATCHUP_MAX_DAYS = Number(process.env.CATCHUP_MAX_DAYS ?? 45)
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS ?? 30)
 const STEP_SECONDS = Number(process.env.HISTORY_STEP_SECONDS ?? 3600)
 const LIVE_INTERVAL_SECONDS = Number(process.env.LIVE_INTERVAL_SECONDS ?? 20)
@@ -1094,6 +1095,66 @@ async function runHistory(router: Address, weth: Address) {
 }
 
 /**
+ * After a restart the saved chain's clock is behind real time (the server was down or asleep). Replay
+ * hourly trading across that gap, with the chain still not mining, so every chart range has continuous
+ * data up to now instead of a flat line; then hand the clock back to real time and resume 1s blocks.
+ * Launches and Earn are not recreated here (only existing auctions are bid on / settled).
+ */
+async function runCatchup(router: Address, weth: Address) {
+  try {
+    const head = await pub.getBlock()
+    const headTs = Number(head.timestamp)
+    const end = Math.floor(Date.now() / 1000) - 120
+    if (end - (headTs + 60) < STEP_SECONDS) {
+      log(`chain clock is current (${new Date(headTs * 1000).toISOString()}); no catch-up needed`)
+      return
+    }
+    const startTs = Math.max(headTs + 60, end - CATCHUP_MAX_DAYS * 86400)
+    replayEnd = end
+    // Put the chain's own clock at the end of its saved history BEFORE sending anything: the warm-up
+    // transactions below would otherwise be mined at today's real time and the replay could not go back.
+    await rpc('evm_setTime', [startTs])
+    await rpc('evm_setIntervalMining', [0])
+    await rpc('evm_setAutomine', [true])
+    await loadCurrentPrices()
+    if (deployment.contracts.Launchpad) await discoverLaunches(router).catch((e) => log(`launch discovery failed: ${(e as Error).message.split('\n')[0]}`))
+    await topUpTraders(router, weth)
+    await loadCurrentPrices()
+    await demoDiscover().catch(() => {})
+    let t = Math.max(startTs, Number((await pub.getBlock()).timestamp) + 60)
+    const steps = Math.max(0, Math.floor((end - t) / STEP_SECONDS))
+    log(`catching up ${steps} steps of ${STEP_SECONDS}s from ${new Date(t * 1000).toISOString()} to now`)
+    for (let step = 0; step < steps; step++, t += STEP_SECONDS) {
+      stepPrices(STEP_SECONDS / 3600)
+      await rpc('evm_setNextBlockTimestamp', [t])
+      if (step > 0 && step % 24 === 0) await topUpTraders(router, weth)
+      const hashes = await marketStep(router, 2, 6)
+      if (step % 24 === 0) await checkReceipts(hashes)
+      else if (hashes.length) await waitMined(hashes[hashes.length - 1])
+      if (deployment.contracts.Launchpad) {
+        for (const l of live) {
+          if (l.settled) continue
+          const ts = Number((await pub.getBlock()).timestamp)
+          if (ts >= l.endTime) await settleAndClaim(l, router)
+          else await placeBids(l, ts, 0, true)
+        }
+      }
+      if (step % 48 === 0 || step === steps - 1) log(`${new Date(t * 1000).toISOString().slice(0, 16)}  ETH $${usd.WETH.toFixed(0)}  txs ${sent} (failed ${failed})`)
+    }
+  } finally {
+    // always give the chain its real-time clock and 1s blocks back, even if the replay failed
+    try {
+      await rpc('evm_setNextBlockTimestamp', [Math.floor(Date.now() / 1000)])
+      await rpc('evm_mine')
+    } catch {
+      /* keep going: interval mining below still resumes the chain */
+    }
+    await rpc('evm_setAutomine', [false]).catch(() => {})
+    await rpc('evm_setIntervalMining', [1]).catch(() => {})
+  }
+}
+
+/**
  * Start the live walk from the prices the pools hold right now, so nothing jumps. Read on-chain
  * rather than from the API: the indexer may still be backfilling and would report stale prices.
  * ETH comes from the deepest WETH/stable V3 pool; every other token from its V3 pool against WETH
@@ -1176,6 +1237,7 @@ async function main() {
   const router = contractAddress('SwapRouter02')
   const weth = contractAddress('WETH9')
   if (MODE === 'live') await runLive(router, weth)
+  else if (MODE === 'catchup') await runCatchup(router, weth)
   else if (MODE === 'normalize') {
     // existing chain: price from the pools, then give #0–#5 personal portfolios
     await loadCurrentPrices()

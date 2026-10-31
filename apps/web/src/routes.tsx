@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { lazyRetry as lazy } from '@/lib/lazyRetry'
 import { Navigate, type RouteObject } from 'react-router-dom'
 import { exploreRoutes } from '@/pages/explore/routes'
 import { positionsRoutes } from '@/pages/positions/routes'
