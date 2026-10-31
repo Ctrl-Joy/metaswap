@@ -47,7 +47,7 @@ export function PoolsTable({
   const [filtersOpen, setFiltersOpen] = useState(false)
   const addresses = useMemo(() => (pools ?? []).map((p) => p.address), [pools])
   const vol30 = usePools30dVolume(addresses)
-  const v30 = (p: PoolApiRow) => vol30[p.address.toLowerCase()] ?? null
+  const v30 = (p: PoolApiRow) => vol30[(p.address ?? '').toLowerCase()] ?? null
 
   const visible = useMemo(() => {
     const getter: Record<SortKey, (p: PoolApiRow) => number | null> = {

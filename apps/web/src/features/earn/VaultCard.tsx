@@ -7,7 +7,7 @@ import { useTokenPrices } from '@/features/tokens/useTokenList'
 import { isEthVault, useLiveAssets, useVaultChain } from './useVault'
 
 export function assetLabel(v: EarnVault) {
-  return isEthVault(v) ? 'ETH' : v.asset.symbol
+  return isEthVault(v) ? 'ETH' : (v.asset?.symbol ?? v.symbol ?? '?')
 }
 
 /** Live position readout: assets ticking up at the APY between chain reads. */

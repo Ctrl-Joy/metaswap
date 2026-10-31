@@ -38,7 +38,8 @@ export function toInputString(raw: bigint, decimals: number, maxFraction = 8): s
 /** Number value of base units (lossy; for display and USD maths only). */
 export function toNumber(raw: bigint | null | undefined, decimals: number): number {
   if (raw === null || raw === undefined) return 0
-  return Number(formatUnits(raw, decimals))
+  // a token whose decimals are missing or invalid must not crash the page; ERC-20 default is 18
+  return Number(formatUnits(raw, Number.isInteger(decimals) && decimals >= 0 ? decimals : 18))
 }
 
 /** Apply basis points: amount * (10000 ± bps) / 10000. */

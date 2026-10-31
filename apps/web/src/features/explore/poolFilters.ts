@@ -36,7 +36,7 @@ function symbolMatches(symbol: string, q: string): boolean {
 export function poolMatchesQuery(p: PoolApiRow, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
-  if (q.startsWith('0x')) return p.address.toLowerCase().startsWith(q)
+  if (q.startsWith('0x')) return (p.address ?? '').toLowerCase().startsWith(q)
   const a = tokenOf(p.token0).symbol
   const b = tokenOf(p.token1).symbol
   const parts = q.split(/[\s/,-]+/).filter(Boolean)

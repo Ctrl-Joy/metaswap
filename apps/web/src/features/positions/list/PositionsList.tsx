@@ -174,7 +174,7 @@ function TopPoolsTable() {
                   </span>
                   <span className="text-right tabular">{formatUsd(r.tvlUsd, { compact: true })}</span>
                   <span className="hidden text-right tabular md:block">{formatUsd(r.volume24hUsd, { compact: true })}</span>
-                  <span className="hidden text-right tabular md:block">{formatUsd(vol30[r.address.toLowerCase()] ?? null, { compact: true })}</span>
+                  <span className="hidden text-right tabular md:block">{formatUsd(vol30[(r.address ?? '').toLowerCase()] ?? null, { compact: true })}</span>
                   <span className="hidden text-right tabular md:block">{r.tvlUsd ? (r.volume24hUsd / r.tvlUsd).toFixed(2) : '-'}</span>
                   <span className="hidden text-right tabular md:block">{formatPercent(r.apr)}</span>
                 </Link>
@@ -243,7 +243,7 @@ function AccountPositions({ address, status, version }: { address: Address; stat
     <ul className="flex flex-col gap-3" data-testid="positions-list">
       {filtered.map((r) => (
         <li key={r.version === 'v3' ? `v3-${r.tokenId}` : `v2-${r.pair}`}>
-          <PositionCard row={r} pool={detailBy[r.pool.toLowerCase()]} />
+          <PositionCard row={r} pool={detailBy[(r.pool ?? '').toLowerCase()]} />
         </li>
       ))}
     </ul>

@@ -167,7 +167,8 @@ export function usePortfolioHistory(address: Address | undefined, range: Portfol
 export function useEarnVaults() {
   return useQuery({
     queryKey: ['api', 'earn', 'vaults'],
-    queryFn: async ({ signal }) => asList<EarnVault>(await apiGet<unknown>('/earn/vaults', undefined, { signal }), 'vaults'),
+    // a vault record without its address or asset cannot be shown or used; drop it instead of crashing the page
+    queryFn: async ({ signal }) => asList<EarnVault>(await apiGet<unknown>('/earn/vaults', undefined, { signal }), 'vaults').filter((v) => v && v.address && v.asset && v.asset.address),
     refetchInterval: 15_000,
     retry: 0,
   })

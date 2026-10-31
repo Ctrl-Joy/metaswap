@@ -15,7 +15,7 @@ export function hueFrom(s: string): number {
 }
 
 function initial(symbol: string): string {
-  return (symbol.replace(/^m(?=[A-Z])/, '').replace(/^\$/, '')[0] ?? '?').toUpperCase()
+  return ((symbol ?? '').replace(/^m(?=[A-Z])/, '').replace(/^\$/, '')[0] ?? '?').toUpperCase()
 }
 
 /**

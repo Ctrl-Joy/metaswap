@@ -63,7 +63,7 @@ export function useLiveAssets(assets: bigint | undefined, apyPct: number | undef
 
 /** Is this the WETH vault (native ETH helpers available)? */
 export function isEthVault(v: Pick<EarnVault, 'asset'> | undefined): boolean {
-  return !!v && v.asset.symbol === 'WETH'
+  return !!v && v.asset?.symbol === 'WETH'
 }
 
 /** Token for the vault's asset, displayed as ETH for the WETH vault. */

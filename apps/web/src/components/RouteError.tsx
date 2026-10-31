@@ -8,6 +8,9 @@ export default function RouteError() {
   const error = useRouteError()
   const chunk = isChunkLoadError(error)
   useEffect(() => {
+    if (!chunk) console.error('MetaSwap route error:', error)
+  }, [error, chunk])
+  useEffect(() => {
     if (chunk) reloadOnce()
   }, [chunk])
   return (

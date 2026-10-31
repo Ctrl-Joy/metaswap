@@ -23,8 +23,9 @@ export interface Holding {
 export function holdingsFrom(tokens: readonly Token[], balances: Balances, prices: Record<string, number>, hideSmall: boolean): Holding[] {
   return tokens
     .map((token) => {
-      const balance = balances[token.address.toLowerCase()] ?? 0n
-      const price = prices[token.address.toLowerCase()]
+      const key = (token.address ?? '').toLowerCase()
+      const balance = balances[key] ?? 0n
+      const price = prices[key]
       return { token, balance, price, valueUsd: price !== undefined ? toNumber(balance, token.decimals) * price : undefined }
     })
     .filter((h) => h.balance > 0n && (!hideSmall || (h.valueUsd ?? Infinity) >= SMALL_BALANCE_USD))

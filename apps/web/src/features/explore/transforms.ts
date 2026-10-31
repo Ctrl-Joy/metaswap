@@ -221,7 +221,7 @@ export function rangeFrom(range: RangeKey, nowSec: number): number | undefined {
 export function tokenOf(x: ApiToken | string | undefined): { address: string; symbol: string; name: string; decimals?: number; tags: string[] } {
   if (!x) return { address: '', symbol: '?', name: '?', tags: [] }
   if (typeof x === 'string') return { address: x, symbol: x.slice(0, 6), name: x, tags: [] }
-  return { address: x.address, symbol: x.symbol, name: x.name ?? x.symbol, decimals: x.decimals, tags: x.tags ?? [] }
+  return { address: x.address ?? '', symbol: x.symbol ?? '?', name: x.name ?? x.symbol ?? '?', decimals: x.decimals, tags: x.tags ?? [] }
 }
 
 /** Fee in basis points (500 = 0.05%) to a label such as "0.05%". */
@@ -232,7 +232,7 @@ export function feeLabel(fee: number | null | undefined): string | null {
 
 export function poolHasToken(pool: Pick<PoolApiRow, 'token0' | 'token1'>, address: string): boolean {
   const n = address.toLowerCase()
-  return tokenOf(pool.token0).address.toLowerCase() === n || tokenOf(pool.token1).address.toLowerCase() === n
+  return (tokenOf(pool.token0).address ?? '').toLowerCase() === n || (tokenOf(pool.token1).address ?? '').toLowerCase() === n
 }
 
 /** Volume divided by TVL (a ratio, not a percent). Null when TVL is missing or zero. */

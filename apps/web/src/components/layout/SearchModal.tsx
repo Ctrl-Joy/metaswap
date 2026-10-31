@@ -84,8 +84,8 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
     const q = query.trim().toLowerCase()
     return (pools.data ?? [])
       .map((p) => {
-        const t0 = typeof p.token0 === 'string' ? find(p.token0) : find(p.token0.address)
-        const t1 = typeof p.token1 === 'string' ? find(p.token1) : find(p.token1.address)
+        const t0 = typeof p.token0 === 'string' ? find(p.token0) : find(p.token0?.address)
+        const t1 = typeof p.token1 === 'string' ? find(p.token1) : find(p.token1?.address)
         return { p, t0, t1, name: `${t0?.symbol ?? '?'}/${t1?.symbol ?? '?'}` }
       })
       .filter((r) => !q || r.name.toLowerCase().includes(q) || r.p.address.toLowerCase().includes(q) || r.name.toLowerCase().replace(/(^|\/)m(?=[a-z])/g, '$1').includes(q))

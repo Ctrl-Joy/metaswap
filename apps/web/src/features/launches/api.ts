@@ -24,7 +24,7 @@ export function useLaunches(query: LaunchQuery = {}) {
       asList<LaunchRow>(
         await apiGet<unknown>('/launches', { status: query.status, launchpad: query.launchpad, verified: query.verified === undefined ? undefined : String(query.verified), sort: query.sort, q: query.q }, { signal }),
         'launches',
-      ),
+      ).filter((l) => l && l.auction && l.token),
     refetchInterval: liveInterval(REFRESH),
     placeholderData: keepPreviousData,
     retry: 0,
