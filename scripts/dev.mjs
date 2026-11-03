@@ -264,9 +264,10 @@ if (saved.ok) {
   // image ships them with the snapshot and has no compiled contracts to sync from)
   if (!existsSync(join(root, 'packages/sdk/src/generated/abis.ts'))) await run('node', ['packages/sdk/scripts/sync.mjs'], root)
   log('chain ready: resumed saved chain')
-  // Fill the time since the chain last ran, then resume 1s blocks. Never fatal: whatever happens, mining
-  // is switched back on below so the site does not stall on a chain that is not producing blocks.
-  if (historyDays > 0) {
+  // Fill the time since the chain last ran, then resume mining. Never fatal: whatever happens, mining is
+  // switched back on below so the site does not stall on a chain that is not producing blocks. Independent
+  // of HISTORY_DAYS (the hosted image sets that to 0 because it never builds a chain from scratch).
+  if (process.env.CATCHUP !== '0') {
     await new Promise((done) => {
       const child = spawn('npx', ['tsx', 'scripts/market.ts', '--catchup'], { cwd: root, env, stdio: 'inherit', shell: process.platform === 'win32' })
       child.on('exit', (code) => {
