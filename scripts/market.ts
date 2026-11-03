@@ -1088,8 +1088,9 @@ async function runHistory(router: Address, weth: Address) {
   // hand the clock back to real time and resume 1s interval mining
   await rpc('evm_setNextBlockTimestamp', [Math.floor(Date.now() / 1000)])
   await rpc('evm_mine')
-  await rpc('evm_setAutomine', [false])
-  await rpc('evm_setIntervalMining', [1])
+  // mine on demand (a block per transaction): instant confirmations without an empty block every second,
+  // which is what made a long-running chain outgrow the server's memory
+  await rpc('evm_setAutomine', [true])
   log(`done: ${sent} transactions, ${failed} failed (sampled receipts); ${live.length} launches`)
   if (failed > 0) process.exitCode = 1
 }
@@ -1149,8 +1150,7 @@ async function runCatchup(router: Address, weth: Address) {
     } catch {
       /* keep going: interval mining below still resumes the chain */
     }
-    await rpc('evm_setAutomine', [false]).catch(() => {})
-    await rpc('evm_setIntervalMining', [1]).catch(() => {})
+    await rpc('evm_setAutomine', [true]).catch(() => {})
   }
 }
 

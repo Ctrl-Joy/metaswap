@@ -143,7 +143,9 @@ async function ensurePostgres() {
   psql('metaswap', 'CREATE EXTENSION IF NOT EXISTS timescaledb')
 }
 
+let stopping = false
 function shutdown(code = 0) {
+  stopping = true
   if (pgStarted) spawnSync(pgExe('pg_ctl'), ['-D', pgData, '-m', 'fast', 'stop'], { stdio: 'ignore' })
   for (const child of children) {
     if (child.exitCode !== null) continue
@@ -227,22 +229,31 @@ const historyDays = Number(process.env.HISTORY_DAYS ?? 30)
 // --prune-history: keep only recent states in memory and persist none to disk. Without it anvil
 // writes every historical state under ~/.foundry/anvil/tmp — tens of GB for a replayed month plus a
 // live market. Blocks, receipts and logs are kept, which is all the indexer needs.
-const anvilArgs = ['--chain-id', '31337', '--block-time', '1', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512', '--state', stateFile, '--state-interval', stateInterval]
+// No --block-time: anvil mines a block as soon as a transaction arrives (instant confirmations) and
+// produces no empty blocks. An empty block every second grew a long-running chain past the server's memory.
+const anvilArgs = ['--chain-id', '31337', '--accounts', '20', '--balance', '10000', '--port', '8545', '--prune-history', '512', '--state', stateFile, '--state-interval', stateInterval]
 if (lanIp) anvilArgs.push('--host', '0.0.0.0')
 if (saved.ok) {
   log(`resuming saved chain from ${saved.meta.createdAt} (use --fresh to rebuild)`)
   // Do not mine real-time blocks yet: the saved chain's clock may be days behind (server down, laptop
   // asleep). market.ts --catchup first replays hourly trading across that gap so charts stay continuous,
-  // then switches 1s block mining on. Without this the gap is skipped and every chart is a flat line.
-  const bt = anvilArgs.indexOf('--block-time')
-  anvilArgs.splice(bt, 2, '--no-mining')
+  // then turns on-demand mining on. Without this the gap is skipped and every chart is a flat line.
+  anvilArgs.push('--no-mining')
 } else {
   log(`building a new chain: ${saved.why}`)
   rmSync(stateFile, { force: true })
   rmSync(metaFile, { force: true })
   if (historyDays > 0) anvilArgs.push('--timestamp', String(Math.floor(Date.now() / 1000) - historyDays * 86400))
 }
-start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
+const anvilChild = start('anvil', 'anvil', anvilArgs, root, { logFile: join(root, '.dev/anvil.log') })
+// If the chain dies (e.g. killed for memory), stop everything so the container restarts cleanly instead of
+// serving a website whose blockchain is gone.
+anvilChild.on('exit', () => {
+  if (!stopping) {
+    log('anvil stopped unexpectedly; shutting down so the supervisor can restart')
+    shutdown(1)
+  }
+})
 if (!(await rpcReady(saved.ok ? 120_000 : 20_000))) {
   log('anvil did not start')
   shutdown(1)
@@ -264,7 +275,7 @@ if (saved.ok) {
       })
     })
   }
-  await fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'evm_setIntervalMining', params: [1] }) }).catch(() => {})
+  await fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'evm_setAutomine', params: [true] }) }).catch(() => {})
 } else {
   const forgeScript = (file) => ['script', file, '--rpc-url', RPC, '--private-key', DEPLOYER_KEY, '--broadcast', '--slow']
   await run('forge', ['build'], contractsDir)
