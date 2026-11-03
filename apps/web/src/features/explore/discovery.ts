@@ -69,7 +69,7 @@ export function matchesCategory(row: TokenRow, category: TokenCategory, trending
     case 'all':
       return true
     case 'trending':
-      return trending.has(row.address.toLowerCase())
+      return trending.has((row.address ?? '').toLowerCase())
     case 'stablecoins':
       return tokenBadges(row).includes('Stablecoins')
     case 'gainers':
@@ -234,6 +234,6 @@ export function filterAuctions(rows: readonly AuctionRow[], chip: AuctionChip, s
     if (chip === 'launched' && r.status !== 'launched') return false
     if (status !== 'all' && r.status !== status) return false
     if (!q) return true
-    return r.name.toLowerCase().includes(q) || r.symbol.toLowerCase().includes(q)
+    return (r.name ?? '').toLowerCase().includes(q) || (r.symbol ?? '').toLowerCase().includes(q)
   })
 }

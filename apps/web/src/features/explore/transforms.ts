@@ -99,7 +99,7 @@ export function filterTokenRows(rows: readonly TokenRow[], opts: { query?: strin
     if (chip === 'stablecoins' && !isStablecoin(r)) return false
     if (chip === 'wrapped' && !isWrapped(r)) return false
     if (!q) return true
-    return r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.address.toLowerCase().startsWith(q)
+    return (r.symbol ?? '').toLowerCase().includes(q) || (r.name ?? '').toLowerCase().includes(q) || (r.address ?? '').toLowerCase().startsWith(q)
   })
 }
 
@@ -439,7 +439,7 @@ export function exploreStatTiles(s: ExploreStatsRaw | undefined, protocolDeltas:
  */
 export function withNativeEthRow(rows: TokenRow[]): TokenRow[] {
   const native = NATIVE_ADDRESS.toLowerCase()
-  if (rows.some((r) => r.address.toLowerCase() === native)) return rows
+  if (rows.some((r) => (r.address ?? '').toLowerCase() === native)) return rows
   const i = rows.findIndex((r) => r.symbol === 'WETH')
   if (i < 0) return rows
   const weth = rows[i]!

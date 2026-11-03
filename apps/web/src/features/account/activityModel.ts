@@ -207,7 +207,7 @@ export function mergeActivity(local: readonly TrackedTx[], api: readonly Activit
   const indexed = new Set(apiRows.map((r) => r.hash?.toLowerCase()).filter(Boolean) as string[])
   const out: ActivityRowModel[] = []
   for (const t of local) {
-    if (t.status === 'confirmed' && indexed.has(t.hash.toLowerCase())) continue
+    if (t.status === 'confirmed' && indexed.has((t.hash ?? '').toLowerCase())) continue
     out.push(localActivityRow(t))
   }
   const localHashes = new Set(out.map((r) => r.hash?.toLowerCase()))

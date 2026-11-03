@@ -65,7 +65,7 @@ export function TokensTable({
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const trending = useTrendingTokens()
-  const trendingSet = useMemo(() => new Set((trending.data ?? []).map((t) => t.address.toLowerCase())), [trending.data])
+  const trendingSet = useMemo(() => new Set((trending.data ?? []).map((t) => (t.address ?? '').toLowerCase())), [trending.data])
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'volume', dir: 'desc' })
   // Top Gainers sorts by 24h change unless the user picked another column.
   const effectiveSort = category === 'gainers' && sort.key === 'volume' ? { key: 'change24h' as SortKey, dir: 'desc' as SortDir } : sort

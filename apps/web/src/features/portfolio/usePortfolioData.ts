@@ -55,7 +55,7 @@ export function splitHoldings(rows: readonly HoldingRow[], opts: { hideSmall: bo
   const hidden: HiddenRow[] = []
   for (const r of rows) {
     if (r.balance <= 0n) continue
-    if (hiddenSet.has(r.token.address.toLowerCase())) hidden.push({ ...r, reason: 'hidden' })
+    if (hiddenSet.has((r.token.address ?? '').toLowerCase())) hidden.push({ ...r, reason: 'hidden' })
     else if (r.unlisted) hidden.push({ ...r, reason: 'spam' })
     else if (opts.hideSmall && (r.valueUsd ?? Infinity) < SMALL_USD) hidden.push({ ...r, reason: 'small' })
     else visible.push(r)
@@ -151,8 +151,8 @@ export function usePortfolioData(address: Address | undefined): PortfolioData {
     }
     const rows = all
       .map<HoldingRow>((t) => {
-        const balance = chain.balances[t.address.toLowerCase()] ?? 0n
-        const price = prices[t.address.toLowerCase()]
+        const balance = chain.balances[(t.address ?? '').toLowerCase()] ?? 0n
+        const price = prices[(t.address ?? '').toLowerCase()]
         return {
           token: t,
           balance,

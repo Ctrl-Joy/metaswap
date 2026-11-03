@@ -57,7 +57,7 @@ function GeneratedLogo({ seed, symbol }: { seed: string; symbol: string }) {
  */
 export function TokenLogo({ token, size = 36, className, chainBadge }: { token: LogoToken | undefined; size?: number; className?: string; chainBadge?: boolean }) {
   const [failed, setFailed] = useState(false)
-  const src = token?.logoURI ?? (token ? `/tokens/${token.symbol}.svg` : undefined)
+  const src = token?.logoURI || (token?.symbol ? `/tokens/${token.symbol}.svg` : undefined)
   const style = { width: size, height: size }
   if (!token) return <span className={cn('inline-block shrink-0 rounded-full bg-surface-3', className)} style={style} aria-hidden />
   return (
@@ -65,7 +65,7 @@ export function TokenLogo({ token, size = 36, className, chainBadge }: { token: 
       {src && !failed ? (
         <img src={src} alt="" width={size} height={size} className="size-full rounded-full" onError={() => setFailed(true)} draggable={false} />
       ) : (
-        <GeneratedLogo seed={(token.address ?? token.symbol).toLowerCase()} symbol={token.symbol} />
+        <GeneratedLogo seed={String(token.address || token.symbol || '?').toLowerCase()} symbol={token.symbol ?? ''} />
       )}
       {chainBadge && (
         <span className="absolute -right-0.5 -bottom-0.5 rounded-[4px] border-2 border-surface-1 bg-accent-fill" style={{ width: size * 0.38, height: size * 0.38 }} aria-hidden>

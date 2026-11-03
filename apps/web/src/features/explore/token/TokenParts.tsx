@@ -121,7 +121,7 @@ export function TokenAbout({ symbol, address, topPool }: { symbol: string; name?
   const text = tokenDescription(symbol)
   const isNative = !address || address.toLowerCase() === NATIVE_ADDRESS.toLowerCase()
   const launches = useLaunches({})
-  const launch = !isNative ? launches.data?.find((l) => l.token.toLowerCase() === address!.toLowerCase()) : undefined
+  const launch = !isNative ? launches.data?.find((l) => (l.token ?? '').toLowerCase() === address!.toLowerCase()) : undefined
   const detail = useLaunchDetail(launch?.auction)
   const website = detail.data?.website
   const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 text-body-3 font-semibold text-text-1 transition-colors hover:bg-surface-3'

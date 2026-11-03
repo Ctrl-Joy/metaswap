@@ -68,7 +68,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
   // 24h stats by lower-cased address; native ETH mirrors WETH.
   const stats = useMemo(() => {
     const m: Record<string, { change: number | null; fdv: number | null; volume: number | null }> = {}
-    for (const r of tokenStats.data ?? []) m[r.address.toLowerCase()] = { change: r.change24h, fdv: r.fdvUsd, volume: r.volumeUsd }
+    for (const r of tokenStats.data ?? []) m[(r.address ?? '').toLowerCase()] = { change: r.change24h, fdv: r.fdvUsd, volume: r.volumeUsd }
     const weth = all.find((t) => t.symbol === 'WETH')
     if (weth && m[weth.address.toLowerCase()]) m[NATIVE_ETH.address.toLowerCase()] = m[weth.address.toLowerCase()]!
     return m
@@ -88,7 +88,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
         const t1 = typeof p.token1 === 'string' ? find(p.token1) : find(p.token1?.address)
         return { p, t0, t1, name: `${t0?.symbol ?? '?'}/${t1?.symbol ?? '?'}` }
       })
-      .filter((r) => !q || r.name.toLowerCase().includes(q) || r.p.address.toLowerCase().includes(q) || r.name.toLowerCase().replace(/(^|\/)m(?=[a-z])/g, '$1').includes(q))
+      .filter((r) => !q || (r.name ?? '').toLowerCase().includes(q) || (r.p.address ?? '').toLowerCase().includes(q) || (r.name ?? '').toLowerCase().replace(/(^|\/)m(?=[a-z])/g, '$1').includes(q))
       .sort((a, b) => (b.p.volume24hUsd ?? -1) - (a.p.volume24hUsd ?? -1))
       .slice(0, q ? 6 : 3)
   }, [pools.data, query, find])
@@ -97,7 +97,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
   const poolPath = (address: string) => `/explore/pools/${CHAIN_SLUG}/${address}`
 
   const tokenNode = (t: Token) => {
-    const st = stats[t.address.toLowerCase()]
+    const st = stats[(t.address ?? '').toLowerCase()]
     return (
       <>
         <TokenLogo token={t} size={36} />
