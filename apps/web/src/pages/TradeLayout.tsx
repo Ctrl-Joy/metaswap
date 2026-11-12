@@ -43,8 +43,9 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
     <div className="flex flex-col items-center px-4 pt-4 pb-24 md:pt-[60px]">
       <div className={cn('flex w-full flex-col items-center gap-6', showChart && 'lg:max-w-[1200px] lg:flex-row-reverse lg:items-start lg:justify-center')}>
         <div className={cn('w-full shrink-0', wide ? 'max-w-[480px]' : 'max-w-[480px]')}>
-          <div className="mb-0.5 flex h-[46px] items-center justify-between">
-            <nav aria-label={t('Trade')} className="flex items-center gap-3 p-1">
+          <div className="mb-0.5 flex h-[46px] items-center justify-between gap-2">
+            {/* Longer tab names (Spanish, French, Russian…) can outgrow a phone screen: the row then scrolls on its own instead of widening the page. */}
+            <nav aria-label={t('Trade')} className="flex min-w-0 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">
               {TABS.map((tab) => (
                 <NavLink
                   key={tab.to}
@@ -52,7 +53,7 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                   data-testid={`tab-${tab.label.toLowerCase()}`}
                   className={({ isActive }) =>
                     cn(
-                      'flex h-9 items-center rounded-full px-3 text-body-3 leading-4 font-semibold transition-colors duration-150',
+                      'flex h-9 shrink-0 items-center rounded-full px-2.5 text-body-3 leading-4 font-semibold whitespace-nowrap transition-colors duration-150 sm:px-3',
                       isActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1',
                     )
                   }
@@ -61,7 +62,7 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                 </NavLink>
               ))}
             </nav>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {chart && (
                 <IconButton
                   label={chart.open ? t('Hide price chart') : t('Show price chart')}
