@@ -131,6 +131,23 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current)
   }, [])
+  // ArrowDown on the tab opens the menu and moves focus into it. The focus waits for the open
+  // state to render (items only become tabbable then), so a busy first load cannot drop it.
+  const hostRef = useRef<HTMLDivElement>(null)
+  const focusFirst = useRef(false)
+  // The menu can still be computed hidden for a frame or two after it opens, and focus() on a
+  // hidden element silently does nothing, so keep trying for a few frames until it lands.
+  const focusFirstItem = (tries = 12) => {
+    const el = hostRef.current?.querySelector('[role=menuitem]') as HTMLElement | null
+    if (!el) return
+    el.focus()
+    if (document.activeElement !== el && tries > 0) requestAnimationFrame(() => focusFirstItem(tries - 1))
+  }
+  useEffect(() => {
+    if (!open || !focusFirst.current) return
+    focusFirst.current = false
+    focusFirstItem()
+  }, [open])
   const wide = 'wide' in item && item.wide
   const link = (
     <NavLink
@@ -143,9 +160,14 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
         if (!menu) return
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setOpen(true)
-          const host = e.currentTarget.parentElement
-          requestAnimationFrame(() => (host?.querySelector('[role=menuitem]') as HTMLElement | null)?.focus())
+          // Handled here: the menu's own arrow-key handler must not move focus a second time.
+          e.stopPropagation()
+          if (timer.current) clearTimeout(timer.current)
+          if (open) focusFirstItem()
+          else {
+            focusFirst.current = true
+            setOpen(true)
+          }
         } else if (e.key === 'Escape') setOpen(false)
       }}
       className={cn('gn-tab flex h-11 items-center gap-1 rounded-full px-2.5 text-body-1 font-medium', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
@@ -163,6 +185,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
     )
   return (
     <div
+      ref={hostRef}
       data-glass-tab={item.to}
       data-active={active || undefined}
       className={cn('relative', wide && 'hidden xl:block')}
