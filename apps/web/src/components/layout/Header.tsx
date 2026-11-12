@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
+import { Image as ImageIcon, Menu, MoreHorizontal, Search, Moon, Sun, X, Layers, ArrowLeftRight, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
 import { Button, IconButton, Identicon, Popover, Spinner } from '@/components/ui'
@@ -10,6 +10,7 @@ import { usePendingCount } from '@/state/transactions'
 import { useWallet } from '@/wallet/hooks'
 import { shortenAddress } from '@/lib/format'
 import { LogoMark, Wordmark } from './Logo'
+import { ProductMenu } from './ProductMenu'
 import { SearchModal } from './SearchModal'
 import { GlobalPreferences } from './PreferencesMenu'
 import { t } from '@/i18n'
@@ -20,40 +21,36 @@ export const NAV_ITEMS = [
   { to: '/launches', label: 'Launches', match: ['/launches'], beta: true },
   { to: '/positions', label: 'Pool', match: ['/positions'] },
   { to: '/portfolio', label: 'Portfolio', match: ['/portfolio'] },
-  // `wide`: shown inline only from xl (1280px); between lg and xl they are reached from the Trade
-  // and Explore sub-menus and the mobile nav, so the Connect button never overflows the header.
+  // `wide`: not in the desktop bar (Uniswap's bar has only the five items above); reached from the
+  // logo menu on desktop and the "More" section of the phone menu.
   { to: '/metaswapx', label: 'MetaSwapX', match: ['/metaswapx'], wide: true },
   { to: '/metachain', label: 'MetaChain', match: ['/metachain'], wide: true },
 ] as const satisfies ReadonlyArray<{ to: string; label: string; match: readonly string[]; wide?: boolean; beta?: boolean }>
 
 /** Hover / focus sub-menus under the main nav items (Uniswap-style). The top-level item still navigates. */
 export const NAV_MENUS: Record<string, Array<{ to: string; label: string; icon?: React.ReactNode }>> = {
+  // Same items and order as Uniswap's menus; the other products live in the logo menu.
   '/swap': [
     { to: '/swap', label: 'Swap', icon: <ArrowLeftRight size={18} /> },
     { to: '/limit', label: 'Limit', icon: <ChartNoAxesColumn size={18} /> },
     { to: '/send', label: 'Send', icon: <Send size={18} /> },
     { to: '/buy', label: 'Buy', icon: <CreditCard size={18} /> },
-    { to: '/metaswapx', label: 'MetaSwapX', icon: <Zap size={18} /> },
   ],
   '/explore': [
     { to: '/explore/tokens', label: 'Tokens', icon: <Coins size={18} /> },
+    { to: '/explore/auctions', label: 'Auctions', icon: <Gavel size={18} /> },
     { to: '/explore/pools', label: 'Pools', icon: <Droplets size={18} /> },
     { to: '/explore/transactions', label: 'Transactions', icon: <ListOrdered size={18} /> },
-    { to: '/explore/auctions', label: 'Auctions', icon: <Gavel size={18} /> },
-    { to: '/metachain', label: 'MetaChain', icon: <Layers size={18} /> },
-  ],
-  '/launches': [
-    { to: '/launches', label: 'All launches', icon: <Rocket size={18} /> },
-    { to: '/launches/create', label: 'Create launch', icon: <Plus size={18} /> },
   ],
   '/positions': [
     { to: '/positions', label: 'View positions', icon: <Layers size={18} /> },
     { to: '/positions/create', label: 'Create position', icon: <Plus size={18} /> },
-    { to: '/earn', label: 'Earn', icon: <PiggyBank size={18} /> },
+    { to: '/launches/create', label: 'Launch auction', icon: <Rocket size={18} /> },
   ],
   '/portfolio': [
     { to: '/portfolio', label: 'Overview', icon: <LayoutGrid size={18} /> },
     { to: '/portfolio/tokens', label: 'Tokens', icon: <Coins size={18} /> },
+    { to: '/portfolio/nfts', label: 'NFTs', icon: <ImageIcon size={18} /> },
     { to: '/portfolio/activity', label: 'Activity', icon: <Clock size={18} /> },
   ],
 }
@@ -165,11 +162,11 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
       {'beta' in item && item.beta && <BetaBadge />}
     </NavLink>
   )
-  if (!menu) return <div className={cn(wide && 'hidden xl:block')}>{link}</div>
+  if (!menu) return <div className={cn(wide && 'hidden')}>{link}</div>
   return (
     <div
       ref={hostRef}
-      className={cn('relative', wide && 'hidden xl:block')}
+      className={cn('relative', wide && 'hidden')}
       onPointerEnter={(e) => e.pointerType === 'mouse' && show()}
       onPointerLeave={(e) => e.pointerType === 'mouse' && hide()}
       onFocus={show}
@@ -202,7 +199,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
               onClick={() => setOpen(false)}
               className="flex h-12 items-center gap-2 rounded-xl bg-surface-2 px-3 text-body-2 font-semibold text-text-2 transition-colors hover:bg-surface-2-hover hover:text-text-1 focus-visible:text-text-1 focus-visible:outline-none"
             >
-              {m.icon}
+              {item.to === '/swap' && m.icon}
               {t(m.label)}
             </Link>
           ))}
@@ -212,19 +209,9 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
   )
 }
 
-function ProductMenu() {
-  return (
-    <div className="flex items-center">
-      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1" aria-label={t('MetaSwap home')}>
-        <LogoMark size={28} />
-        <Wordmark className="hidden sm:inline" />
-      </Link>
-    </div>
-  )
-}
 
 const THEME_OPTIONS = [
-  { value: 'auto', label: 'Auto (follow system)', icon: <span className="text-body-4 font-semibold">{t('Auto')}</span> },
+  { value: 'auto', label: 'Auto (follow system)', icon: 'auto' },
   { value: 'light', label: 'Light theme', icon: <Sun size={16} /> },
   { value: 'dark', label: 'Dark theme', icon: <Moon size={16} /> },
 ] as const
@@ -245,7 +232,7 @@ export function ThemeToggle() {
           onClick={() => setChoice(o.value)}
           className={cn('inline-flex h-6 min-w-9 items-center justify-center rounded-full px-2 transition-colors', choice === o.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
         >
-          {o.icon}
+          {o.icon === 'auto' ? <span className="text-body-4 font-semibold">{t('Auto')}</span> : o.icon}
         </button>
       ))}
     </div>

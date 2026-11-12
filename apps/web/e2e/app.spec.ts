@@ -72,8 +72,10 @@ test('routes render: 404, explore, positions and metachain', async ({ page }) =>
   await expect(page.getByTestId('positions-gate')).toBeVisible()
   await page.goto('/metachain')
   await expect(page.getByTestId('devnet-specs')).toContainText('31337')
+  // "/" is the plain swap card with no chart, like app.uniswap.org
   await page.goto('/')
-  await expect(page).toHaveURL(/\/swap$/)
+  await expect(page.getByTestId('swap-cta')).toBeVisible()
+  await expect(page.getByTestId('trade-chart')).toHaveCount(0)
 })
 
 test.describe('mobile 375px', () => {

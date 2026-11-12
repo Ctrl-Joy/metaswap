@@ -1,5 +1,5 @@
 import { lazyRetry as lazy } from '@/lib/lazyRetry'
-import { Navigate, type RouteObject } from 'react-router-dom'
+import type { RouteObject } from 'react-router-dom'
 import { exploreRoutes } from '@/pages/explore/routes'
 import { positionsRoutes } from '@/pages/positions/routes'
 import { launchesRoutes } from '@/pages/launches/routes'
@@ -18,10 +18,11 @@ const MetaChainPage = lazy(() => import('@/pages/MetaChainPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 /** Routes rendered without the footer (trade pages keep the swap card alone, ui-ux.md §1.7). */
-export const FOOTERLESS = ['/swap', '/limit', '/send', '/buy']
+export const FOOTERLESS = ['/', '/swap', '/limit', '/send', '/buy']
 
 export const appRoutes: RouteObject[] = [
-  { path: '/', element: <Navigate to="/swap" replace /> },
+  // Home is the plain swap card (no chart until the trend icon is pressed), like app.uniswap.org.
+  { path: '/', element: <SwapPage /> },
   { path: '/swap', element: <SwapPage /> },
   { path: '/limit', element: <LimitPage /> },
   { path: '/send', element: <SendPage /> },

@@ -10,7 +10,10 @@ import { t } from '@/i18n'
 // it loads on demand instead of riding in the first bundle every visitor downloads for /swap.
 const TokenChartPanel = lazyRetry(() => import('@/features/explore/token/TokenChartPanel').then((m) => ({ default: m.TokenChartPanel })))
 
-const KEY = 'metaswap.tradeChart.open'
+// "v2": the chart starts hidden for everyone, including visitors whose browser still remembers an
+// earlier "open" choice. The trend icon next to the settings gear shows it, and the choice is
+// remembered from then on.
+const KEY = 'metaswap.tradeChart.open.v2'
 
 /** Persisted show/hide state of the price chart next to the swap/limit card (default: hidden, like Uniswap). */
 export function useTradeChartOpen(): [boolean, () => void] {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { TrendingUp } from 'lucide-react'
 import { IconButton } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -39,6 +39,8 @@ export interface TradeChartSlot {
  */
 export function TradeLayout({ children, settings = false, below, wide, chart }: { children: ReactNode; settings?: boolean; below?: ReactNode; wide?: boolean; chart?: TradeChartSlot }) {
   const showChart = !!chart?.open
+  // The home page (/) is the swap page, so its Swap tab reads as selected there.
+  const { pathname } = useLocation()
   return (
     <div className="flex flex-col items-center px-4 pt-4 pb-24 md:pt-[60px]">
       <div className={cn('flex w-full flex-col items-center gap-6', showChart && 'lg:max-w-[1200px] lg:flex-row-reverse lg:items-start lg:justify-center')}>
@@ -51,12 +53,13 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                   key={tab.to}
                   to={tab.to}
                   data-testid={`tab-${tab.label.toLowerCase()}`}
-                  className={({ isActive }) =>
-                    cn(
+                  className={({ isActive: routeActive }) => {
+                    const isActive = routeActive || (pathname === '/' && tab.to === '/swap')
+                    return cn(
                       'flex h-9 shrink-0 items-center rounded-full px-2.5 text-body-3 leading-4 font-semibold whitespace-nowrap transition-colors duration-150 sm:px-3',
                       isActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1',
                     )
-                  }
+                  }}
                 >
                   {tabText(tab.label)}
                 </NavLink>
