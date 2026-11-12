@@ -95,7 +95,7 @@ export function PortfolioValue({ address, isDemo, totalUsd, change24hUsd, change
           <TimeChart kind="area" data={data} formatValue={(v) => formatUsd(v, { compact: v >= 100_000 })} onHover={setHover} ariaLabel={t('Portfolio value')} testId="portfolio-value-chart" className="size-full" />
         </ChartFrame>
         {isDemo && (
-          <div className="mt-3 flex items-center justify-between gap-6 rounded-[20px] border border-border bg-surface-1 p-4 py-3 shadow-medium md:absolute md:bottom-[64px] md:left-1/2 md:mt-0 md:-translate-x-1/2 md:justify-start" data-testid="track-portfolio">
+          <div className="fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[900] flex items-center justify-between gap-6 rounded-[20px] border border-border bg-surface-1 p-4 py-3 shadow-large md:inset-x-auto md:bottom-10 md:left-1/2 md:-translate-x-1/2 md:justify-start" data-testid="track-portfolio">
             <span className="text-body-2 text-text-2">{t('Track your portfolio')}</span>
             <Button size="sm" onClick={openConnect} className="h-[37px] rounded-2xl">
               {t('Connect wallet')}
