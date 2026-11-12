@@ -8,6 +8,7 @@ import { DepthChart, LiquidityHistogram } from '../charts/SvgCharts'
 import { usePoolHistory, usePoolTicks } from '../api'
 import { bucketSum, currentPrice, depthCurve, filterRange, liquidityBars, poolSeries, RANGES, RANGE_KEYS, toSeries } from '../transforms'
 import type { PoolDetailApi, RangeKey, SeriesPoint } from '../types'
+import { displayLocale } from '@/lib/displayPrefs'
 
 export type PoolChartTab = 'price' | 'volume' | 'liquidity' | 'depth'
 
@@ -97,7 +98,7 @@ export function PoolChartPanel({
           {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
         </span>
         <span className="text-body-2 leading-5 text-text-2" data-testid="pool-headline-label">
-          {hover ? new Date(hover.time * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}
+          {hover ? new Date(hover.time * 1000).toLocaleString(displayLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : headLabel ?? <Skeleton width={140} height={16} />}
         </span>
       </div>
       <ChartFrame

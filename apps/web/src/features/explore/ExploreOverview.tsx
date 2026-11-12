@@ -7,10 +7,11 @@ import { TimeChart, type HoverInfo } from './charts/TimeChart'
 import { useExploreStatsData } from './api'
 import { exploreStatTiles, toSeries } from './transforms'
 import type { ExploreStatsRaw } from './types'
+import { displayLocale } from '@/lib/displayPrefs'
 
 /** Date label for a chart readout: "Oct 20, 9:10 PM". */
 function dateLabel(sec: number): string {
-  return new Date(sec * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return new Date(sec * 1000).toLocaleString(displayLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 /** Stats strip, measured on Uniswap: 4 cells split by 1px dividers, 12px labels, 20px values, 12px deltas. */

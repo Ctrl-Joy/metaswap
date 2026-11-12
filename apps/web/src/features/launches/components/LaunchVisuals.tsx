@@ -4,17 +4,12 @@ import { Rocket } from 'lucide-react'
 import { hueFrom, Skeleton, TokenLogo } from '@/components/ui'
 import { Sparkline } from '@/features/explore/charts/SvgCharts'
 import { cn } from '@/lib/cn'
+import { formatUsd } from '@/lib/format'
 import { launchpadName, sparkValues, type LaunchRow } from '../types'
 
-const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1, minimumFractionDigits: 1 })
-
-/** Uniswap-style compact USD: $116.2M, $767.4K, $85.20, <$0.01. */
+/** Compact fiat in the display currency: $116.2M, $767.4K, $85.20, <$0.01. */
 export function usdCompact(v: number | null | undefined): string {
-  if (v === null || v === undefined || !Number.isFinite(v)) return '-'
-  if (v === 0) return '$0'
-  if (Math.abs(v) < 0.01) return '<$0.01'
-  if (Math.abs(v) < 1000) return '$' + v.toFixed(2)
-  return '$' + compact.format(v)
+  return formatUsd(v, { compactFrom: 1000 })
 }
 
 /** Stable per-token colour (same hue as the initials fallback logo). */

@@ -10,14 +10,15 @@ import { cn } from '@/lib/cn'
 import { useUi } from '@/state/ui'
 import { ApiError } from '@/lib/errors'
 import { useMask } from './usePortfolioData'
+import { displayLocale } from '@/lib/displayPrefs'
 
 const RANGES: PortfolioRange[] = ['1H', '1D', '1W', '1M', '1Y', 'ALL']
 
 function hoverDate(t: number, range: PortfolioRange): string {
   const d = new Date(t * 1000)
   return range === '1H' || range === '1D'
-    ? d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? d.toLocaleString(displayLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /**

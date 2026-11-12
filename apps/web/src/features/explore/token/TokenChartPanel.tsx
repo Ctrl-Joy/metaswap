@@ -8,6 +8,7 @@ import { TimeChart, type HoverInfo } from '../charts/TimeChart'
 import { useTokenCandles, useTokenPriceLine, useTokenTvlHistory } from '../api'
 import { RANGE_KEYS, RANGES, bucketSum, changeOver, filterRange } from '../transforms'
 import type { CandlePoint, RangeKey, SeriesPoint } from '../types'
+import { displayLocale } from '@/lib/displayPrefs'
 
 export type TokenChartMode = 'price' | 'volume' | 'tvl'
 type ChartType = 'line' | 'candles'
@@ -24,8 +25,8 @@ function rangeWindowLabel(range: RangeKey): string {
 
 function timeLabel(sec: number, range: RangeKey): string {
   const d = new Date(sec * 1000)
-  if (range === '1Y' || range === 'ALL' || range === '1M') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  if (range === '1Y' || range === 'ALL' || range === '1M') return d.toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric', year: 'numeric' })
+  return d.toLocaleString(displayLocale(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 /**

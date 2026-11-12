@@ -12,8 +12,9 @@ import { PoolChartPanel } from '@/features/explore/pool/PoolChartPanel'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
 import { balanceShares, feeLabel, tokenOf, volumeOverTvl } from '@/features/explore/transforms'
 import { poolFieldDelta } from '@/features/explore/poolFilters'
+import { displayLocale } from '@/lib/displayPrefs'
 
-const compactAmt = (v: number | null | undefined) => (v === null || v === undefined ? '-' : new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v))
+const compactAmt = (v: number | null | undefined) => (v === null || v === undefined ? '-' : new Intl.NumberFormat(displayLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(v))
 
 /**
  * Pool detail, laid out from Uniswap's pool page (docs/analysis/measured/pool-ethusdc): breadcrumb,
@@ -201,7 +202,7 @@ function Stat({ label, value, loading, delta, testId }: { label: string; value: 
             <span aria-hidden className={cn('text-[0.6em]', delta > 0 ? 'text-success' : delta < 0 ? 'text-critical' : 'text-text-3')}>
               {delta < 0 ? '▼' : '▲'}
             </span>
-            {Math.abs(delta).toLocaleString('en-US', { maximumFractionDigits: 2 })}%
+            {Math.abs(delta).toLocaleString(displayLocale(), { maximumFractionDigits: 2 })}%
           </span>
         )}
       </span>

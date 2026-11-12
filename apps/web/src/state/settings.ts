@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { persistStorage } from '@/lib/storage'
+import { DEFAULT_CURRENCY, DEFAULT_LOCALE, setDisplayPrefs } from '@/lib/displayPrefs'
 
 /** Resolved theme applied to <html data-theme>. */
 export type ThemePref = 'dark' | 'light'
@@ -42,6 +43,12 @@ export interface SettingsState {
   /** Prefer MetaSwapX (gasless intent orders) when available. */
   xGasless: boolean
   hideSmallBalances: boolean
+  /** Display currency for fiat values (ISO 4217, converted from USD at fixed indicative rates). */
+  currency: string
+  /** Locale for number and date formatting (BCP 47). */
+  language: string
+  setCurrency: (code: string) => void
+  setLanguage: (code: string) => void
   /** Mask USD values / balances on the portfolio (eye toggle). */
   hideBalances: boolean
   setHideBalances: (on: boolean) => void
@@ -73,6 +80,16 @@ export const useSettings = create<SettingsState>()(
       routeV3: true,
       xGasless: false,
       hideSmallBalances: false,
+      currency: DEFAULT_CURRENCY,
+      language: DEFAULT_LOCALE,
+      setCurrency: (currency) => {
+        setDisplayPrefs({ currency })
+        set({ currency })
+      },
+      setLanguage: (language) => {
+        setDisplayPrefs({ locale: language })
+        set({ language })
+      },
       hideBalances: false,
       setHideBalances: (hideBalances) => set({ hideBalances }),
       setTheme: (theme) => set({ theme, themeChoice: theme }),
@@ -92,6 +109,10 @@ export const useSettings = create<SettingsState>()(
       name: 'metaswap.settings',
       storage: persistStorage,
       version: 2,
+      // Formatting helpers read the display choice outside React; hand them the saved one on load.
+      onRehydrateStorage: () => (state) => {
+        if (state) setDisplayPrefs({ currency: state.currency, locale: state.language })
+      },
       // v1 stored only the resolved theme: keep it as an explicit choice.
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<SettingsState>

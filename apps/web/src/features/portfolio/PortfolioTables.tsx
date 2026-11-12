@@ -12,6 +12,7 @@ import { toNumber } from '@/lib/amount'
 import { cn } from '@/lib/cn'
 import { CHAIN_SLUG } from '@/config'
 import { useMask, type HiddenRow, type HoldingRow } from './usePortfolioData'
+import { displayLocale } from '@/lib/displayPrefs'
 
 export function SectionHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
   return <PfSectionHeader title={title} subtitle={subtitle} right={right} />
@@ -40,7 +41,7 @@ function PnlPct({ pct }: { pct: number }) {
       <span aria-hidden className={cn('text-[0.7em]', r > 0 ? 'text-success' : r < 0 ? 'text-critical' : 'text-text-3')}>
         {r < 0 ? '▼' : '▲'}
       </span>
-      {Math.abs(r).toLocaleString('en-US', { maximumFractionDigits: 2 })}%
+      {Math.abs(r).toLocaleString(displayLocale(), { maximumFractionDigits: 2 })}%
     </span>
   )
 }

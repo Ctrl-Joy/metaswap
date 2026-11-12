@@ -10,6 +10,7 @@ import { formatUsd } from '@/lib/format'
 import { searchTokens } from '@/features/tokens/tokenSearch'
 import { cn } from '@/lib/cn'
 import { usePortfolioContext } from './PortfolioLayout'
+import { displayLocale } from '@/lib/displayPrefs'
 
 /** Tokens tab: total + "▲ change • n tokens", search, full table (Avg cost, 1D change, Allocation), hidden tokens. */
 export function TokensPage() {
@@ -81,7 +82,7 @@ const TYPE_OPTIONS = (Object.keys(TYPE_FILTERS) as TypeFilter[]).map((k) => ({ v
 const TIME_OPTIONS = (Object.keys(TIME_FILTERS) as TimeFilter[]).map((k) => ({ value: k, label: TIME_FILTERS[k].label, testId: `activity-time-${k}` }))
 
 function shortDate(ms: number): string {
-  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(ms).toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric' })
 }
 
 /** Activity tab: "All types" / "All time" dropdowns + search; Time · Type · Amount · Address table. */

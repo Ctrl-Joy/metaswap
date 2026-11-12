@@ -4,6 +4,7 @@ import * as RPopover from '@radix-ui/react-popover'
 import { AlertTriangle, Check, Copy, Info, OctagonAlert, CircleCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatUsd, formatAmount } from '@/lib/format'
+import { displayLocale } from '@/lib/displayPrefs'
 
 /* ---------------------------------------------------------------- Skeleton */
 
@@ -180,7 +181,7 @@ export function UnderlineTabs<T extends string>({ items, value, onChange, classN
 
 /** Percent text without trailing zeros ("1.5%", "12%"), like Uniswap. */
 export function trimPercent(abs: number, digits = 2): string {
-  return `${Number(abs.toFixed(digits)).toLocaleString('en-US', { maximumFractionDigits: digits })}%`
+  return `${Number(abs.toFixed(digits)).toLocaleString(displayLocale(), { maximumFractionDigits: digits })}%`
 }
 
 /** Signed percent with filled ▲/▼ and success/critical colour; exactly 0 reads a neutral "0%". */

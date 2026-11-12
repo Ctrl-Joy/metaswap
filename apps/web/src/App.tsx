@@ -45,6 +45,9 @@ function PageFallback() {
 export function Shell() {
   const { pathname } = useLocation()
   const showFooter = !FOOTERLESS.includes(pathname)
+  // Money, numbers and dates are formatted during render from the display preferences, so the page
+  // re-renders from scratch when they change (cached data is kept; nothing is refetched).
+  const displayKey = useSettings((s) => `${s.currency}:${s.language}`)
   return (
     <div className="flex min-h-dvh flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[2000] focus:rounded-lg focus:bg-surface-1 focus:px-3 focus:py-2">
@@ -53,12 +56,12 @@ export function Shell() {
       <Header />
       <StatusBanners />
       {/* At least one screen tall, so the footer starts below the fold and does not jump while a page loads. */}
-      <main id="main" className="min-h-[calc(100dvh-72px)] flex-1">
+      <main id="main" key={`main:${displayKey}`} className="min-h-[calc(100dvh-72px)] flex-1">
         <Suspense fallback={<PageFallback />}>
           <Outlet />
         </Suspense>
       </main>
-      {showFooter && <Footer />}
+      {showFooter && <Footer key={`footer:${displayKey}`} />}
       <ConnectModal />
       <AccountDrawer />
       <Toaster />

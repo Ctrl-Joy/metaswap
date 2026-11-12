@@ -5,6 +5,7 @@ import type { EarnPosition, EarnVault } from '@/api/types'
 import { formatAmount, formatUsd } from '@/lib/format'
 import { useTokenPrices } from '@/features/tokens/useTokenList'
 import { isEthVault, useLiveAssets, useVaultChain } from './useVault'
+import { displayLocale } from '@/lib/displayPrefs'
 
 export function assetLabel(v: EarnVault) {
   return isEthVault(v) ? 'ETH' : (v.asset?.symbol ?? v.symbol ?? '?')
@@ -24,7 +25,7 @@ export function LivePosition({ vault, account, position, size = 'md' }: { vault:
   return (
     <span className="flex flex-col" data-testid={`earn-position-${vault.symbol}`}>
       <span className={size === 'lg' ? 'text-heading-3 font-semibold tabular' : 'text-body-2 font-semibold tabular'}>
-        {amount.toLocaleString('en-US', { maximumFractionDigits: vault.asset.decimals > 8 ? 8 : 6, minimumFractionDigits: vault.asset.decimals > 8 ? 8 : 6 })} {assetLabel(vault)}
+        {amount.toLocaleString(displayLocale(), { maximumFractionDigits: vault.asset.decimals > 8 ? 8 : 6, minimumFractionDigits: vault.asset.decimals > 8 ? 8 : 6 })} {assetLabel(vault)}
       </span>
       <span className="text-body-4 text-text-2 tabular">
         {price !== undefined ? formatUsd(amount * price) : ''}

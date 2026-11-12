@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ChevronRight, Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
+import { Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
-import { Button, IconButton, Identicon, Popover, Spinner, Switch } from '@/components/ui'
+import { Button, IconButton, Identicon, Popover, Spinner } from '@/components/ui'
 import { useUi } from '@/state/ui'
 import { useSettings } from '@/state/settings'
 import { usePendingCount } from '@/state/transactions'
@@ -11,6 +11,7 @@ import { useWallet } from '@/wallet/hooks'
 import { shortenAddress } from '@/lib/format'
 import { LogoMark, Wordmark } from './Logo'
 import { SearchModal } from './SearchModal'
+import { GlobalPreferences } from './PreferencesMenu'
 
 export const NAV_ITEMS = [
   { to: '/swap', label: 'Trade', match: ['/swap', '/limit', '/send', '/buy'] },
@@ -227,30 +228,8 @@ export function ThemeToggle() {
   )
 }
 
-function PrefRow({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) {
-  return (
-    <div className="flex min-h-9 items-center justify-between gap-3" data-testid={testId}>
-      <span className="text-body-2 text-text-2">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-/** Single-option row (Language, Currency): value + chevron like Uniswap; the devnet build has one option. */
-function ChoiceRow({ label, value, hint, testId }: { label: string; value: string; hint: string; testId: string }) {
-  return (
-    <PrefRow label={label} testId={testId}>
-      <span className="inline-flex items-center gap-1 text-body-2 font-semibold text-text-1" title={hint}>
-        {value} <ChevronRight size={20} className="text-text-2" aria-hidden />
-      </span>
-    </PrefRow>
-  )
-}
-
 /** "⋯" Global preferences (Uniswap: 325px, radius 16, 12/4/12/16 padding; Theme · Language · Currency). */
 function MoreMenu() {
-  const hide = useSettings((s) => s.hideSmallBalances)
-  const setHide = useSettings((s) => s.setHideSmallBalances)
   return (
     <Popover
       className="w-[325px] border-surface-2 py-3 pr-1 pl-4"
@@ -260,17 +239,7 @@ function MoreMenu() {
         </IconButton>
       }
     >
-      <div className="pt-2 pb-2 text-body-1 font-medium">Global preferences</div>
-      <div className="flex flex-col gap-1 pr-2" data-testid="global-preferences">
-        <PrefRow label="Theme" testId="pref-theme">
-          <ThemeToggle />
-        </PrefRow>
-        <ChoiceRow label="Language" value="English" hint="Only English is available on the devnet build" testId="pref-language" />
-        <ChoiceRow label="Currency" value="USD" hint="Prices are quoted in USD on the devnet build" testId="pref-currency" />
-        <PrefRow label="Hide small balances">
-          <Switch checked={hide} onChange={setHide} label="Hide small balances" testId="pref-hide-small" />
-        </PrefRow>
-      </div>
+      <GlobalPreferences themeControl={<ThemeToggle />} />
     </Popover>
   )
 }

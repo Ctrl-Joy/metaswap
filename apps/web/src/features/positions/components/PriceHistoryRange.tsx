@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { SegmentedTabs, Skeleton } from '@/components/ui'
 import { usePoolHistory } from '@/features/explore/api'
 import { formatSubscript, formatAmount } from '@/lib/format'
+import { displayLocale } from '@/lib/displayPrefs'
 
 const HEIGHT = 150
 const PAD = { l: 8, r: 64, t: 8, b: 20 }
@@ -114,7 +115,7 @@ export function PriceHistoryRange({ poolAddress, invert, current, minPrice, maxP
               })}
             {[t0, (t0 + t1) / 2, t1].map((t, i) => (
               <text key={i} x={x(t)} y={HEIGHT - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'} className="fill-text-3 text-[11px]">
-                {new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(t * 1000).toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric' })}
               </text>
             ))}
           </svg>
