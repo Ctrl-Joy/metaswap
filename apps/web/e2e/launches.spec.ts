@@ -101,11 +101,16 @@ test.describe.serial('launches on a live chain', () => {
     // wait for the chain to pass endTime (real time on the shared stack)
     await eventually(async () => (await pub.readContract({ address: auction!, abi: auctionAbi, functionName: 'status' })) === 2, 200_000)
     await connectDevWallet(page, 4, `${BASE}/launches/${auction}`)
-    await page.getByTestId('auction-settle').click()
-    const settle = page.getByTestId('settle-modal')
-    await settle.getByTestId('settle-modal-confirm').click()
-    await expect(settle.getByTestId('settle-modal-success')).toBeVisible({ timeout: 60_000 })
-    await settle.getByTestId('settle-modal-close').click()
+    // The live market simulator also settles ended auctions, so it may get there first: settle
+    // through the UI only if the auction is still waiting for it.
+    await expect(page.getByTestId('auction-settle').or(page.getByTestId('auction-claim')).first()).toBeVisible({ timeout: 30_000 })
+    if (await page.getByTestId('auction-settle').isVisible()) {
+      await page.getByTestId('auction-settle').click()
+      const settle = page.getByTestId('settle-modal')
+      await settle.getByTestId('settle-modal-confirm').click()
+      await expect(settle.getByTestId('settle-modal-success')).toBeVisible({ timeout: 60_000 })
+      await settle.getByTestId('settle-modal-close').click()
+    }
     expect(await pub.readContract({ address: auction!, abi: auctionAbi, functionName: 'status' })).toBe(3) // Launched
     const pool = await pub.readContract({ address: auction!, abi: auctionAbi, functionName: 'pool' })
     expect(pool).not.toBe(zeroAddress)

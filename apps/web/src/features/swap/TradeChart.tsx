@@ -1,9 +1,13 @@
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { NATIVE_ADDRESS, type Token } from '@metaswap/sdk'
 import { Card, Skeleton, TokenLogo } from '@/components/ui'
 import { safeStorage } from '@/lib/storage'
 import { useTokenDetail } from '@/features/explore/api'
-import { TokenChartPanel } from '@/features/explore/token/TokenChartPanel'
+import { lazyRetry } from '@/lib/lazyRetry'
+
+// The chart (and the charting library behind it) is only needed once the trend icon is pressed, so
+// it loads on demand instead of riding in the first bundle every visitor downloads for /swap.
+const TokenChartPanel = lazyRetry(() => import('@/features/explore/token/TokenChartPanel').then((m) => ({ default: m.TokenChartPanel })))
 
 const KEY = 'metaswap.tradeChart.open'
 
@@ -44,7 +48,9 @@ export function TradeChart({ token }: { token: Token | undefined }) {
             <span className="truncate text-body-3 text-text-2">{token.name}</span>
           </div>
           {d ? (
-            <TokenChartPanel key={address} address={address!} symbol={token.symbol} latestPriceUsd={d.priceUsd} apiChange24h={d.change24h} />
+            <Suspense fallback={<Skeleton width="100%" height={360} rounded="lg" />}>
+              <TokenChartPanel key={address} address={address!} symbol={token.symbol} latestPriceUsd={d.priceUsd} apiChange24h={d.change24h} />
+            </Suspense>
           ) : detail.isError ? (
             <p className="py-16 text-center text-body-2 text-text-2" data-testid="trade-chart-unavailable">
               Chart unavailable

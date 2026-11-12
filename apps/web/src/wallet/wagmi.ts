@@ -28,7 +28,7 @@ if (WALLETCONNECT_PROJECT_ID) {
     }),
   )
 }
-connectors.push(coinbaseWallet({ appName: 'MetaSwap', preference: { options: 'all' } }))
+connectors.push(coinbaseWallet({ appName: 'MetaSwap', preference: { options: 'all', telemetry: false } }))
 // Dev wallets only make sense on the local Anvil chain.
 if (devnet.id === 31337) {
   for (let i = 0; i < DEV_WALLET_COUNT; i++) connectors.push(devWallet(i))
