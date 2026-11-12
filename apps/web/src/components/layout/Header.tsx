@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
+import { Compass, Menu, MoreHorizontal, Search, Moon, Sun, Wallet, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
 import { Button, IconButton, Identicon, Popover, Spinner } from '@/components/ui'
@@ -11,7 +11,19 @@ import { useWallet } from '@/wallet/hooks'
 import { shortenAddress } from '@/lib/format'
 import { LogoMark, Wordmark } from './Logo'
 import { SearchModal } from './SearchModal'
+import { GlassNav } from './GlassNav'
 import { GlobalPreferences } from './PreferencesMenu'
+
+/** Icon shown in each main-nav tab, keyed by the tab's route. */
+const TAB_ICONS: Record<string, React.ReactNode> = {
+  '/swap': <ArrowLeftRight size={15} />,
+  '/explore': <Compass size={15} />,
+  '/launches': <Rocket size={15} />,
+  '/positions': <Droplets size={15} />,
+  '/portfolio': <Wallet size={15} />,
+  '/metaswapx': <Zap size={15} />,
+  '/metachain': <Layers size={15} />,
+}
 
 export const NAV_ITEMS = [
   { to: '/swap', label: 'Trade', match: ['/swap', '/limit', '/send', '/buy'] },
@@ -77,11 +89,11 @@ export function Header() {
           <Menu size={22} />
         </IconButton>
         <ProductMenu />
-        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 lg:flex">
+        <GlassNav activeTo={NAV_ITEMS.find((item) => isActive(item.match))?.to ?? null}>
           {NAV_ITEMS.map((item) => (
             <NavItem key={item.to} item={item} active={isActive(item.match)} />
           ))}
-        </nav>
+        </GlassNav>
         <div className="ml-auto flex items-center gap-1">
           <IconButton label="Search tokens and pools" onClick={() => setSearchOpen(true)} data-testid="search-button">
             <Search size={20} />
@@ -136,15 +148,23 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
           requestAnimationFrame(() => (host?.querySelector('[role=menuitem]') as HTMLElement | null)?.focus())
         } else if (e.key === 'Escape') setOpen(false)
       }}
-      className={cn('block rounded-xl px-3 py-2 text-body-1 font-medium transition-colors', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
+      className={cn('gn-tab flex h-11 items-center gap-1 rounded-full px-2.5 text-body-1 font-medium', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
     >
-      {item.label}
+      <span className="gn-icon flex shrink-0" aria-hidden>{TAB_ICONS[item.to]}</span>
+      <span className="gn-label">{item.label}</span>
       {'beta' in item && item.beta && <BetaBadge />}
     </NavLink>
   )
-  if (!menu) return <div className={cn(wide && 'hidden xl:block')}>{link}</div>
+  if (!menu)
+    return (
+      <div data-glass-tab={item.to} data-active={active || undefined} className={cn(wide && 'hidden xl:block')}>
+        {link}
+      </div>
+    )
   return (
     <div
+      data-glass-tab={item.to}
+      data-active={active || undefined}
       className={cn('relative', wide && 'hidden xl:block')}
       onPointerEnter={(e) => e.pointerType === 'mouse' && show()}
       onPointerLeave={(e) => e.pointerType === 'mouse' && hide()}
@@ -227,6 +247,7 @@ export function ThemeToggle() {
     </div>
   )
 }
+
 
 /** "⋯" Global preferences (Uniswap: 325px, radius 16, 12/4/12/16 padding; Theme · Language · Currency). */
 function MoreMenu() {
