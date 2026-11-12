@@ -13,7 +13,7 @@ test.describe('portfolio', () => {
     await page.goto('/portfolio')
     await expect(page.getByTestId('portfolio-gate')).toContainText('Connect a wallet')
     await expect(page.getByTestId('demo-label')).toHaveText('Demo wallet')
-    await expect(page.getByTestId('track-portfolio')).toBeVisible()
+    await expect(page.getByTestId('track-portfolio')).toHaveCount(0)
     // demo wallet (Anvil #1) holds seed tokens → non-zero total and token rows
     await expect(page.getByTestId('portfolio-total')).toContainText('$', { timeout: 30_000 })
     await expect(page.getByTestId('portfolio-tokens').locator('tr').first()).toBeVisible()

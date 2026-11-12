@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ChevronDown, Check } from 'lucide-react'
-import { Button, LiveNumber, Popover, Skeleton } from '@/components/ui'
+import { LiveNumber, Popover, Skeleton } from '@/components/ui'
 import { usePortfolioHistory, type PortfolioRange } from '@/api/hooks'
 import { TimeChart, type HoverInfo } from '@/features/explore/charts/TimeChart'
 import { ChartFrame } from '@/features/explore/charts/ChartFrame'
 import { formatUsd, fixedNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import { useUi } from '@/state/ui'
 import { ApiError } from '@/lib/errors'
 import { useMask } from './usePortfolioData'
 import { displayLocale } from '@/lib/displayPrefs'
@@ -24,10 +23,10 @@ function hoverDate(t: number, range: PortfolioRange): string {
 
 /**
  * Big total + today's change, and the portfolio value chart (the explore area's TimeChart, trend-coloured area).
- * Hovering the chart moves the headline to the hovered value/date. Demo mode adds the
- * "Track your portfolio / Connect wallet" overlay (ui reference: stage5/portfolio.webp).
+ * Hovering the chart moves the headline to the hovered value/date. (`isDemo` is accepted for the
+ * callers; the signed-out connect prompt is the banner at the top of the page.)
  */
-export function PortfolioValue({ address, isDemo, totalUsd, change24hUsd, change24hPct, loading, range: rangeProp, onRangeChange }: {
+export function PortfolioValue({ address, totalUsd, change24hUsd, change24hPct, loading, range: rangeProp, onRangeChange }: {
   range?: PortfolioRange
   onRangeChange?: (r: PortfolioRange) => void
   address: Address | undefined
@@ -42,7 +41,6 @@ export function PortfolioValue({ address, isDemo, totalUsd, change24hUsd, change
   const setRange = onRangeChange ?? setOwnRange
   const [hover, setHover] = useState<HoverInfo | null>(null)
   const history = usePortfolioHistory(address, range)
-  const openConnect = useUi((s) => s.openConnect)
   const mask = useMask()
   const data = useMemo(() => (history.data ?? []).map((p) => ({ time: p.time, value: p.valueUsd })).filter((p) => Number.isFinite(p.value)), [history.data])
   const first = data[0]?.value
@@ -94,14 +92,6 @@ export function PortfolioValue({ address, isDemo, totalUsd, change24hUsd, change
         >
           <TimeChart kind="area" data={data} formatValue={(v) => formatUsd(v, { compact: v >= 100_000 })} onHover={setHover} ariaLabel={t('Portfolio value')} testId="portfolio-value-chart" className="size-full" />
         </ChartFrame>
-        {isDemo && (
-          <div className="fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[900] flex items-center justify-between gap-6 rounded-[20px] border border-border bg-surface-1 p-4 py-3 shadow-large md:inset-x-auto md:bottom-10 md:left-1/2 md:-translate-x-1/2 md:justify-start" data-testid="track-portfolio">
-            <span className="text-body-2 text-text-2">{t('Track your portfolio')}</span>
-            <Button size="sm" onClick={openConnect} className="h-[37px] rounded-2xl">
-              {t('Connect wallet')}
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   )
