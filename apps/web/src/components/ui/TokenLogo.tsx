@@ -52,18 +52,25 @@ function GeneratedLogo({ seed, symbol }: { seed: string; symbol: string }) {
 }
 
 /**
+ * Logo URLs that already failed to load in this tab. Freshly launched tokens have no artwork, and
+ * the same token is drawn in many rows and cards; remembering the miss means one failed request
+ * per token instead of one per place it appears, and no flash of a broken image.
+ */
+const missingLogos = new Set<string>()
+
+/**
  * Token logo: `/tokens/<SYMBOL>.svg` (generated, see scripts/gen-token-logos.mjs) with a
  * coloured-initials fallback for imported tokens. Optional chain badge (bottom-right).
  */
 export function TokenLogo({ token, size = 36, className, chainBadge }: { token: LogoToken | undefined; size?: number; className?: string; chainBadge?: boolean }) {
-  const [failed, setFailed] = useState(false)
   const src = token?.logoURI || (token?.symbol ? `/tokens/${token.symbol}.svg` : undefined)
+  const [failed, setFailed] = useState(() => !!src && missingLogos.has(src))
   const style = { width: size, height: size }
   if (!token) return <span className={cn('inline-block shrink-0 rounded-full bg-surface-3', className)} style={style} aria-hidden />
   return (
     <span className={cn('relative inline-flex shrink-0', className)} style={style}>
       {src && !failed ? (
-        <img src={src} alt="" width={size} height={size} className="size-full rounded-full" onError={() => setFailed(true)} draggable={false} />
+        <img src={src} alt="" width={size} height={size} className="size-full rounded-full" loading="lazy" decoding="async" onError={() => { missingLogos.add(src); setFailed(true) }} draggable={false} />
       ) : (
         <GeneratedLogo seed={String(token.address || token.symbol || '?').toLowerCase()} symbol={token.symbol ?? ''} />
       )}

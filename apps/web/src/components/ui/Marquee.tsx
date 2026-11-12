@@ -5,8 +5,14 @@ import { cn } from '@/lib/cn'
 import { PercentChange } from './misc'
 import { TokenLogo } from './TokenLogo'
 
+/**
+ * True when the strip should not move by itself: the user asked for reduced motion, or the device
+ * is touch-first. On a phone a strip that scrolls on every frame costs battery and frame rate and
+ * fights the finger, so there it is a plain swipeable row.
+ */
+const STILL_QUERY = '(prefers-reduced-motion: reduce), (pointer: coarse)'
 function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  return typeof window !== 'undefined' && !!window.matchMedia?.(STILL_QUERY).matches
 }
 
 export interface MarqueeProps {
@@ -49,7 +55,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
   const animate = speed > 0 && !reduced && items.length > 1
 
   useEffect(() => {
-    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    const mq = window.matchMedia?.(STILL_QUERY)
     if (!mq) return
     const on = () => setReduced(mq.matches)
     mq.addEventListener('change', on)
@@ -61,15 +67,28 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
     let raf = 0
     let last = performance.now()
     let carry = 0
+    // Sizes are measured when they change, not on every frame, and the loop sleeps while the strip
+    // is off screen or the tab is hidden.
+    let loop = 0
+    let viewport = 0
+    let visible = true
+    const measure = () => {
+      loop = (firstSet.current?.offsetWidth ?? 0) + gap
+      viewport = ref.current?.clientWidth ?? 0
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ref.current) ro?.observe(ref.current)
+    if (firstSet.current) ro?.observe(firstSet.current)
+    const io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => { visible = entries.some((e) => e.isIntersecting) }) : null
+    if (ref.current) io?.observe(ref.current)
     const tick = (now: number) => {
       const el = ref.current
-      const set = firstSet.current
       const dt = Math.min(64, now - last)
       last = now
-      if (el && set && !paused.current && now >= resumeAt.current) {
-        const loop = set.offsetWidth + gap
+      if (el && visible && !document.hidden && !paused.current && now >= resumeAt.current) {
         // Only loop when the content overflows the viewport.
-        if (loop > el.clientWidth) {
+        if (loop > viewport) {
           carry += (speed * dt) / 1000
           const whole = Math.floor(carry)
           if (whole > 0) {
@@ -82,7 +101,11 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+      io?.disconnect()
+    }
   }, [animate, speed, gap])
 
   const nudge = (dir: 1 | -1) => {
@@ -120,7 +143,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
         }}
         className={cn('flex overflow-x-auto overscroll-x-contain [scrollbar-width:none] focus-visible:outline-offset-4 [&::-webkit-scrollbar]:hidden', !animate && 'snap-x')}
         style={
-          fade
+          fade && animate
             ? { maskImage: 'linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)', WebkitMaskImage: 'linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)' }
             : undefined
         }
@@ -144,7 +167,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
             type="button"
             aria-label="Scroll left"
             onClick={() => nudge(-1)}
-            className="absolute top-1/2 left-1 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
+            className="absolute top-1/2 left-1 flex size-8 -translate-y-1/2 [@media(pointer:coarse)]:hidden items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
           >
             <ChevronLeft size={16} />
           </button>
@@ -152,7 +175,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
             type="button"
             aria-label="Scroll right"
             onClick={() => nudge(1)}
-            className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
+            className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 [@media(pointer:coarse)]:hidden items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
           >
             <ChevronRight size={16} />
           </button>
@@ -188,7 +211,6 @@ export function ChartCard({ to, token, title, subtitle, chart, primary, changePc
       to={to}
       data-testid={testId}
       className="relative flex h-[108px] w-[280px] shrink-0 flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface-1 p-3.5 transition-colors hover:bg-surface-1-hover md:w-[300px]"
-      style={{ backgroundImage: 'radial-gradient(120% 90% at 100% 0%, var(--ms-surface-2) 0%, transparent 60%)' }}
     >
       <div className="flex items-start gap-2.5">
         <TokenLogo token={token} size={36} chainBadge />

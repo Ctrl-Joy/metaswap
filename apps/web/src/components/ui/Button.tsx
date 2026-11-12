@@ -17,7 +17,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 }
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-body-3 gap-1.5 rounded-full',
+  sm: 'h-8 px-3 text-body-3 gap-1.5 rounded-full touch:h-10 touch:px-4',
   md: 'h-10 px-4 text-body-2 gap-2 rounded-full',
   lg: 'h-12 px-5 text-body-1 gap-2 rounded-2xl',
   xl: 'h-[56px] px-6 text-body-1 gap-2 rounded-2xl',
@@ -78,6 +78,7 @@ export const IconButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTM
         className={cn(
           'inline-flex shrink-0 items-center justify-center rounded-full text-text-2 transition-colors duration-150 hover:bg-surface-3 hover:text-text-1 disabled:opacity-40',
           size === 32 ? 'size-8' : size === 36 ? 'size-9' : 'size-10',
+          'touch:min-h-11 touch:min-w-11',
           className,
         )}
         {...rest}

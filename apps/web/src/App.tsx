@@ -20,7 +20,7 @@ function ThemeSync() {
   const theme = useSettings((s) => s.theme)
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#131313' : '#ffffff')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0d0f13' : '#ffffff')
   }, [theme])
   return null
 }
@@ -52,7 +52,8 @@ export function Shell() {
       </a>
       <Header />
       <StatusBanners />
-      <main id="main" className="flex-1">
+      {/* At least one screen tall, so the footer starts below the fold and does not jump while a page loads. */}
+      <main id="main" className="min-h-[calc(100dvh-72px)] flex-1">
         <Suspense fallback={<PageFallback />}>
           <Outlet />
         </Suspense>

@@ -68,7 +68,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   return (
-    <header className="sticky top-0 z-[980] h-[72px] bg-bg/85 backdrop-blur-md">
+    <header className="sticky top-0 z-[980] h-[72px] border-b border-border bg-bg lg:bg-bg/85 lg:backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1920px] items-center gap-2 px-4 tablet:px-3 lg:px-4">
         <IconButton label="Open menu" className="lg:hidden" onClick={() => setMobileOpen(true)} data-testid="mobile-menu-button">
           <Menu size={22} />
@@ -188,15 +188,15 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
 function ProductMenu() {
   return (
     <div className="flex items-center">
-      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1" aria-label="MetaSwap home">
+      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1 touch:min-h-11" aria-label="MetaSwap home">
         <LogoMark size={28} />
-        <Wordmark className="hidden sm:inline" />
+        <Wordmark className="hidden md:inline" />
       </Link>
       <Popover
         align="start"
         className="w-[300px] p-2"
         trigger={
-          <button type="button" aria-label="MetaSwap products" className="ml-0.5 inline-flex size-7 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
+          <button type="button" aria-label="MetaSwap products" className="ml-0.5 inline-flex size-7 items-center justify-center rounded-full touch:size-10 text-text-2 hover:bg-surface-3 hover:text-text-1">
             <ChevronDown size={16} />
           </button>
         }
@@ -250,7 +250,7 @@ export function ThemeToggle() {
   const choice = useSettings((s) => s.themeChoice)
   const setChoice = useSettings((s) => s.setThemeChoice)
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1">
+    <div role="radiogroup" aria-label="Theme" className="inline-flex h-[34px] items-center gap-2 rounded-2xl border border-border p-1">
       {THEME_OPTIONS.map((t) => (
         <button
           key={t.value}
@@ -351,7 +351,7 @@ function AccountButton() {
         loading={isConnecting}
         data-testid="connect-button"
         data-panel-trigger
-        className="h-[34px] rounded-xl px-3 text-body-3"
+        className="h-[34px] rounded-xl px-3 text-body-3 touch:h-10"
       >
         Get started
       </Button>

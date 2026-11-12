@@ -50,7 +50,7 @@ export function Tooltip({ content, children, side = 'top' }: { content: ReactNod
 export function InfoTip({ content, label = 'More info' }: { content: ReactNode; label?: string }) {
   return (
     <Tooltip content={content}>
-      <button type="button" aria-label={label} className="inline-flex text-text-3 hover:text-text-2">
+      <button type="button" aria-label={label} className="inline-flex text-text-3 hover:text-text-2 touch:-m-3 touch:p-3">
         <Info size={14} />
       </button>
     </Tooltip>
@@ -137,7 +137,7 @@ export function SegmentedTabs<T extends string>({
             onClick={() => onChange(it.value)}
             className={cn(
               'rounded-full font-semibold transition-colors duration-150 disabled:opacity-40',
-              size === 'sm' ? 'h-7 px-2.5 text-body-4' : 'h-9 px-3.5 text-body-3',
+              size === 'sm' ? 'h-7 px-2.5 text-body-4 touch:h-10 touch:px-3.5 touch:text-body-3' : 'h-9 px-3.5 text-body-3 touch:h-11',
               active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-2-hover hover:text-text-1',
             )}
           >
@@ -164,7 +164,7 @@ export function UnderlineTabs<T extends string>({ items, value, onChange, classN
             data-testid={it.testId}
             onClick={() => onChange(it.value)}
             className={cn(
-              '-mb-px shrink-0 border-b-2 pb-2.5 text-body-1 font-medium transition-colors',
+              '-mb-px shrink-0 border-b-2 pb-2.5 text-body-1 font-medium transition-colors touch:pt-2.5',
               active ? 'border-text-1 text-text-1' : 'border-transparent text-text-2 hover:text-text-1',
             )}
           >
@@ -286,7 +286,7 @@ export function CopyButton({ value, label = 'Copy', className, children }: { val
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className={cn('inline-flex items-center gap-1.5 rounded-full text-text-2 transition-colors hover:text-text-1', className)}
+      className={cn('inline-flex items-center gap-1.5 rounded-full text-text-2 transition-colors hover:text-text-1 touch:-my-3 touch:py-3', className)}
     >
       {children}
       {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
@@ -309,7 +309,7 @@ export function EmptyState({ icon, title, children, action, className }: { icon?
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-[20px] border border-border bg-surface-1', className)} {...rest}>
+    <div className={cn('rounded-2xl border border-border bg-surface-1', className)} {...rest}>
       {children}
     </div>
   )
@@ -333,7 +333,7 @@ export function PillGroup<T extends string>({
   className?: string
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn('inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1', className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn('inline-flex h-[34px] items-center gap-2 rounded-2xl border border-border p-1 touch:h-12 touch:gap-1 touch:rounded-3xl', className)}>
       {items.map((it) => (
         <button
           key={it.value}
@@ -344,7 +344,7 @@ export function PillGroup<T extends string>({
           title={it.title}
           data-testid={it.testId}
           onClick={() => onChange(it.value)}
-          className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-body-4 font-semibold transition-colors', value === it.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+          className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-body-4 font-semibold transition-colors touch:h-10 touch:min-w-10 touch:px-2.5', value === it.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
         >
           {it.label}
         </button>
