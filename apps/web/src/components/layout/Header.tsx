@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, BookOpen, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
+import { ChevronRight, Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
 import { Button, IconButton, Identicon, Popover, Spinner, Switch } from '@/components/ui'
@@ -9,7 +9,6 @@ import { useSettings } from '@/state/settings'
 import { usePendingCount } from '@/state/transactions'
 import { useWallet } from '@/wallet/hooks'
 import { shortenAddress } from '@/lib/format'
-import { API_URL } from '@/config'
 import { LogoMark, Wordmark } from './Logo'
 import { SearchModal } from './SearchModal'
 
@@ -19,8 +18,8 @@ export const NAV_ITEMS = [
   { to: '/launches', label: 'Launches', match: ['/launches'], beta: true },
   { to: '/positions', label: 'Pool', match: ['/positions'] },
   { to: '/portfolio', label: 'Portfolio', match: ['/portfolio'] },
-  // `wide`: shown inline only from xl (1280px); between lg and xl they live in the product menu
-  // and mobile nav so the Connect button never overflows the header.
+  // `wide`: shown inline only from xl (1280px); between lg and xl they are reached from the Trade
+  // and Explore sub-menus and the mobile nav, so the Connect button never overflows the header.
   { to: '/metaswapx', label: 'MetaSwapX', match: ['/metaswapx'], wide: true },
   { to: '/metachain', label: 'MetaChain', match: ['/metachain'], wide: true },
 ] as const satisfies ReadonlyArray<{ to: string; label: string; match: readonly string[]; wide?: boolean; beta?: boolean }>
@@ -32,12 +31,14 @@ export const NAV_MENUS: Record<string, Array<{ to: string; label: string; icon?:
     { to: '/limit', label: 'Limit', icon: <ChartNoAxesColumn size={18} /> },
     { to: '/send', label: 'Send', icon: <Send size={18} /> },
     { to: '/buy', label: 'Buy', icon: <CreditCard size={18} /> },
+    { to: '/metaswapx', label: 'MetaSwapX', icon: <Zap size={18} /> },
   ],
   '/explore': [
     { to: '/explore/tokens', label: 'Tokens', icon: <Coins size={18} /> },
     { to: '/explore/pools', label: 'Pools', icon: <Droplets size={18} /> },
     { to: '/explore/transactions', label: 'Transactions', icon: <ListOrdered size={18} /> },
     { to: '/explore/auctions', label: 'Auctions', icon: <Gavel size={18} /> },
+    { to: '/metachain', label: 'MetaChain', icon: <Layers size={18} /> },
   ],
   '/launches': [
     { to: '/launches', label: 'All launches', icon: <Rocket size={18} /> },
@@ -46,6 +47,7 @@ export const NAV_MENUS: Record<string, Array<{ to: string; label: string; icon?:
   '/positions': [
     { to: '/positions', label: 'View positions', icon: <Layers size={18} /> },
     { to: '/positions/create', label: 'Create position', icon: <Plus size={18} /> },
+    { to: '/earn', label: 'Earn', icon: <PiggyBank size={18} /> },
   ],
   '/portfolio': [
     { to: '/portfolio', label: 'Overview', icon: <LayoutGrid size={18} /> },
@@ -192,51 +194,7 @@ function ProductMenu() {
         <LogoMark size={28} />
         <Wordmark className="hidden md:inline" />
       </Link>
-      <Popover
-        align="start"
-        className="w-[300px] p-2"
-        trigger={
-          <button type="button" aria-label="MetaSwap products" className="ml-0.5 inline-flex size-7 items-center justify-center rounded-full touch:size-10 text-text-2 hover:bg-surface-3 hover:text-text-1">
-            <ChevronDown size={16} />
-          </button>
-        }
-      >
-        <MenuSection title="Products">
-          <MenuLink to="/swap" icon={<ArrowLeftRight size={18} />} title="MetaSwap" subtitle="Swap, pool and explore" />
-          <MenuLink to="/earn" icon={<PiggyBank size={18} />} title="Earn" subtitle="Savings vaults, no lockup" />
-          <MenuLink to="/launches" icon={<Rocket size={18} />} title="Launches" subtitle="Token auctions (beta)" />
-          <MenuLink to="/metaswapx" icon={<Zap size={18} />} title="MetaSwapX" subtitle="Gasless intent orders" />
-          <MenuLink to="/metachain" icon={<Layers size={18} />} title="MetaChain" subtitle="The planned MetaSwap chain" />
-        </MenuSection>
-        <MenuSection title="Developers">
-          <a href={`${API_URL}/health`} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl px-2 py-2 text-body-3 text-text-2 hover:bg-surface-2 hover:text-text-1">
-            <BookOpen size={18} /> API status
-          </a>
-        </MenuSection>
-        <div className="border-t border-border px-2 pt-2 pb-1 text-body-4 text-text-3">MetaSwap devnet build · test funds only</div>
-      </Popover>
     </div>
-  )
-}
-
-function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-1">
-      <div className="px-2 pt-2 pb-1 text-body-4 font-semibold text-text-3">{title}</div>
-      {children}
-    </div>
-  )
-}
-
-function MenuLink({ to, icon, title, subtitle }: { to: string; icon: React.ReactNode; title: string; subtitle: string }) {
-  return (
-    <Link to={to} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-accent-tint text-accent">{icon}</span>
-      <span>
-        <span className="block text-body-3 font-semibold">{title}</span>
-        <span className="block text-body-4 text-text-2">{subtitle}</span>
-      </span>
-    </Link>
   )
 }
 
