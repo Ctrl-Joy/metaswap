@@ -64,7 +64,7 @@ export function HoldingsStrip({ rows, range }: { rows: HoldingRow[]; range: Port
   if (held.length === 0) return null
   return (
     <section aria-labelledby="your-tokens-strip">
-      <div className="mb-3 flex items-end justify-between px-1">
+      <div className="mb-3 flex items-end justify-between">
         <h2 id="your-tokens-strip" className="text-body-1 font-semibold">
           Your tokens
         </h2>

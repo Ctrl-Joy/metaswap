@@ -70,7 +70,7 @@ export function CurrencyInputPanel({
     <div
       data-testid={testId}
       className={cn(
-        'group/panel rounded-[20px] px-4 pt-4 transition-colors',
+        'group/panel rounded-2xl px-4 pt-4 transition-colors',
         compact ? 'pb-4' : 'pb-5',
         variant === 'sell' ? 'border border-border bg-surface-1 focus-within:bg-surface-2 hover:bg-surface-1-hover' : 'border border-transparent bg-surface-2',
         className,
@@ -160,7 +160,7 @@ function QuickPicks({ tokens, onPick, testId }: { tokens: Token[]; onPick: (t: T
           aria-label={`Select ${t.symbol}`}
           onClick={() => onPick(t)}
           data-testid={testId ? `${testId}-quick-${t.symbol}` : undefined}
-          className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover"
+          className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover touch:size-10"
         >
           <TokenLogo token={t} size={20} />
         </button>

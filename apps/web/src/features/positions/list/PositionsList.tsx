@@ -33,12 +33,6 @@ export function PositionsList() {
 
   return (
     <div className="relative" data-testid="positions-page">
-      {/* Uniswap's dotted backdrop behind the hero */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[290px] opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent)]"
-        style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, var(--ms-surface-3) 1px, transparent 0)', backgroundSize: '12px 12px' }}
-      />
       <div className="relative mx-auto w-full max-w-[1184px] px-4 pt-6 pb-24 md:px-8 md:pt-8">
         <h1 className="text-heading-3 font-medium md:text-[36px] md:leading-10">Supply liquidity to collect fees</h1>
         <p className="mt-2 text-body-2 text-text-2 md:text-body-1">Provide liquidity to MetaSwap V2 and V3 pools and earn fees on every trade.</p>
@@ -56,7 +50,7 @@ export function PositionsList() {
 
         {!address ? (
           <>
-            <div className="relative mt-14 flex min-h-[180px] flex-col items-center justify-center overflow-hidden rounded-[20px] bg-accent-tint px-6 py-8 text-center" data-testid="positions-gate">
+            <div className="relative mt-10 flex min-h-[180px] flex-col items-center justify-center overflow-hidden rounded-3xl border border-border bg-surface-2 px-6 py-8 text-center" data-testid="positions-gate">
               <BannerPattern />
               <h2 className="relative text-heading-3 font-medium">Connect your wallet</h2>
               <p className="relative mt-2 text-body-2 text-text-2">To view your positions and rewards you must connect your wallet.</p>
@@ -273,7 +267,7 @@ function PositionCard({ row, pool }: { row: AnyPositionRow; pool?: PoolDetail })
     <Link
       to={href}
       data-testid={`position-card-${row.version}-${id}`}
-      className="flex flex-col gap-4 rounded-[20px] border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-1-hover sm:p-6"
+      className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-1-hover sm:p-6"
     >
       <div className="flex flex-wrap items-center gap-3">
         <DoubleLogo token0={row.token0} token1={row.token1} size={32} />
@@ -337,7 +331,7 @@ function TopPoolRow({ row }: { row: ExplorePoolRowW3 }) {
   const t0 = typeof row.token0 === 'string' ? undefined : row.token0
   const t1 = typeof row.token1 === 'string' ? undefined : row.token1
   return (
-    <Link to={poolHref(row)} className="flex items-center gap-3 rounded-[20px] border border-border bg-surface-1 p-4 hover:bg-surface-1-hover" data-testid={`top-pool-${row.address}`}>
+    <Link to={poolHref(row)} className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-4 hover:bg-surface-1-hover" data-testid={`top-pool-${row.address}`}>
       <DoubleLogo token0={t0} token1={t1} size={28} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-body-3 font-semibold">

@@ -278,7 +278,7 @@ export function EarnSummary({ positions, loading }: { positions: EarnPosition[];
   const total = positions.reduce((s, p) => s + (p.valueUsd ?? 0), 0)
   return (
     <section data-testid="portfolio-earn">
-      <div className="mb-4 flex items-end justify-between px-2">
+      <div className="mb-4 flex items-end justify-between">
         <div>
           <h2 className="text-body-1 font-medium">
             Earn{positions.length > 0 && <span> · {mask(formatUsd(total))}</span>}

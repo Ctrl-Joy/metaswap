@@ -82,7 +82,7 @@ export function CreatePosition() {
       </nav>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-3 text-heading-3 font-medium">
-          <Link to="/positions" aria-label="Back to your positions" className="text-text-1 hover:text-text-2">
+          <Link to="/positions" aria-label="Back to your positions" className="text-text-1 hover:text-text-2 touch:-m-2.5 touch:p-2.5">
             <ArrowLeft size={24} />
           </Link>
           New position
@@ -122,7 +122,7 @@ export function CreatePosition() {
         <StepsRail version={version} step={step} onStep={(s) => pairReady && setStep(s)} />
         <div className="min-w-0">
           {step === 1 ? (
-            <div className="flex flex-col gap-8 rounded-[20px] border border-border p-6">
+            <div className="flex flex-col gap-8 rounded-2xl border border-border p-6">
               <section>
                 <h2 className="text-body-1 font-medium">Select pair</h2>
                 <p className="mb-4 text-body-3 text-text-2">Choose the tokens you want to provide liquidity for.</p>
@@ -189,7 +189,7 @@ function PairPicker({ tokenA, tokenB, onA, onB, onFlip }: { tokenA?: Token; toke
   return (
     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
       <PairButton token={tokenA} onClick={() => setOpen('A')} testId="pair-token-a" />
-      <button type="button" aria-label="Swap token order" onClick={onFlip} className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
+      <button type="button" aria-label="Swap token order" onClick={onFlip} className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1 touch:size-11">
         <ArrowLeftRight size={16} />
       </button>
       <PairButton token={tokenB} onClick={() => setOpen('B')} testId="pair-token-b" />
@@ -205,12 +205,12 @@ function PairButton({ token, onClick, testId }: { token?: Token; onClick: () => 
       onClick={onClick}
       data-testid={testId}
       className={cn(
-        'flex h-[50px] w-full min-w-0 flex-1 items-center gap-2 rounded-2xl px-4 text-body-2 font-semibold transition-colors',
+        'flex h-[50px] w-full min-w-0 flex-1 items-center gap-2 rounded-2xl px-3 text-body-2 font-semibold transition-colors sm:px-4',
         token ? 'bg-surface-3 text-text-1 hover:bg-surface-3-hover' : 'bg-text-1 text-bg hover:opacity-90',
       )}
     >
       {token && <TokenLogo token={token} size={24} chainBadge />}
-      <span className="min-w-0 flex-1 truncate text-left">{token ? token.symbol : 'Choose token'}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{token ? token.symbol : <><span className="sm:hidden">Choose</span><span className="hidden sm:inline">Choose token</span></>}</span>
       <ChevronDown size={20} />
     </button>
   )

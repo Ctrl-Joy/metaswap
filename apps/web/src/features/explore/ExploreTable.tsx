@@ -4,14 +4,14 @@ import { cn } from '@/lib/cn'
 import { Skeleton } from '@/components/ui'
 
 /**
- * Explore table primitives, sized to Uniswap's explore tables (measured, 1440px dark):
- * a 54px wrapper holding a 42px header pill, then 64px token/pool rows or 56px transaction rows.
- * Labels are 14px/18px secondary text; the active sort column is full-contrast.
+ * Explore table primitives: a ledger. A 40px header of small secondary labels over a rule, then
+ * 64px token/pool rows or 56px transaction rows split by hairlines. The active sort column is
+ * full-contrast. The wrapper scrolls sideways on narrow screens instead of widening the page.
  */
 
 export function ExTable({ children, minWidth = 760, className }: { children: ReactNode; minWidth?: number; className?: string }) {
   return (
-    <div className={cn('overflow-x-auto scrollbar-thin', className)}>
+    <div className={cn('relative w-full max-w-full overflow-x-auto scrollbar-thin [contain:inline-size]', className)}>
       <table className="w-full border-separate border-spacing-0 text-left" style={{ minWidth }}>
         {children}
       </table>
@@ -19,11 +19,11 @@ export function ExTable({ children, minWidth = 760, className }: { children: Rea
   )
 }
 
-/** Header row: 42px pill on the surface-2 tone, 14px labels. */
+/** Header row: 40px, 13px labels, ruled off from the body. */
 export function ExTHead({ children }: { children: ReactNode }) {
   return (
-    <thead className="text-body-3 text-text-2">
-      <tr className="h-[42px]">{children}</tr>
+    <thead className="text-[13px] leading-4 text-text-2">
+      <tr className="h-10">{children}</tr>
     </thead>
   )
 }
@@ -33,7 +33,7 @@ export function ExTh({ className, children, align = 'left', ...rest }: ThHTMLAtt
     <th
       scope="col"
       className={cn(
-        'bg-surface-2 px-4 font-medium whitespace-nowrap first:rounded-l-xl last:rounded-r-xl',
+        'border-b border-border px-3 font-medium whitespace-nowrap md:px-4',
         align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left',
         className,
       )}
@@ -62,7 +62,7 @@ export function ExSortTh({
 }) {
   return (
     <ExTh align={align} aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={className}>
-      <button type="button" onClick={onClick} className={cn('inline-flex items-center gap-1 hover:text-text-1', active && 'text-text-1')}>
+      <button type="button" onClick={onClick} className={cn('inline-flex items-center gap-1 hover:text-text-1 touch:h-10', active && 'text-text-1')}>
         {active && (direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
         {label}
       </button>
@@ -75,7 +75,7 @@ export function ExTr({ className, onClick, height = 64, children, rowRef, ...res
   return (
     <tr
       ref={rowRef}
-      className={cn('border-t border-border transition-colors first:border-t-0', height === 64 ? 'h-16' : 'h-14', onClick && 'cursor-pointer hover:bg-surface-2-hover', className)}
+      className={cn('transition-colors [&>td]:border-b [&>td]:border-border last:[&>td]:border-b-0', height === 64 ? 'h-16' : 'h-14', onClick && 'cursor-pointer hover:bg-surface-2', className)}
       onClick={onClick}
       {...rest}
     >
@@ -86,7 +86,7 @@ export function ExTr({ className, onClick, height = 64, children, rowRef, ...res
 
 export function ExTd({ className, align = 'left', children, ...rest }: TdHTMLAttributes<HTMLTableCellElement> & { align?: 'left' | 'right' | 'center' }) {
   return (
-    <td className={cn('px-4 whitespace-nowrap tabular text-body-2', align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left', className)} {...rest}>
+    <td className={cn('px-3 whitespace-nowrap tabular text-body-2 md:px-4', align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left', className)} {...rest}>
       {children}
     </td>
   )
@@ -97,7 +97,7 @@ export function ExTableSkeleton({ rows = 8, cols = 7, height = 64 }: { rows?: nu
   return (
     <tbody>
       {Array.from({ length: rows }, (_, r) => (
-        <tr key={r} className={cn('border-t border-border first:border-t-0', height === 64 ? 'h-16' : 'h-14')}>
+        <tr key={r} className={cn('[&>td]:border-b [&>td]:border-border last:[&>td]:border-b-0', height === 64 ? 'h-16' : 'h-14')}>
           {Array.from({ length: cols }, (_, c) => (
             <td key={c} className="px-4">
               {c === 1 ? (
@@ -130,7 +130,7 @@ export function ExploreSectionTabs<T extends string>({ items, value, onSelect, c
             aria-selected={active}
             data-testid={it.testId}
             onClick={() => onSelect?.(it.value)}
-            className={cn('shrink-0 font-medium transition-colors', size === 'lg' ? 'text-[24px] leading-[28.8px]' : 'text-[18px] leading-6', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
+            className={cn('shrink-0 font-medium transition-colors touch:py-2', size === 'lg' ? 'text-[22px] leading-7 tracking-[-0.015em] md:text-[24px]' : 'text-[18px] leading-6', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
           >
             {it.label}
           </button>

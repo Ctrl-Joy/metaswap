@@ -84,8 +84,8 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
   const fmt = mode === 'price' ? (v: number) => formatPrice(v) : (v: number) => formatUsd(v, { compact: true })
 
   return (
-    <section className="relative flex flex-col" data-testid="token-chart-panel">
-      <div className="pointer-events-none absolute top-0 left-0 z-[2] flex flex-col gap-1">
+    <section className="flex flex-col gap-4" data-testid="token-chart-panel">
+      <div className="flex flex-col gap-1">
         <div className="text-heading-2 font-medium tabular" data-testid="token-price" aria-live="polite">
           {headValue === null ? <Skeleton width={180} height={44} /> : mode === 'price' ? hover ? formatPrice(headValue) : <LiveNumber value={headValue} format={(n) => formatPrice(n)} /> : <Usd value={headValue} compact />}
         </div>
@@ -119,7 +119,7 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
             : `Only a few trades so far for ${symbol} in this range. The chart fills in as trading continues.`
         }
         errorText={mode === 'tvl' ? 'TVL history is not available yet.' : 'Chart unavailable right now.'}
-        heightClass="h-[300px] md:h-[372px]"
+        heightClass="h-[260px] md:h-[340px]"
         footer={
           <ChartControls
             left={<PillGroup ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}

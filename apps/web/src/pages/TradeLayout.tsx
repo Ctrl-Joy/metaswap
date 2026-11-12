@@ -29,7 +29,7 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
       <div className={cn('flex w-full flex-col items-center gap-6', showChart && 'lg:max-w-[1200px] lg:flex-row-reverse lg:items-start lg:justify-center')}>
         <div className={cn('w-full shrink-0', wide ? 'max-w-[480px]' : 'max-w-[480px]')}>
           <div className="mb-0.5 flex h-[46px] items-center justify-between">
-            <nav aria-label="Trade" className="flex items-center gap-3 p-1">
+            <nav aria-label="Trade" className="flex items-center gap-3 p-1 touch:gap-0 touch:p-0">
               {TABS.map((t) => (
                 <NavLink
                   key={t.to}
@@ -37,7 +37,7 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                   data-testid={`tab-${t.label.toLowerCase()}`}
                   className={({ isActive }) =>
                     cn(
-                      'flex h-9 items-center rounded-full px-3 text-body-3 leading-4 font-semibold transition-colors duration-150',
+                      'flex h-9 items-center rounded-full px-3 text-body-3 leading-4 font-semibold transition-colors duration-150 touch:h-11',
                       isActive ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1',
                     )
                   }
@@ -46,7 +46,7 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                 </NavLink>
               ))}
             </nav>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 touch:gap-0">
               {chart && (
                 <IconButton
                   label={chart.open ? 'Hide price chart' : 'Show price chart'}

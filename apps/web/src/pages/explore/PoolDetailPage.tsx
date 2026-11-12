@@ -69,7 +69,7 @@ export default function PoolDetailPage() {
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-[24px] leading-7 font-medium">{loading ? <Skeleton width={160} height={28} /> : `${sym0} / ${sym1}`}</h1>
-              <button type="button" aria-label="Invert pair" title="Invert pair" onClick={() => setInvert((v) => !v)} data-testid="invert-pair" className="text-text-2 hover:text-text-1">
+              <button type="button" aria-label="Invert pair" title="Invert pair" onClick={() => setInvert((v) => !v)} data-testid="invert-pair" className="text-text-2 hover:text-text-1 touch:-m-3 touch:p-3">
                 <ArrowDownUp size={20} />
               </button>
             </div>
@@ -115,7 +115,7 @@ export default function PoolDetailPage() {
             </Link>
           </div>
 
-          <section className="mt-6 flex flex-col gap-6 rounded-[20px] bg-surface-2 p-5" data-testid="pool-stats">
+          <section className="mt-6 flex flex-col gap-6 rounded-2xl bg-surface-2 p-5" data-testid="pool-stats">
             <h2 className="text-[24px] leading-9 font-medium">Stats</h2>
             <div className="flex flex-col gap-2" data-testid="pool-balances">
               <span className="text-body-1 text-text-2">Pool balances</span>
@@ -182,7 +182,7 @@ function LinkRow({ logo, label, address, to }: { logo: ReactNode; label: string;
       ) : (
         name
       )}
-      <CopyButton value={address} label={`Copy ${label} address`} className="inline-flex h-8 items-center gap-2 rounded-[20px] bg-surface-3 px-3 text-body-3 font-semibold text-text-1">
+      <CopyButton value={address} label={`Copy ${label} address`} className="inline-flex h-8 items-center gap-2 rounded-2xl bg-surface-3 px-3 text-body-3 font-semibold text-text-1">
         {shortenAddress(address)}
       </CopyButton>
     </div>

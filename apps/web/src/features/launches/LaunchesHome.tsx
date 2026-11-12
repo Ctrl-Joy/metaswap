@@ -26,7 +26,7 @@ export function LaunchesHome() {
 
 function SectionTitle({ children, info, right }: { children: ReactNode; info?: string; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 md:mb-4">
       <h2 className="flex items-center gap-1.5 text-body-1 font-medium">
         {children}
         {info && (
@@ -153,7 +153,7 @@ function FilterChip({ active, onClick, icon, children, testId }: { active: boole
       aria-selected={active}
       onClick={onClick}
       data-testid={testId}
-      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 py-2 text-body-3 font-semibold whitespace-nowrap transition-colors', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 py-2 text-body-3 font-semibold whitespace-nowrap transition-colors touch:h-11', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
     >
       {icon}
       {children}
@@ -165,7 +165,7 @@ function Dropdown({ value, onChange, children, ariaLabel, testId, leading, class
   return (
     <label className={cn('relative inline-flex h-10 items-center gap-2 rounded-xl border-[0.8px] border-border bg-surface-1 pr-1.5 pl-3 text-body-3 font-semibold hover:bg-surface-2', className)}>
       {leading}
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} data-testid={testId} className="absolute inset-0 cursor-pointer opacity-0">
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} data-testid={testId} className="absolute inset-0 cursor-pointer text-[16px] opacity-0">
         {children}
       </select>
       <span className="pointer-events-none truncate">{leading ? null : ariaLabelValue(children, value)}</span>
@@ -197,8 +197,8 @@ function usePadNames(): string[] {
   return useMemo(() => [...new Set((q.data ?? []).map(launchpadName).filter(Boolean))].sort(), [q.data])
 }
 
-const TH = 'h-[42px] px-3 text-body-3 font-medium text-text-2 whitespace-nowrap first:rounded-l-xl last:rounded-r-xl'
-const TD = 'px-3 py-4 whitespace-nowrap'
+const TH = 'h-10 border-b border-border px-3 text-[13px] leading-4 font-medium text-text-2 whitespace-nowrap'
+const TD = 'border-b border-border px-3 py-4 whitespace-nowrap'
 
 function AllLaunches() {
   const [mode, setMode] = useState<ListMode>('all')
@@ -245,12 +245,12 @@ function AllLaunches() {
         </div>
       </div>
       <div className="overflow-x-auto [scrollbar-width:thin]">
-        <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left text-body-2">
+        <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-body-2 md:min-w-[880px]">
           <thead>
-            <tr className="bg-surface-2">
-              <th className={cn(TH, 'w-14 text-center')}>#</th>
+            <tr>
+              <th className={cn(TH, 'hidden w-14 text-center md:table-cell')}>#</th>
               <th className={TH}>Token</th>
-              <th className={TH}>Launchpad</th>
+              <th className={cn(TH, 'hidden md:table-cell')}>Launchpad</th>
               <th className={cn(TH, 'text-right')}>FDV</th>
               <th className={cn(TH, 'text-right', mode !== 'recent' && 'text-text-1')}>
                 <span className="inline-flex items-center gap-1">
@@ -267,16 +267,16 @@ function AllLaunches() {
             {q.isLoading
               ? [0, 1, 2, 3, 4].map((i) => (
                   <tr key={i} className="h-[74px]" aria-hidden>
-                    <td className={cn(TD, 'text-center')}><Skeleton width={12} height={14} /></td>
+                    <td className={cn(TD, 'hidden text-center md:table-cell')}><Skeleton width={12} height={14} /></td>
                     <td className={TD}><span className="flex items-center gap-3"><Skeleton width={32} height={32} /><span className="flex flex-col gap-1.5"><Skeleton width={96} height={14} /><Skeleton width={56} height={12} /></span></span></td>
                     {[80, 64, 64, 64, 56, 56, 32].map((w, j) => (
-                      <td key={j} className={cn(TD, j > 0 && 'text-right')}><Skeleton width={w} height={14} /></td>
+                      <td key={j} className={cn(TD, j > 0 ? 'text-right' : 'hidden md:table-cell')}><Skeleton width={w} height={14} /></td>
                     ))}
                   </tr>
                 ))
               : rows.map((r, i) => (
-                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2/60" data-testid={`launch-row-${r.symbol}`}>
-                    <td className={cn(TD, 'text-center tabular')}>{i + 1}</td>
+                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2" data-testid={`launch-row-${r.symbol}`}>
+                    <td className={cn(TD, 'hidden text-center tabular md:table-cell')}>{i + 1}</td>
                     <td className={TD}>
                       <Link to={auctionHref(r)} className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                         <LaunchLogo row={r} size={32} badge={12} />
@@ -288,7 +288,7 @@ function AllLaunches() {
                         </span>
                       </Link>
                     </td>
-                    <td className={TD}>
+                    <td className={cn(TD, 'hidden md:table-cell')}>
                       <span className="inline-flex items-center gap-2 font-medium">
                         <LaunchpadIcon name={launchpadName(r)} size={20} />
                         {launchpadName(r)}
@@ -363,9 +363,9 @@ function Auctions() {
         ))}
       </div>
       <div className="overflow-x-auto [scrollbar-width:thin]">
-        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-body-2">
+        <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-body-2 md:min-w-[760px]">
           <thead>
-            <tr className="bg-surface-2">
+            <tr>
               <th className={TH}>Token</th>
               <th className={cn(TH, 'text-right')}>FDV at floor</th>
               <th className={cn(TH, 'text-right')}>Bid volume</th>
@@ -384,7 +384,7 @@ function Auctions() {
                   </tr>
                 ))
               : rows.map((r) => (
-                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2/60" data-testid={`auction-row-${r.symbol}`}>
+                  <tr key={r.auction} onClick={() => navigate(auctionHref(r))} className="h-[74px] cursor-pointer transition-colors hover:bg-surface-2" data-testid={`auction-row-${r.symbol}`}>
                     <td className={TD}>
                       <span className="flex items-center gap-3">
                         <LaunchLogo row={r} size={32} badge={12} />

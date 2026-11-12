@@ -21,19 +21,22 @@ export function ExploreStats() {
   return (
     <section aria-label="Explore statistics" className="grid grid-cols-2 gap-y-5 md:grid-cols-4" data-testid="explore-stats">
       {tiles.map((t, i) => (
-        <div key={t.key} className={cn("flex min-w-0 flex-col gap-1", i > 0 && "border-l border-border pl-4 md:pl-6")} data-testid={`stat-${t.key}`}>
+        <div key={t.key} className={cn("flex min-w-0 flex-col gap-1", i % 2 === 1 && "border-l border-border pl-4", i > 0 && "md:border-l md:border-border md:pl-6")} data-testid={`stat-${t.key}`}>
           <span className="text-[12px] leading-4 text-text-2">{t.label}</span>
           {loading ? (
             <Skeleton width={120} height={22} />
           ) : (
             <span className="text-[20px] leading-6 font-medium tabular">{formatUsd(t.value, { compact: true })}</span>
           )}
-          {t.delta !== null && !loading && (
-            <span className="text-[12px] leading-4">
-              <PercentChange value={t.delta} className="text-[12px]" />
-              <span className="ml-1 text-text-1">today</span>
-            </span>
-          )}
+          {/* The change line keeps its height while loading so the page below does not jump. */}
+          <span className="min-h-4 text-[12px] leading-4">
+            {t.delta !== null && !loading && (
+              <>
+                <PercentChange value={t.delta} className="text-[12px]" />
+                <span className="ml-1 text-text-2">today</span>
+              </>
+            )}
+          </span>
         </div>
       ))}
     </section>

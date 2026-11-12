@@ -101,13 +101,11 @@ export function LaunchpadChip({ name, testId, maxWidth }: { name: string; testId
 }
 
 export function LaunchCard({ row, to }: { row: LaunchRow; to: string }) {
-  const hue = tokenHue(row)
   return (
     <Link
       to={to}
       data-testid={`trending-card-${row.symbol}`}
-      className="relative flex h-[150px] w-[271px] flex-col justify-between overflow-hidden rounded-[20px] bg-surface-2 p-3 transition-[filter] hover:brightness-110"
-      style={{ backgroundImage: `radial-gradient(90% 70% at 60% 118%, hsl(${hue} 80% 55% / 0.12) 0%, transparent 60%)` }}
+      className="relative flex h-[150px] w-[271px] flex-col justify-between overflow-hidden rounded-2xl bg-surface-2 p-3 transition-colors hover:bg-surface-2-hover"
     >
       <div className="flex items-start gap-3">
         <LaunchLogo row={row} size={48} badge={16} />
@@ -137,7 +135,7 @@ export function LaunchCard({ row, to }: { row: LaunchRow; to: string }) {
 
 export function LaunchCardSkeleton() {
   return (
-    <div className="flex h-[150px] w-[271px] flex-col justify-between rounded-[20px] bg-surface-2 p-3" aria-hidden data-testid="trending-card-skeleton">
+    <div className="flex h-[150px] w-[271px] flex-col justify-between rounded-2xl bg-surface-2 p-3" aria-hidden data-testid="trending-card-skeleton">
       <div className="flex items-start gap-3">
         <Skeleton width={48} height={48} />
         <div className="flex flex-col gap-2 pt-1">

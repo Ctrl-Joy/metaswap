@@ -162,7 +162,7 @@ export function Dropdown<T extends string>({
 /** Section title (18px) + optional 14px subtitle, inset 8px like Uniswap. */
 export function PfSectionHeader({ title, subtitle, right }: { title: ReactNode; subtitle?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-7 flex items-end justify-between gap-3 px-2">
+    <div className="mb-5 flex items-end justify-between gap-3">
       <div>
         <h2 className="text-body-1 font-medium">{title}</h2>
         {subtitle && <div className="text-body-3 text-text-2">{subtitle}</div>}

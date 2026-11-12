@@ -135,7 +135,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
               setInverted((v) => !v)
               if (typedPrice > 0) setPriceText(priceToInput(1 / typedPrice))
             }}
-            className="-my-1 inline-flex size-[22px] items-center justify-center rounded-md hover:text-text-1"
+            className="-my-1 inline-flex size-[22px] items-center justify-center rounded-md hover:text-text-1 touch:-my-3 touch:size-11"
             data-testid="limit-invert"
           >
             <ArrowUpDown size={16} />
@@ -175,7 +175,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
                 onClick={() => setPreset(pct)}
                 data-testid={`limit-preset-${pct}`}
                 className={cn(
-                  'h-7 rounded-full border border-border px-2 text-body-2 leading-[18px] font-semibold transition-colors disabled:opacity-40',
+                  'h-7 rounded-full border border-border px-2 text-body-2 leading-[18px] font-semibold transition-colors disabled:opacity-40 touch:h-10 touch:px-3',
                   active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-3 hover:text-text-1',
                 )}
               >
@@ -255,7 +255,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
               aria-checked={expiry === e.key}
               onClick={() => setExpiry(e.key)}
               data-testid={`expiry-${e.key}`}
-              className={cn('h-7 rounded-full border border-border px-2 text-body-3 leading-4 font-semibold transition-colors', expiry === e.key ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+              className={cn('h-7 rounded-full border border-border px-2 text-body-3 leading-4 font-semibold transition-colors touch:h-10 touch:px-3', expiry === e.key ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
             >
               {e.label}
             </button>

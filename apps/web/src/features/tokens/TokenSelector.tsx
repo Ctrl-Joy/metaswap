@@ -165,10 +165,10 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
                   disabled={isSel}
                   onClick={() => choose(t)}
                   data-testid={`token-chip-${t.symbol}`}
-                  className="flex h-[68px] flex-col items-center justify-center gap-1 rounded-2xl bg-surface-2 px-2 py-3 transition-colors hover:bg-surface-2-hover disabled:opacity-50"
+                  className="flex h-[68px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl bg-surface-2 px-1 py-3 transition-colors hover:bg-surface-2-hover disabled:opacity-50"
                 >
                   <TokenLogo token={t} size={24} chainBadge />
-                  <span className="max-w-full truncate text-body-3 leading-4 font-semibold">{t.symbol}</span>
+                  <span className="max-w-full truncate text-[12px] leading-4 font-semibold sm:text-body-3 sm:leading-4">{t.symbol}</span>
                 </button>
               )
             })}

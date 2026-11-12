@@ -158,7 +158,7 @@ export function BuyForm() {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex min-h-[264px] flex-col rounded-[20px] border border-border bg-surface-1 px-4 pt-3 pb-[52px]" data-testid="buy-hero">
+      <div className="flex min-h-[264px] flex-col rounded-2xl border border-border bg-surface-1 px-4 pt-3 pb-[52px]" data-testid="buy-hero">
         <div className="flex items-center justify-between">
           <span className="text-body-3 text-text-2">You're getting</span>
           <span className="flex h-6 items-center gap-1 rounded-full bg-surface-3 px-2 text-body-4 font-semibold text-text-2">
@@ -199,7 +199,7 @@ export function BuyForm() {
       <button
         type="button"
         onClick={() => setSelectorOpen(true)}
-        className="flex h-[72px] items-center gap-3 rounded-[20px] bg-surface-2 p-4 text-left transition-colors hover:bg-surface-2-hover"
+        className="flex h-[72px] items-center gap-3 rounded-2xl bg-surface-2 p-4 text-left transition-colors hover:bg-surface-2-hover"
         data-testid="buy-token"
       >
         <TokenLogo token={pick} size={40} chainBadge />
@@ -225,7 +225,7 @@ export function BuyForm() {
               Get all
             </Button>
           </div>
-          <ul className="flex flex-col rounded-[20px] border border-border px-4" data-testid="faucet-list">
+          <ul className="flex flex-col rounded-2xl border border-border px-4" data-testid="faucet-list">
             <FaucetRow
               token={NATIVE_ETH}
               amountLabel="10 ETH"

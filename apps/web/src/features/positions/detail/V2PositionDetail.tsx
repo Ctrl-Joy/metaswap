@@ -241,7 +241,7 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove V2 liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
-      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 'A')} testId="remove-amount0">
           {formatTokenAmount(amount0, t0.decimals)}
         </ReviewRow>

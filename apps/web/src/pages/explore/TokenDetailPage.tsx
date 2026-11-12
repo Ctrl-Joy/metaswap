@@ -52,7 +52,7 @@ export default function TokenDetailPage() {
     <div className="mx-auto w-full max-w-[1280px] px-4 pt-6 pb-24 md:px-10 md:pt-12" data-testid="token-page">
       <TokenHeader symbol={symbol} name={name} address={apiAddr} loading={loading} />
       <div
-        className="mt-8 grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,760px)_360px] lg:justify-between lg:[grid-template-areas:'top_swap'_'bottom_swap']"
+        className="mt-8 grid grid-cols-1 gap-x-10 gap-y-8 [grid-template-areas:'top'_'swap'_'bottom'] lg:grid-cols-[minmax(0,1fr)_360px] lg:[grid-template-areas:'top_swap'_'bottom_swap']"
       >
         <div className="flex min-w-0 flex-col gap-6 [grid-area:top]">
           {d ? (

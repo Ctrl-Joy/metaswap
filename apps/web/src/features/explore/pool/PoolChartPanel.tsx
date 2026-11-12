@@ -89,10 +89,10 @@ export function PoolChartPanel({
   )
 
   return (
-    <section className="relative flex flex-col" data-testid="pool-chart-panel">
-      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="mb-9 flex-wrap" />
-      {/* Uniswap overlays the readout on the chart's top-left corner (24px value, 16px label). */}
-      <div className="pointer-events-none absolute top-[60px] left-0 z-[2] flex flex-col">
+    <section className="flex flex-col" data-testid="pool-chart-panel">
+      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="mb-5 flex-wrap" />
+      {/* The readout sits above the plot so the line never runs through the figures. */}
+      <div className="mb-3 flex min-h-14 flex-col">
         <span className="text-[24px] leading-9 font-medium tabular" data-testid="pool-headline">
           {headValue === null ? (tab === 'price' || tab === 'volume' ? <Skeleton width={160} height={28} /> : '') : tab === 'price' ? `${formatAmount(headValue)} ${quote}` : formatUsd(headValue, { compact: true })}
         </span>
@@ -107,7 +107,7 @@ export function PoolChartPanel({
         onRetry={() => { void history.refetch(); void ticks.refetch() }}
         emptyTitle={tab === 'depth' && !isV3 ? 'Depth is for v3 pools' : 'Not enough history yet'}
         emptyText={tab === 'depth' && !isV3 ? 'V2 pools hold liquidity across the full curve, so there is no tick depth to show.' : 'Pool history fills in as swaps and liquidity changes are indexed.'}
-        heightClass="h-[300px] md:h-[356px]"
+        heightClass="h-[260px] md:h-[320px]"
         footer={<div className="flex justify-end">{rangeFooter}</div>}
       >
         {status === 'ready' && tab === 'price' && <TimeChart kind="line" data={priceSeries} formatValue={(v) => formatAmount(v)} onHover={setHover} testId="pool-price-chart" ariaLabel="Pool price" className="size-full" />}

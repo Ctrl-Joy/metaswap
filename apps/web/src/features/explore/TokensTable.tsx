@@ -98,7 +98,7 @@ export function TokensTable({
 
   const moreActive = MORE_CATEGORIES.some((c) => c.value === category)
   const chipClass = (active: boolean) =>
-    cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')
+    cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-body-3 font-semibold transition-colors duration-150 touch:h-11', active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')
 
   return (
     <div className="flex flex-col gap-4" data-testid="tokens-section">
@@ -194,8 +194,8 @@ export function TokensTable({
 
       <ExTable minWidth={760}>
         <ExTHead>
-          <ExTh className="sticky left-0 z-[2] w-12">#</ExTh>
-          <ExTh className="sticky left-12 z-[2]">Token</ExTh>
+          <ExTh className="sticky left-0 z-[2] hidden w-12 bg-bg md:table-cell">#</ExTh>
+          <ExTh className="sticky left-0 z-[2] bg-bg md:left-12">Token</ExTh>
           <ExSortTh label="Price" active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
           <ExSortTh label="1H" active={effectiveSort.key === 'change1h'} direction={effectiveSort.dir} onClick={() => toggleSort('change1h')} />
           <ExSortTh label="1D" active={effectiveSort.key === 'change24h'} direction={effectiveSort.dir} onClick={() => toggleSort('change24h')} />
@@ -221,16 +221,19 @@ export function TokensTable({
               const badges = tokenBadges(r)
               return (
                 <ExTr key={r.address} className="group" onClick={() => navigate(href)} data-testid="token-row" data-symbol={r.symbol}>
-                  <ExTd className="sticky left-0 z-[1] w-12 bg-bg text-text-2 group-hover:bg-surface-2-hover">{rank}</ExTd>
-                  <ExTd className="sticky left-12 z-[1] bg-bg group-hover:bg-surface-2-hover">
-                    <Link to={href} className="flex items-center gap-3 focus-visible:outline-none" onClick={(e) => e.stopPropagation()}>
+                  <ExTd className="sticky left-0 z-[1] hidden w-12 bg-bg text-text-2 group-hover:bg-surface-2 md:table-cell">{rank}</ExTd>
+                  <ExTd className="sticky left-0 z-[1] bg-bg group-hover:bg-surface-2 md:left-12">
+                    <Link to={href} className="flex items-center gap-3 rounded-lg" onClick={(e) => e.stopPropagation()}>
                       <TokenLogo token={{ symbol: r.symbol, address: r.address }} size={32} />
                       <span className="flex min-w-0 flex-col">
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-body-2 font-medium text-text-1">{r.name}</span>
-                          {badges.slice(0, 2).map((b) => (
-                            <TagBadge key={b} label={b} />
-                          ))}
+                          <span className="max-w-[116px] truncate text-body-2 font-medium text-text-1 md:max-w-none">{r.name}</span>
+                          {/* Category tags would push every figure off a phone screen; they stay from tablet up. */}
+                          <span className="hidden items-center gap-2 md:flex">
+                            {badges.slice(0, 2).map((b) => (
+                              <TagBadge key={b} label={b} />
+                            ))}
+                          </span>
                         </span>
                         <span className="text-body-3 text-text-2">{r.symbol}</span>
                       </span>

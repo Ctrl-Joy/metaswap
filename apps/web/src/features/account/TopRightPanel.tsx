@@ -57,7 +57,7 @@ export function TopRightPanel({
           className={cn(
             'fixed z-[1200] flex flex-col overflow-hidden border border-border bg-surface-1 outline-none',
             desktop
-              ? 'top-[72px] right-3 max-h-[calc(100dvh-88px)] w-[368px] rounded-[20px] shadow-large animate-pop-in'
+              ? 'top-[72px] right-3 max-h-[calc(100dvh-88px)] w-[368px] rounded-2xl shadow-large animate-pop-in'
               : 'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-3xl border-b-0 animate-sheet-in-bottom',
             className,
           )}
