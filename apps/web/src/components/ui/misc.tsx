@@ -1,10 +1,24 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import * as RTooltip from '@radix-ui/react-tooltip'
 import * as RPopover from '@radix-ui/react-popover'
 import { AlertTriangle, Check, Copy, Info, OctagonAlert, CircleCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatUsd, formatAmount } from '@/lib/format'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
+
+/* ---------------------------------------------------------------- Rich text */
+
+/**
+ * Fill {placeholders} left in an already translated sentence with React nodes, so markup such as
+ * <strong> stays inside one translatable string, e.g. the translated "Runs on {chain}" with { chain: <b>X</b> }.
+ */
+export function richText(text: string, parts: Record<string, ReactNode>): ReactNode {
+  return text.split(/(\{\w+\})/g).map((seg, i) => {
+    const key = /^\{(\w+)\}$/.exec(seg)?.[1]
+    return key !== undefined && key in parts ? <Fragment key={i}>{parts[key]}</Fragment> : seg
+  })
+}
 
 /* ---------------------------------------------------------------- Skeleton */
 
@@ -48,10 +62,10 @@ export function Tooltip({ content, children, side = 'top' }: { content: ReactNod
 }
 
 /** Small (i) icon with a tooltip, for labels in details rows. */
-export function InfoTip({ content, label = 'More info' }: { content: ReactNode; label?: string }) {
+export function InfoTip({ content, label }: { content: ReactNode; label?: string }) {
   return (
     <Tooltip content={content}>
-      <button type="button" aria-label={label} className="inline-flex text-text-3 hover:text-text-2">
+      <button type="button" aria-label={label ?? t('More info')} className="inline-flex text-text-3 hover:text-text-2">
         <Info size={14} />
       </button>
     </Tooltip>
@@ -198,7 +212,7 @@ export function PercentChange({ value, className, digits = 2 }: { value: number 
         </span>
       )}
       <span>{trimPercent(Math.abs(rounded), digits)}</span>
-      <span className="sr-only">{up ? 'up' : down ? 'down' : 'unchanged'}</span>
+      <span className="sr-only">{up ? t('up') : down ? t('down') : t('unchanged')}</span>
     </span>
   )
 }
@@ -271,13 +285,13 @@ export function Banner({ tone = 'warning', title, children, action, className, i
 
 /* ---------------------------------------------------------------- Copy */
 
-export function CopyButton({ value, label = 'Copy', className, children }: { value: string; label?: string; className?: string; children?: ReactNode }) {
+export function CopyButton({ value, label, className, children }: { value: string; label?: string; className?: string; children?: ReactNode }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
       type="button"
-      aria-label={copied ? 'Copied' : label}
-      title={copied ? 'Copied' : label}
+      aria-label={copied ? t('Copied') : (label ?? t('Copy'))}
+      title={copied ? t('Copied') : (label ?? t('Copy'))}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value)

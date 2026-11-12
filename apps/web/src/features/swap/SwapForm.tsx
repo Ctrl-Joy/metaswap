@@ -23,6 +23,7 @@ import { fetchXSwapQuote } from './executeXSwap'
 import { Zap } from 'lucide-react'
 import { formatTokenAmount } from '@/lib/format'
 import type { QuoteResponse } from '@/api/types'
+import { t } from '@/i18n'
 
 const wethAddress = deployment.tokens?.find((t) => t.symbol === 'WETH')?.address
 
@@ -206,7 +207,7 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
   return (
     <div className="flex flex-col">
       <CurrencyInputPanel
-        label="Sell"
+        label={t('Sell')}
         testId="swap-input"
         token={inputToken}
         value={inputValue}
@@ -216,13 +217,13 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
         onMax={setMax}
         usdValue={usd(inputToken, amountIn)}
         estimating={exactOut && q.status === 'loading' && !!amount}
-        error={cta.label.startsWith('Insufficient')}
+        error={cta.disabled && cta.tone === 'critical'}
         variant="sell"
       />
       <div className="relative z-[1] -my-[22px] flex justify-center">
         <button
           type="button"
-          aria-label="Switch tokens"
+          aria-label={t('Switch tokens')}
           data-testid="flip-button"
           onClick={() => dispatch({ type: 'flip' })}
           className="group flex size-12 items-center justify-center rounded-2xl border-4 border-bg bg-surface-2 text-text-1 transition-colors hover:bg-surface-2-hover"
@@ -231,7 +232,7 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
         </button>
       </div>
       <CurrencyInputPanel
-        label="Buy"
+        label={t('Buy')}
         testId="swap-output"
         token={outputToken}
         value={outputValue}
@@ -264,13 +265,14 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
           <div className="flex items-center gap-2 rounded-2xl bg-accent-tint px-4 py-3 text-body-3" data-testid="x-gasless">
             <Zap size={16} className="shrink-0 text-accent" />
             <span>
-              <span className="font-semibold text-accent">Gasless via MetaSwapX.</span> Up to {formatTokenAmount(BigInt(xQuote.outputs[0]!.startAmount), outputToken.decimals)} {outputToken.symbol}, no network fee.
+              <span className="font-semibold text-accent">{t('Gasless via MetaSwapX.')}</span>{' '}
+              {t('Up to {amount} {symbol}, no network fee.', { amount: formatTokenAmount(BigInt(xQuote.outputs[0]!.startAmount), outputToken.decimals), symbol: outputToken.symbol })}
             </span>
           </div>
         )}
         {wrapType && amount ? (
           <div className="rounded-2xl border border-border px-4 py-3 text-body-3 text-text-2" data-testid="wrap-info">
-            {wrapType === 'wrap' ? 'Wrap ETH into WETH 1:1 on the WETH9 contract.' : 'Unwrap WETH back to ETH 1:1.'} No router or fees, just gas.
+            {wrapType === 'wrap' ? t('Wrap ETH into WETH 1:1 on the WETH9 contract.') : t('Unwrap WETH back to ETH 1:1.')} {t('No router or fees, just gas.')}
           </div>
         ) : null}
 
@@ -280,13 +282,13 @@ export function SwapForm({ defaultOutput, onTokensChange }: { defaultOutput?: To
           </Banner>
         )}
         {(sev === 'high' || sev === 'blocked') && q.quote && (
-          <Banner tone="critical" title={`Very high price impact (${(q.quote.priceImpactBps / 100).toFixed(2)}%)`}>
-            This trade moves the pool price a lot. You may receive much less than the market price.
+          <Banner tone="critical" title={t('Very high price impact ({pct}%)', { pct: (q.quote.priceImpactBps / 100).toFixed(2) })}>
+            {t('This trade moves the pool price a lot. You may receive much less than the market price.')}
           </Banner>
         )}
-        {sev === 'medium' && q.quote && <Banner tone="warning" title={`High price impact (${(q.quote.priceImpactBps / 100).toFixed(2)}%)`} />}
-        {keepGas && <Banner tone="warning" title="Keep some ETH for gas">Swapping almost all of your ETH may leave nothing to pay network fees.</Banner>}
-        {bufferShort && <Banner tone="warning" title="Balance is close to the limit">Your balance covers the expected input but not the full slippage buffer.</Banner>}
+        {sev === 'medium' && q.quote && <Banner tone="warning" title={t('High price impact ({pct}%)', { pct: (q.quote.priceImpactBps / 100).toFixed(2) })} />}
+        {keepGas && <Banner tone="warning" title={t('Keep some ETH for gas')}>{t('Swapping almost all of your ETH may leave nothing to pay network fees.')}</Banner>}
+        {bufferShort && <Banner tone="warning" title={t('Balance is close to the limit')}>{t('Your balance covers the expected input but not the full slippage buffer.')}</Banner>}
 
         <Button
           size="xl"

@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom'
 import { useHealth } from '@/api/hooks'
 import { useRealtimeStatus } from '@/api/realtime'
 import { cn } from '@/lib/cn'
+import { richText } from '@/components/ui'
 import { LogoMark } from './Logo'
+import { t } from '@/i18n'
 
 /** Compact footer for non-trade pages (ui-ux.md §1.7): links, API status, version. */
 export function Footer() {
@@ -25,22 +27,26 @@ export function Footer() {
           MetaChain
         </Link>
         <Link to="/buy" className="hover:text-text-1">
-          Devnet faucet
+          {t('Devnet faucet')}
         </Link>
         <span className="flex items-center gap-1.5" data-testid="footer-api-status" data-status={status}>
           <span className={cn('size-1.5 rounded-full', status === 'up' ? 'bg-success' : status === 'down' ? 'bg-critical' : 'bg-text-3')} />
-          API {status === 'up' ? <>synced to block <span data-testid="footer-block">{health.data?.indexedBlock ?? ''}</span></> : status === 'down' ? 'offline' : 'checking…'}
+          {status === 'up'
+            ? richText(t('API synced to block {block}'), { block: <span data-testid="footer-block">{health.data?.indexedBlock ?? ''}</span> })
+            : status === 'down'
+              ? t('API offline')
+              : t('API checking…')}
         </span>
         {status === 'up' && (
-          <span className="flex items-center gap-1.5" data-testid="footer-live" data-live={live ? 'on' : 'off'} title={live ? 'Real-time updates connected' : 'Real-time updates reconnecting; polling meanwhile'}>
+          <span className="flex items-center gap-1.5" data-testid="footer-live" data-live={live ? 'on' : 'off'} title={live ? t('Real-time updates connected') : t('Real-time updates reconnecting; polling meanwhile')}>
             <span className="relative flex size-1.5">
               {live && <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />}
               <span className={cn('relative size-1.5 rounded-full', live ? 'bg-success' : 'bg-text-3')} />
             </span>
-            {live ? 'Live' : 'Polling'}
+            {live ? t('realtime::Live') : t('Polling')}
           </span>
         )}
-        <span className="ml-auto">v{__APP_VERSION__} · devnet build · no real funds</span>
+        <span className="ml-auto">{t('v{version} · devnet build · no real funds', { version: __APP_VERSION__ })}</span>
       </div>
     </footer>
   )

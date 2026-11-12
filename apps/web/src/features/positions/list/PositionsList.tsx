@@ -14,6 +14,7 @@ import { feeLabel } from '../tokens'
 import { isFullRange, tickSpacingForFee } from '../math'
 import { positionStatus, StatusBadge, type PositionStatus } from '../components/StatusBadge'
 import { formatDisplayPrice } from '../components/RangeSelector'
+import { t } from '@/i18n'
 
 type StatusFilter = 'open' | 'in-range' | 'out-of-range' | 'closed' | 'all'
 type VersionFilter = 'all' | 'v3' | 'v2'
@@ -40,17 +41,17 @@ export function PositionsList() {
         style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, var(--ms-surface-3) 1px, transparent 0)', backgroundSize: '12px 12px' }}
       />
       <div className="relative mx-auto w-full max-w-[1184px] px-4 pt-6 pb-24 md:px-8 md:pt-8">
-        <h1 className="text-heading-3 font-medium md:text-[36px] md:leading-10">Supply liquidity to collect fees</h1>
-        <p className="mt-2 text-body-2 text-text-2 md:text-body-1">Provide liquidity to MetaSwap V2 and V3 pools and earn fees on every trade.</p>
+        <h1 className="text-heading-3 font-medium md:text-[36px] md:leading-10">{t('Supply liquidity to collect fees')}</h1>
+        <p className="mt-2 text-body-2 text-text-2 md:text-body-1">{t('Provide liquidity to MetaSwap V2 and V3 pools and earn fees on every trade.')}</p>
         <div className="mt-8 flex flex-wrap gap-2">
           <ButtonLink to="/positions/create" data-testid="new-position" className="h-[46px]! rounded-2xl! px-4! text-body-2!">
-            <Droplet size={18} className="fill-current" /> Create position
+            <Droplet size={18} className="fill-current" /> {t('Create position')}
           </ButtonLink>
           <ButtonLink to="/positions/create?version=v2" variant="tint" className="h-[46px]! rounded-2xl! px-4! text-body-2!" data-testid="create-pool">
-            <Plus size={20} /> Create pool
+            <Plus size={20} /> {t('Create pool')}
           </ButtonLink>
           <ButtonLink to="/launches/create" variant="tint" className="h-[46px]! rounded-2xl! px-4! text-body-2!" data-testid="launch-token">
-            <Plus size={20} /> Launch token
+            <Plus size={20} /> {t('Launch token')}
           </ButtonLink>
         </div>
 
@@ -58,15 +59,15 @@ export function PositionsList() {
           <>
             <div className="relative mt-14 flex min-h-[180px] flex-col items-center justify-center overflow-hidden rounded-[20px] bg-accent-tint px-6 py-8 text-center" data-testid="positions-gate">
               <BannerPattern />
-              <h2 className="relative text-heading-3 font-medium">Connect your wallet</h2>
-              <p className="relative mt-2 text-body-2 text-text-2">To view your positions and rewards you must connect your wallet.</p>
+              <h2 className="relative text-heading-3 font-medium">{t('Connect your wallet')}</h2>
+              <p className="relative mt-2 text-body-2 text-text-2">{t('To view your positions and rewards you must connect your wallet.')}</p>
               <button
                 type="button"
                 onClick={openConnect}
                 data-testid="positions-connect"
                 className="relative mt-6 inline-flex h-[34px] items-center gap-2 rounded-full bg-surface-3 px-3 text-body-3 font-semibold transition-colors hover:bg-surface-3-hover"
               >
-                Connect wallet
+                {t('Connect wallet')}
               </button>
             </div>
             <TopPoolsTable />
@@ -74,29 +75,29 @@ export function PositionsList() {
         ) : (
           <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_360px]">
             <div className="min-w-0">
-              <h2 className="mb-4 text-body-1 font-medium">Your positions</h2>
+              <h2 className="mb-4 text-body-1 font-medium">{t('Your positions')}</h2>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <SegmentedTabs
                   size="sm"
-                  ariaLabel="Status filter"
+                  ariaLabel={t('Status filter')}
                   value={status}
                   onChange={(v) => setFilter('status', v, 'open')}
                   items={[
-                    { value: 'open', label: 'Open', testId: 'filter-status-open' },
-                    { value: 'in-range', label: 'In range', testId: 'filter-status-in-range' },
-                    { value: 'out-of-range', label: 'Out of range', testId: 'filter-status-out-of-range' },
-                    { value: 'closed', label: 'Closed', testId: 'filter-status-closed' },
-                    { value: 'all', label: 'All', testId: 'filter-status-all' },
+                    { value: 'open', label: t('Open'), testId: 'filter-status-open' },
+                    { value: 'in-range', label: t('In range'), testId: 'filter-status-in-range' },
+                    { value: 'out-of-range', label: t('Out of range'), testId: 'filter-status-out-of-range' },
+                    { value: 'closed', label: t('Closed'), testId: 'filter-status-closed' },
+                    { value: 'all', label: t('All'), testId: 'filter-status-all' },
                   ]}
                 />
                 <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
                 <SegmentedTabs
                   size="sm"
-                  ariaLabel="Version filter"
+                  ariaLabel={t('Version filter')}
                   value={version}
                   onChange={(v) => setFilter('version', v, 'all')}
                   items={[
-                    { value: 'all', label: 'All versions', testId: 'filter-version-all' },
+                    { value: 'all', label: t('All versions'), testId: 'filter-version-all' },
                     { value: 'v3', label: 'v3', testId: 'filter-version-v3' },
                     { value: 'v2', label: 'v2', testId: 'filter-version-v2' },
                   ]}
@@ -129,20 +130,20 @@ function TopPoolsTable() {
   return (
     <section className="mt-10" data-testid="top-pools" aria-labelledby="top-pools-title">
       <h2 id="top-pools-title" className="mb-4 text-body-1 font-medium">
-        Top pools
+        {t('Top pools')}
       </h2>
       <div className="overflow-hidden rounded-xl">
         <div className={cn(cols, 'h-[54px] rounded-xl bg-surface-2 text-body-3 text-text-2')}>
           <span>#</span>
-          <span>Pool</span>
+          <span>{t('Pool')}</span>
           <span className="text-right">TVL</span>
           <span className="hidden text-right text-text-1 md:block">
             <ArrowDown size={14} className="mr-0.5 inline align-[-2px]" />
-            1D vol
+            {t('1D vol')}
           </span>
-          <span className="hidden text-right md:block">30D vol</span>
-          <span className="hidden text-right md:block">1D vol/TVL</span>
-          <span className="hidden text-right md:block">Pool APR</span>
+          <span className="hidden text-right md:block">{t('30D vol')}</span>
+          <span className="hidden text-right md:block">{t('1D vol/TVL')}</span>
+          <span className="hidden text-right md:block">{t('Pool APR')}</span>
         </div>
         {q.isLoading ? (
           <div className="flex flex-col gap-2 pt-2">
@@ -151,7 +152,7 @@ function TopPoolsTable() {
             ))}
           </div>
         ) : q.isError ? (
-          <p className="px-5 py-6 text-body-3 text-text-2">Pools unavailable.</p>
+          <p className="px-5 py-6 text-body-3 text-text-2">{t('Pools unavailable.')}</p>
         ) : (
           [...rows]
             .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
@@ -183,7 +184,7 @@ function TopPoolsTable() {
         )}
       </div>
       <ButtonLink to="/explore/pools" variant="outline" size="sm" className="mt-4 h-8! rounded-full! px-3!" data-testid="see-all-pools">
-        See all pools <ArrowRight size={16} />
+        {t('See all pools')} <ArrowRight size={16} />
       </ButtonLink>
     </section>
   )
@@ -218,8 +219,8 @@ function AccountPositions({ address, status, version }: { address: Address; stat
     )
   if (q.isError)
     return (
-      <Banner tone="critical" title="Positions unavailable">
-        The MetaSwap API is not reachable, so positions can't be listed right now.
+      <Banner tone="critical" title={t('Positions unavailable')}>
+        {t("The MetaSwap API is not reachable, so positions can't be listed right now.")}
       </Banner>
     )
   const filtered = rows.filter((r) => matchesStatus(positionStatus(r), status) && (version === 'all' || r.version === version))
@@ -228,14 +229,14 @@ function AccountPositions({ address, status, version }: { address: Address; stat
       <Card>
         <EmptyState
           icon={<Layers size={22} />}
-          title={rows.length === 0 ? 'No positions yet' : 'No positions match these filters'}
+          title={rows.length === 0 ? t('No positions yet') : t('No positions match these filters')}
           action={
             <ButtonLink to="/positions/create" data-testid="empty-new-position">
-              New position
+              {t('New position')}
             </ButtonLink>
           }
         >
-          {rows.length === 0 ? 'Open a new position or add liquidity to a pool to start earning fees.' : 'Change the status or version filter to see your other positions.'}
+          {rows.length === 0 ? t('Open a new position or add liquidity to a pool to start earning fees.') : t('Change the status or version filter to see your other positions.')}
         </EmptyState>
       </Card>
     )
@@ -289,20 +290,20 @@ function PositionCard({ row, pool }: { row: AnyPositionRow; pool?: PoolDetail })
           </div>
           <div className="mt-0.5 text-body-4 text-text-2 tabular">
             {full
-              ? 'Full range'
-              : `${formatDisplayPrice((row as Extract<AnyPositionRow, { version: 'v3' }>).priceLower)} – ${formatDisplayPrice((row as Extract<AnyPositionRow, { version: 'v3' }>).priceUpper)} ${row.token1.symbol} per ${row.token0.symbol}`}
+              ? t('Full range')
+              : `${formatDisplayPrice((row as Extract<AnyPositionRow, { version: 'v3' }>).priceLower)} – ${formatDisplayPrice((row as Extract<AnyPositionRow, { version: 'v3' }>).priceUpper)} ${t('{quote} per {base}', { quote: row.token1.symbol, base: row.token0.symbol })}`}
           </div>
         </div>
         <ChevronRight size={18} className="text-text-3" />
       </div>
       <dl className="grid grid-cols-3 gap-3 text-body-3">
         <div>
-          <dt className="text-body-4 text-text-2">Position</dt>
+          <dt className="text-body-4 text-text-2">{t('Position')}</dt>
           <dd className="font-semibold tabular">{formatUsd(row.valueUsd)}</dd>
         </div>
         <div>
-          <dt className="text-body-4 text-text-2">Fees</dt>
-          <dd className="font-semibold tabular">{row.version === 'v3' ? formatUsd(fees) : <span className="text-text-3">Auto-compounded</span>}</dd>
+          <dt className="text-body-4 text-text-2">{t('Fees')}</dt>
+          <dd className="font-semibold tabular">{row.version === 'v3' ? formatUsd(fees) : <span className="text-text-3">{t('Auto-compounded')}</span>}</dd>
         </div>
         <div>
           <dt className="text-body-4 text-text-2">APR</dt>
@@ -318,16 +319,16 @@ function TopPools() {
   const rows = (q.data ?? []).slice(0, 6)
   return (
     <aside className="flex flex-col gap-3" data-testid="top-pools">
-      <h2 className="text-body-1 font-medium">Top pools by TVL</h2>
+      <h2 className="text-body-1 font-medium">{t('Top pools by TVL')}</h2>
       {q.isLoading ? (
         [0, 1, 2, 3].map((i) => <Skeleton key={i} width="100%" height={64} rounded="lg" />)
       ) : q.isError ? (
-        <p className="text-body-3 text-text-2">Pools unavailable.</p>
+        <p className="text-body-3 text-text-2">{t('Pools unavailable.')}</p>
       ) : (
         rows.map((r) => <TopPoolRow key={r.address} row={r} />)
       )}
       <Link to="/explore/pools" className="text-body-3 font-semibold text-accent hover:underline">
-        Explore more pools
+        {t('Explore more pools')}
       </Link>
     </aside>
   )
@@ -346,7 +347,7 @@ function TopPoolRow({ row }: { row: ExplorePoolRowW3 }) {
             {row.version} {feeLabel(row.fee)}
           </span>
         </div>
-        <div className="text-body-4 text-text-2">{formatUsd(row.tvlUsd, { compact: true })} TVL</div>
+        <div className="text-body-4 text-text-2">{t('{value} TVL', { value: formatUsd(row.tvlUsd, { compact: true }) })}</div>
       </div>
       <div className="text-right">
         <div className="text-body-3 font-semibold text-success tabular">{formatPercent(row.apr)}</div>

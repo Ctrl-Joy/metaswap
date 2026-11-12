@@ -10,6 +10,8 @@ import { useSettings } from '@/state/settings'
 import { formatPrice, formatTokenAmount, formatUsd } from '@/lib/format'
 import { toNumber } from '@/lib/amount'
 import { CHAIN_SLUG } from '@/config'
+import { richText } from '@/components/ui'
+import { t } from '@/i18n'
 
 export const SMALL_BALANCE_USD = 1
 
@@ -60,8 +62,14 @@ export function TokenBalancesList({ address, onNavigate, limit }: { address: Add
     )
   if (holdings.length === 0)
     return (
-      <EmptyState icon={<Coins size={20} />} title="No tokens yet" className="py-8">
-        Get free test tokens on the <Link to="/buy" onClick={onNavigate} className="text-accent hover:underline">Buy</Link> page.
+      <EmptyState icon={<Coins size={20} />} title={t('No tokens yet')} className="py-8">
+        {richText(t('Get free test tokens on the {buy} page.'), {
+          buy: (
+            <Link to="/buy" onClick={onNavigate} className="text-accent hover:underline">
+              {t('Buy')}
+            </Link>
+          ),
+        })}
       </EmptyState>
     )
   return (

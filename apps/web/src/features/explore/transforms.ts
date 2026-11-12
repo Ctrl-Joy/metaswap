@@ -1,6 +1,7 @@
 // Pure data transforms for the explore pages. No React, no fetching: everything here is unit tested
 // (transforms.test.ts). API shapes are normalised here so components read one clean model.
 import { NATIVE_ADDRESS } from '@metaswap/sdk'
+import { t } from '@/i18n'
 import type { ApiToken } from '@/api/types'
 import type {
   CandlePoint,
@@ -395,13 +396,13 @@ export function txLabel(tx: TxRow, perspective?: string): { text: string; verb: 
   const a = tx.legs[0]?.symbol ?? '?'
   const b = tx.legs[1]?.symbol ?? '?'
   if (tx.kind === 'swap') {
-    if (perspective && sameAsset(b, perspective)) return { text: `Buy ${b}`, verb: 'buy' }
-    if (perspective && sameAsset(a, perspective)) return { text: `Sell ${a}`, verb: 'sell' }
-    return { text: `Swap ${a} for ${b}`, verb: 'swap' }
+    if (perspective && sameAsset(b, perspective)) return { text: t('Buy {token}', { token: b }), verb: 'buy' }
+    if (perspective && sameAsset(a, perspective)) return { text: t('Sell {token}', { token: a }), verb: 'sell' }
+    return { text: t('Swap {a} for {b}', { a, b }), verb: 'swap' }
   }
-  if (tx.kind === 'add') return { text: `Add ${a} and ${b}`, verb: 'add' }
-  if (tx.kind === 'remove') return { text: `Remove ${a} and ${b}`, verb: 'remove' }
-  return { text: 'Other', verb: 'other' }
+  if (tx.kind === 'add') return { text: t('Add {a} and {b}', { a, b }), verb: 'add' }
+  if (tx.kind === 'remove') return { text: t('Remove {a} and {b}', { a, b }), verb: 'remove' }
+  return { text: t('Other'), verb: 'other' }
 }
 
 /* ------------------------------------------------------------------ stats */

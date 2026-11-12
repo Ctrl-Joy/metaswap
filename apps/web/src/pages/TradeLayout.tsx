@@ -4,6 +4,7 @@ import { TrendingUp } from 'lucide-react'
 import { IconButton } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { SettingsPopover } from '@/features/settings/SettingsPopover'
+import { t } from '@/i18n'
 
 const TABS = [
   { to: '/swap', label: 'Swap' },
@@ -11,6 +12,20 @@ const TABS = [
   { to: '/send', label: 'Send' },
   { to: '/buy', label: 'Buy' },
 ] as const
+
+/** Translated tab label (TABS keeps English labels, which also form the test ids). */
+function tabText(label: (typeof TABS)[number]['label']): string {
+  switch (label) {
+    case 'Swap':
+      return t('Swap')
+    case 'Limit':
+      return t('Limit')
+    case 'Send':
+      return t('Send')
+    case 'Buy':
+      return t('Buy')
+  }
+}
 
 export interface TradeChartSlot {
   open: boolean
@@ -29,12 +44,12 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
       <div className={cn('flex w-full flex-col items-center gap-6', showChart && 'lg:max-w-[1200px] lg:flex-row-reverse lg:items-start lg:justify-center')}>
         <div className={cn('w-full shrink-0', wide ? 'max-w-[480px]' : 'max-w-[480px]')}>
           <div className="mb-0.5 flex h-[46px] items-center justify-between">
-            <nav aria-label="Trade" className="flex items-center gap-3 p-1">
-              {TABS.map((t) => (
+            <nav aria-label={t('Trade')} className="flex items-center gap-3 p-1">
+              {TABS.map((tab) => (
                 <NavLink
-                  key={t.to}
-                  to={t.to}
-                  data-testid={`tab-${t.label.toLowerCase()}`}
+                  key={tab.to}
+                  to={tab.to}
+                  data-testid={`tab-${tab.label.toLowerCase()}`}
                   className={({ isActive }) =>
                     cn(
                       'flex h-9 items-center rounded-full px-3 text-body-3 leading-4 font-semibold transition-colors duration-150',
@@ -42,14 +57,14 @@ export function TradeLayout({ children, settings = false, below, wide, chart }: 
                     )
                   }
                 >
-                  {t.label}
+                  {tabText(tab.label)}
                 </NavLink>
               ))}
             </nav>
             <div className="flex items-center gap-2">
               {chart && (
                 <IconButton
-                  label={chart.open ? 'Hide price chart' : 'Show price chart'}
+                  label={chart.open ? t('Hide price chart') : t('Show price chart')}
                   size={32}
                   aria-pressed={chart.open}
                   onClick={chart.onToggle}

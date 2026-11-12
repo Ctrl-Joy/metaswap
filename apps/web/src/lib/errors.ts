@@ -1,5 +1,6 @@
 import { decodeErrorResult, toFunctionSelector, type Hex } from 'viem'
 import { knownErrorsAbi } from './abis'
+import { t } from '../i18n'
 
 export type TxErrorKind =
   | 'rejected'
@@ -108,44 +109,46 @@ export function parseTxError(err: unknown, ctx: { slippagePct?: string } = {}): 
     names.includes('UserRejectedRequestError') ||
     /user (rejected|denied|cancel)|rejected the request|request rejected|user disapproved/i.test(text)
   )
-    return { kind: 'rejected', title: 'Request rejected', message: 'You rejected the request in your wallet.', detail }
+    return { kind: 'rejected', title: t('Request rejected'), message: t('You rejected the request in your wallet.'), detail }
 
   if (err instanceof ApiError) {
     if (err.status === 410 || err.code === 'QUOTE_EXPIRED' || /expired/i.test(err.message))
-      return { kind: 'quote-expired', title: 'Quote expired', message: 'This quote is older than 30 seconds. Refresh to get a new price.', detail: err.message }
+      return { kind: 'quote-expired', title: t('Quote expired'), message: t('This quote is older than 30 seconds. Refresh to get a new price.'), detail: err.message }
     if (/no route|liquidity/i.test(err.message))
-      return { kind: 'liquidity', title: 'No route found', message: 'There is not enough liquidity to route this trade.', detail: err.message }
+      return { kind: 'liquidity', title: t('No route found'), message: t('There is not enough liquidity to route this trade.'), detail: err.message }
     if (err.status >= 500 || err.status === 0)
-      return { kind: 'api-down', title: 'MetaSwap API unavailable', message: 'The quote service did not respond. Check that the API is running and try again.', detail: err.message }
-    return { kind: 'unknown', title: 'Request failed', message: err.message, detail: err.message }
+      return { kind: 'api-down', title: t('MetaSwap API unavailable'), message: t('The quote service did not respond. Check that the API is running and try again.'), detail: err.message }
+    return { kind: 'unknown', title: t('Request failed'), message: err.message, detail: err.message }
   }
   if (names.includes('TypeError') && /fetch|network|load failed/i.test(text))
-    return { kind: 'api-down', title: 'MetaSwap API unavailable', message: 'Could not reach the MetaSwap API. Check that it is running and try again.', detail }
+    return { kind: 'api-down', title: t('MetaSwap API unavailable'), message: t('Could not reach the MetaSwap API. Check that it is running and try again.'), detail }
 
   const custom = revertErrorName(err)
   if ((custom && SLIPPAGE_ERRORS.has(custom)) || /too little received|insufficient_output_amount|excessive_input_amount|too much requested/i.test(text))
     return {
       kind: 'slippage',
-      title: 'Price moved',
-      message: `The price moved beyond your slippage tolerance${ctx.slippagePct ? ` (${ctx.slippagePct})` : ''}. Increase slippage or refresh the quote.`,
+      title: t('Price moved'),
+      message: ctx.slippagePct
+        ? t('The price moved beyond your slippage tolerance ({slippage}). Increase slippage or refresh the quote.', { slippage: ctx.slippagePct })
+        : t('The price moved beyond your slippage tolerance. Increase slippage or refresh the quote.'),
       detail,
     }
   if (custom === 'TransactionDeadlinePassed' || /deadline passed|transaction too old/i.test(text))
-    return { kind: 'deadline', title: 'Deadline passed', message: 'The transaction deadline passed before it was mined. Refresh the quote and try again.', detail }
+    return { kind: 'deadline', title: t('Deadline passed'), message: t('The transaction deadline passed before it was mined. Refresh the quote and try again.'), detail }
   if (custom === 'SignatureExpired' || custom === 'AllowanceExpired' || custom === 'InvalidNonce' || /invalidsignature|signature expired/i.test(text))
-    return { kind: 'permit', title: 'Permit no longer valid', message: 'The Permit2 signature expired or was already used. Sign again.', detail }
+    return { kind: 'permit', title: t('Permit no longer valid'), message: t('The Permit2 signature expired or was already used. Sign again.'), detail }
   if (custom === 'InsufficientAllowance' || /transfer_from_failed|insufficient allowance/i.test(text))
-    return { kind: 'allowance', title: 'Approval missing', message: 'The token approval is missing or too low. Approve again and retry.', detail }
+    return { kind: 'allowance', title: t('Approval missing'), message: t('The token approval is missing or too low. Approve again and retry.'), detail }
   if (/insufficient funds/i.test(text))
-    return { kind: 'insufficient-gas', title: 'Not enough ETH', message: 'Your ETH balance cannot cover this amount plus network fees. Keep some ETH for gas.', detail }
+    return { kind: 'insufficient-gas', title: t('Not enough ETH'), message: t('Your ETH balance cannot cover this amount plus network fees. Keep some ETH for gas.'), detail }
   if (custom === 'InsufficientToken' || custom === 'InsufficientETH' || custom === 'BalanceTooLow' || /exceeds balance|insufficient balance/i.test(text))
-    return { kind: 'insufficient-balance', title: 'Insufficient balance', message: 'Your balance is too low for this transaction.', detail }
+    return { kind: 'insufficient-balance', title: t('Insufficient balance'), message: t('Your balance is too low for this transaction.'), detail }
   if ((custom && LIQUIDITY_ERRORS.has(custom)) || /insufficient_liquidity/i.test(text))
-    return { kind: 'liquidity', title: 'Not enough liquidity', message: 'The pools cannot fill this amount. Try a smaller trade.', detail }
+    return { kind: 'liquidity', title: t('Not enough liquidity'), message: t('The pools cannot fill this amount. Try a smaller trade.'), detail }
   if (/reverted|status 0/i.test(text))
-    return { kind: 'reverted', title: 'Transaction failed', message: 'The transaction reverted. Try again with a higher slippage tolerance.', detail }
-  const short = texts.find((t) => t.length < 160)
-  return { kind: 'unknown', title: 'Something went wrong', message: short ?? 'Unexpected error.', detail }
+    return { kind: 'reverted', title: t('Transaction failed'), message: t('The transaction reverted. Try again with a higher slippage tolerance.'), detail }
+  const short = texts.find((x) => x.length < 160)
+  return { kind: 'unknown', title: t('Something went wrong'), message: short ?? t('Unexpected error.'), detail }
 }
 
 export function isUserRejection(err: unknown): boolean {

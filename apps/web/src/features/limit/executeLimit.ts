@@ -7,6 +7,7 @@ import { apiPost } from '@/api/client'
 import type { XOrder } from '@/api/types'
 import { trackTx, invalidateChainQueries } from '@/state/transactions'
 import { formatTokenAmount } from '@/lib/format'
+import { t } from '@/i18n'
 import { buildLimitOrder, cancelArgs, encodeOrder, orderHash, orderTypedData, randomNonce, type ExclusiveDutchOrder } from './order'
 
 export type LimitStepId = 'approve' | 'sign' | 'submit'
@@ -35,7 +36,7 @@ export async function placeLimitOrder(a: PlaceLimitArgs, onStep: (id: LimitStepI
   if (allowance < a.amountIn) {
     onStep('approve', 'active')
     const hash = await writeContract(wagmiConfig, { address: a.inputToken.address, abi: erc20Abi, functionName: 'approve', args: [a.permit2, maxUint256] })
-    const receipt = await trackTx(a.account, { hash, type: 'approve', summary: `Approved ${a.inputToken.symbol} for Permit2` }, { toast: false })
+    const receipt = await trackTx(a.account, { hash, type: 'approve', summary: t('Approved {symbol} for Permit2', { symbol: a.inputToken.symbol }) }, { toast: false })
     if (!receipt || receipt.status !== 'success') throw new Error('Approval transaction reverted')
     onStep('approve', 'done')
   } else onStep('approve', 'skipped')
@@ -74,10 +75,15 @@ export async function placeLimitOrder(a: PlaceLimitArgs, onStep: (id: LimitStepI
 /** Cancel = burn the order's Permit2 nonce: invalidateUnorderedNonces(nonce >> 8, 1 << (nonce & 0xff)). */
 export async function cancelLimitOrder(a: { account: Address; permit2: Address; nonce: bigint; label: string }) {
   const hash = await writeContract(wagmiConfig, { address: a.permit2, abi: permit2Abi, functionName: 'invalidateUnorderedNonces', args: cancelArgs(a.nonce) })
-  return trackTx(a.account, { hash, type: 'cancel-order', summary: `Cancelled ${a.label}` })
+  return trackTx(a.account, { hash, type: 'cancel-order', summary: t('Cancelled {order}', { order: a.label }) })
 }
 
 export function orderLabel(order: ExclusiveDutchOrder, tIn?: Token, tOut?: Token): string {
   const out = order.outputs[0]
-  return `${tIn ? formatTokenAmount(order.input.startAmount, tIn.decimals) : ''} ${tIn?.symbol ?? 'token'} → ${tOut && out ? formatTokenAmount(out.endAmount, tOut.decimals) : ''} ${tOut?.symbol ?? 'token'} limit`
+  return t('{amountIn} {symbolIn} → {amountOut} {symbolOut} limit', {
+    amountIn: tIn ? formatTokenAmount(order.input.startAmount, tIn.decimals) : '',
+    symbolIn: tIn?.symbol ?? t('token'),
+    amountOut: tOut && out ? formatTokenAmount(out.endAmount, tOut.decimals) : '',
+    symbolOut: tOut?.symbol ?? t('token'),
+  })
 }

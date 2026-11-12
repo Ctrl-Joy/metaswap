@@ -9,6 +9,7 @@ import { trackTx, invalidateChainQueries } from '@/state/transactions'
 import { decodeOrder, orderHash, orderTypedData } from '@/features/limit/order'
 import { DEVNET_CHAIN_ID } from '@/config'
 import type { StepId, StepStatus } from './executeSwap'
+import { t } from '@/i18n'
 
 /** GET /x/quote (mode=dutch) with a swapper: indicative Dutch auction + ready-to-sign order. */
 export interface XSwapQuote {
@@ -38,16 +39,16 @@ export function fetchXSwapQuote(p: { tokenIn: Token; tokenOut: Token; amount: bi
 export async function executeXSwap(a: { account: Address; quote: XSwapQuote; inputToken: Token; amountIn: bigint; summary: string }, cb: { onStep: (id: StepId, s: StepStatus) => void }): Promise<Hex> {
   const permit2 = contractAddress('Permit2')
   const order = decodeOrder(a.quote.encodedOrder)
-  if (order.info.swapper.toLowerCase() !== a.account.toLowerCase()) throw new Error('Order swapper does not match the connected account')
+  if (order.info.swapper.toLowerCase() !== a.account.toLowerCase()) throw new Error(t('Order swapper does not match the connected account'))
   if (order.input.token.toLowerCase() !== a.inputToken.address.toLowerCase() || order.input.startAmount !== a.amountIn)
-    throw new Error('Order input does not match the trade')
-  if (order.info.reactor.toLowerCase() !== contractAddress('ExclusiveDutchOrderReactor').toLowerCase()) throw new Error('Order targets an unknown reactor')
+    throw new Error(t('Order input does not match the trade'))
+  if (order.info.reactor.toLowerCase() !== contractAddress('ExclusiveDutchOrderReactor').toLowerCase()) throw new Error(t('Order targets an unknown reactor'))
 
   const allowance = await readContract(wagmiConfig, { address: a.inputToken.address, abi: erc20Abi, functionName: 'allowance', args: [a.account, permit2] })
   if (allowance < order.input.endAmount) {
     cb.onStep('approve', 'active')
     const hash = await writeContract(wagmiConfig, { address: a.inputToken.address, abi: erc20Abi, functionName: 'approve', args: [permit2, maxUint256] })
-    const r = await trackTx(a.account, { hash, type: 'approve', summary: `Approved ${a.inputToken.symbol} for Permit2` }, { toast: false })
+    const r = await trackTx(a.account, { hash, type: 'approve', summary: t('Approved {symbol} for Permit2', { symbol: a.inputToken.symbol }) }, { toast: false })
     if (!r || r.status !== 'success') throw new Error('Approval transaction reverted')
     cb.onStep('approve', 'done')
   } else cb.onStep('approve', 'skipped')

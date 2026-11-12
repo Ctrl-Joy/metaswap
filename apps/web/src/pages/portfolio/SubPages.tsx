@@ -6,11 +6,12 @@ import { Dropdown, PfHead, PfTable, PfTd, PfTh, PfTr, SearchField } from '@/feat
 import { useMask } from '@/features/portfolio/usePortfolioData'
 import { AmountCell, iconFor, useActivityRows } from '@/features/account/ActivityList'
 import { filterActivity, TIME_FILTERS, TYPE_FILTERS, type TimeFilter, type TypeFilter } from '@/features/account/activityModel'
-import { formatUsd } from '@/lib/format'
+import { formatUsd, fixedNumber } from '@/lib/format'
 import { searchTokens } from '@/features/tokens/tokenSearch'
 import { cn } from '@/lib/cn'
 import { usePortfolioContext } from './PortfolioLayout'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 /** Tokens tab: total + "▲ change • n tokens", search, full table (Avg cost, 1D change, Allocation), hidden tokens. */
 export function TokensPage() {
@@ -19,7 +20,7 @@ export function TokensPage() {
   const [query, setQuery] = useState('')
   const rows = useMemo(() => {
     if (!query.trim()) return data.tokens
-    const keep = new Set(searchTokens(data.tokens.map((r) => r.token), query).map((t) => t.address))
+    const keep = new Set(searchTokens(data.tokens.map((r) => r.token), query).map((tok) => tok.address))
     return data.tokens.filter((r) => keep.has(r.token.address))
   }, [data.tokens, query])
   const d = data.change24hUsd
@@ -37,19 +38,19 @@ export function TokensPage() {
                   {d >= 0 ? '▲' : '▼'}
                 </span>
                 <span className="text-text-1">
-                  {mask(formatUsd(Math.abs(d)))} ({Math.abs(data.change24hPct ?? 0).toFixed(2)}%)
+                  {mask(formatUsd(Math.abs(d)))} ({fixedNumber(Math.abs(data.change24hPct ?? 0), 2)}%)
                 </span>
               </span>
             )}
             {d != null && <span aria-hidden>•</span>}
-            {!data.isLoading && <span>{data.tokens.length} tokens</span>}
+            {!data.isLoading && <span>{data.tokens.length === 1 ? t('1 token') : t('{count} tokens', { count: data.tokens.length })}</span>}
           </div>
         </div>
-        <SearchField value={query} onChange={setQuery} placeholder="Search tokens" width={280} testId="portfolio-token-search" />
+        <SearchField value={query} onChange={setQuery} placeholder={t('Search tokens')} width={280} testId="portfolio-token-search" />
       </div>
       {query && rows.length === 0 ? (
-        <EmptyState title="No tokens found" className="py-10">
-          No tokens match “{query}”.
+        <EmptyState title={t('No tokens found')} className="py-10">
+          {t('No tokens match “{query}”.', { query })}
         </EmptyState>
       ) : (
         <TokensTable rows={rows} loading={data.isLoading} variant="full" totalUsd={data.totalUsd} />
@@ -71,7 +72,7 @@ export function NftsPage() {
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-2 text-text-2">NFTs</span>
-        <SearchField value={query} onChange={setQuery} placeholder="Search NFTs" width={320} testId="portfolio-nft-search" />
+        <SearchField value={query} onChange={setQuery} placeholder={t('Search NFTs')} width={320} testId="portfolio-nft-search" />
       </div>
       <NftGrid nfts={nfts} loading={data.isLoading} />
     </section>
@@ -80,6 +81,14 @@ export function NftsPage() {
 
 const TYPE_OPTIONS = (Object.keys(TYPE_FILTERS) as TypeFilter[]).map((k) => ({ value: k, label: TYPE_FILTERS[k].label, testId: `activity-filter-${k}` }))
 const TIME_OPTIONS = (Object.keys(TIME_FILTERS) as TimeFilter[]).map((k) => ({ value: k, label: TIME_FILTERS[k].label, testId: `activity-time-${k}` }))
+
+/** Copy-button label for an activity counterpart ("Copy to", "Copy transaction", …). */
+function copyLabel(kind: 'To' | 'From' | 'Transaction' | 'Protocol'): string {
+  if (kind === 'To') return t('Copy to')
+  if (kind === 'From') return t('Copy from')
+  if (kind === 'Transaction') return t('Copy transaction')
+  return t('Copy protocol')
+}
 
 function shortDate(ms: number): string {
   return new Date(ms).toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric' })
@@ -93,21 +102,24 @@ export function ActivityPage() {
   const [query, setQuery] = useState('')
   const { rows: all, loading } = useActivityRows(account.address)
   const rows = useMemo(() => filterActivity(all, { type, time, query }), [all, type, time, query])
+  // Filter labels are English constants (activityModel); translate them where they are shown.
+  const typeOptions = TYPE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))
+  const timeOptions = TIME_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))
   return (
     <section>
       <div className="mb-7 flex flex-wrap items-center gap-2">
-        <Dropdown value={type} onChange={setType} options={TYPE_OPTIONS} icon={<ListFilter size={16} className="text-text-2" />} testId="activity-type" width={260} />
-        <Dropdown value={time} onChange={setTime} options={TIME_OPTIONS} icon={<CalendarDays size={16} className="text-text-2" />} testId="activity-time" width={182} />
+        <Dropdown value={type} onChange={setType} options={typeOptions} icon={<ListFilter size={16} className="text-text-2" />} testId="activity-type" width={260} />
+        <Dropdown value={time} onChange={setTime} options={timeOptions} icon={<CalendarDays size={16} className="text-text-2" />} testId="activity-time" width={182} />
         <div className="ml-auto w-full md:w-auto">
-          <SearchField value={query} onChange={setQuery} placeholder="Search activity" width={320} testId="activity-search" />
+          <SearchField value={query} onChange={setQuery} placeholder={t('Search activity')} width={320} testId="activity-search" />
         </div>
       </div>
       <PfTable minWidth={900} testId="activity-table">
         <PfHead>
-          <PfTh className="w-[152px]">Time</PfTh>
-          <PfTh className="w-[180px]">Type</PfTh>
-          <PfTh>Amount</PfTh>
-          <PfTh className="w-[260px]">Address</PfTh>
+          <PfTh className="w-[152px]">{t('Time')}</PfTh>
+          <PfTh className="w-[180px]">{t('Type')}</PfTh>
+          <PfTh>{t('Amount')}</PfTh>
+          <PfTh className="w-[260px]">{t('Address')}</PfTh>
         </PfHead>
         <tbody data-testid="activity-list">
           {loading ? (
@@ -121,8 +133,8 @@ export function ActivityPage() {
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={4}>
-                <EmptyState title="No activity" className="py-10">
-                  {all.length ? 'Nothing matches these filters.' : 'Your swaps, sends and orders will show up here.'}
+                <EmptyState title={t('No activity')} className="py-10">
+                  {all.length ? t('Nothing matches these filters.') : t('Your swaps, sends and orders will show up here.')}
                 </EmptyState>
               </td>
             </tr>
@@ -137,9 +149,9 @@ export function ActivityPage() {
                   <PfTd>
                     <span className="flex items-center gap-2 text-text-1">
                       <Icon size={16} className="shrink-0" aria-hidden />
-                      {r.label}
-                      {r.status === 'pending' && <span className="text-accent">· pending</span>}
-                      {(r.status === 'reverted' || r.status === 'dropped') && <span className="text-critical">· failed</span>}
+                      {t(r.label)}
+                      {r.status === 'pending' && <span className="text-accent">· {t('pending')}</span>}
+                      {(r.status === 'reverted' || r.status === 'dropped') && <span className="text-critical">· {t('failed')}</span>}
                     </span>
                   </PfTd>
                   <PfTd className="whitespace-normal">
@@ -148,9 +160,9 @@ export function ActivityPage() {
                   <PfTd>
                     {r.counterpart ? (
                       <span className="flex flex-col">
-                        <span className="text-body-4 text-text-2">{r.counterpart.label}</span>
+                        <span className="text-body-4 text-text-2">{t(r.counterpart.label)}</span>
                         {r.counterpart.address ? (
-                          <CopyButton value={r.counterpart.address} label={`Copy ${r.counterpart.label.toLowerCase()}`} className="justify-start text-body-3 text-text-1">
+                          <CopyButton value={r.counterpart.address} label={copyLabel(r.counterpart.label)} className="justify-start text-body-3 text-text-1">
                             {r.counterpart.label !== 'Transaction' && <Identicon address={r.counterpart.address as `0x${string}`} size={16} />}
                             <span className="font-mono">{r.counterpart.value}</span>
                           </CopyButton>

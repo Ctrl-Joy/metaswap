@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeftRight, Minus, Plus } from 'lucide-react'
 import { Banner, SegmentedTabs } from '@/components/ui'
 import { sanitizeAmountInput } from '@/lib/amount'
-import { formatAmount } from '@/lib/format'
+import { formatAmount, fixedNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import type { Token } from '../tokens'
 import type { TickRow } from '../api'
@@ -10,6 +10,7 @@ import { LiquidityChart } from './LiquidityChart'
 import { PriceHistoryRange } from './PriceHistoryRange'
 import { displayPriceToTick, fullRangeTicks, isFullRange, maxUsableTick, minUsableTick, pctFromCurrent, stepTick, strategyTicks, tickToDisplayPrice, type RangeStrategy } from '../math'
 import { formatSubscript } from '@/lib/format'
+import { t } from '@/i18n'
 
 const STRATEGIES: Array<{ id: RangeStrategy; title: string; range: string; text: string }> = [
   { id: 'stable', title: 'Stable', range: '± 3 ticks', text: 'Good for stablecoins or low volatility pairs' },
@@ -17,6 +18,20 @@ const STRATEGIES: Array<{ id: RangeStrategy; title: string; range: string; text:
   { id: 'lower', title: 'One-sided lower', range: '−50%', text: 'Supply liquidity if price goes down' },
   { id: 'upper', title: 'One-sided upper', range: '+100%', text: 'Supply liquidity if price goes up' },
 ]
+
+/** Translated copy for a strategy card (STRATEGIES keeps the English source). */
+function strategyCopy(id: RangeStrategy): { title: string; range: string; text: string } {
+  switch (id) {
+    case 'stable':
+      return { title: t('Stable'), range: t('± 3 ticks'), text: t('Good for stablecoins or low volatility pairs') }
+    case 'wide':
+      return { title: t('Wide'), range: '−50% — +100%', text: t('Good for volatile pairs') }
+    case 'lower':
+      return { title: t('One-sided lower'), range: '−50%', text: t('Supply liquidity if price goes down') }
+    case 'upper':
+      return { title: t('One-sided upper'), range: '+100%', text: t('Supply liquidity if price goes up') }
+  }
+}
 
 /** Plain (editable) price text: no subscript notation. */
 export function plainDisplayPrice(p: number): string {
@@ -61,7 +76,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
   const d1 = token1.decimals
   const base = invert ? token1 : token0
   const quote = invert ? token0 : token1
-  const unit = `${quote.symbol} per ${base.symbol}`
+  const unit = t('{quote} per {base}', { quote: quote.symbol, base: base.symbol })
 
   // display min/max ↔ pool ticks: with inversion, the displayed min comes from the upper tick
   const minTick = invert ? tickUpper : tickLower
@@ -117,7 +132,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
     <div className="flex flex-col gap-4" data-testid="range-selector">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SegmentedTabs
-          ariaLabel="Range type"
+          ariaLabel={t('Range type')}
           value={mode}
           onChange={(m) => {
             setMode(m)
@@ -125,8 +140,8 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
             else if (full) setPreset(10)
           }}
           items={[
-            { value: 'full', label: 'Full range', testId: 'range-full' },
-            { value: 'custom', label: 'Custom range', testId: 'range-custom' },
+            { value: 'full', label: t('Full range'), testId: 'range-full' },
+            { value: 'custom', label: t('Custom range'), testId: 'range-custom' },
           ]}
         />
         <button
@@ -142,14 +157,14 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
 
       {mode === 'full' ? (
         <p className="rounded-xl bg-surface-2 px-4 py-3 text-body-3 text-text-2">
-          Full range positions provide liquidity at every price, like V2. They earn fewer fees per dollar than concentrated positions but never go out of range.
+          {t('Full range positions provide liquidity at every price, like V2. They earn fewer fees per dollar than concentrated positions but never go out of range.')}
         </p>
       ) : (
         <>
           <div className="rounded-2xl bg-surface-2 p-3">
             <div className="mb-1 flex items-center justify-between text-body-4 text-text-2">
               <span>
-                Current price:{' '}
+                {t('Current price:')}{' '}
                 <span className="font-semibold text-text-1 tabular" data-testid="range-current-price">
                   {currentTick !== undefined ? formatDisplayPrice(tickToDisplayPrice(currentTick, d0, d1, invert)) : '-'}
                 </span>{' '}
@@ -169,7 +184,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
               onDrag={(which, price) => commitPrice(which, price)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4" role="group" aria-label="Price strategies" data-testid="range-strategies">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4" role="group" aria-label={t('Price strategies')} data-testid="range-strategies">
             {STRATEGIES.map((st) => (
               <button
                 key={st.id}
@@ -180,9 +195,9 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
                 data-testid={`range-strategy-${st.id}`}
                 className={cn('flex flex-col items-start gap-0.5 rounded-2xl border p-3 text-left transition-colors disabled:opacity-50', activeStrategy === st.id ? 'border-accent bg-accent-tint' : 'border-border bg-surface-1 hover:bg-surface-2')}
               >
-                <span className="text-body-3 font-semibold">{st.title}</span>
-                <span className="text-body-4 font-semibold text-text-1 tabular">{st.range}</span>
-                <span className="text-body-4 text-text-2">{st.text}</span>
+                <span className="text-body-3 font-semibold">{strategyCopy(st.id).title}</span>
+                <span className="text-body-4 font-semibold text-text-1 tabular">{strategyCopy(st.id).range}</span>
+                <span className="text-body-4 text-text-2">{strategyCopy(st.id).text}</span>
               </button>
             ))}
           </div>
@@ -195,7 +210,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <PriceInput
-              label="Min price"
+              label={t('Min price')}
               unit={unit}
               value={minDisplay}
               testId="range-min"
@@ -204,7 +219,7 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
               onStep={(dir) => setSide('min', stepTick(minTick, spacing, dir, invert))}
             />
             <PriceInput
-              label="Max price"
+              label={t('Max price')}
               unit={unit}
               value={maxDisplay}
               testId="range-max"
@@ -214,8 +229,8 @@ export function RangeSelector({ token0, token1, spacing, currentTick, tickLower,
             />
           </div>
           {outOfRange && (
-            <Banner tone="warning" title="Your position will not earn fees">
-              The current price is outside this range, so you deposit only one token until the price moves into it.
+            <Banner tone="warning" title={t('Your position will not earn fees')}>
+              {t('The current price is outside this range, so you deposit only one token until the price moves into it.')}
             </Banner>
           )}
         </>
@@ -260,16 +275,16 @@ function PriceInput({ label, unit, value, onCommit, onStep, testId, delta }: { l
           {delta !== null && delta !== undefined && Number.isFinite(delta) && (
             <span className={cn('shrink-0 font-semibold tabular', delta > 0 ? 'text-success' : delta < 0 ? 'text-critical' : 'text-text-2')} data-testid={`${testId}-delta`}>
               {delta > 0 ? '+' : ''}
-              {delta.toFixed(2)}%
+              {fixedNumber(delta, 2)}%
             </span>
           )}
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <button type="button" aria-label={`Increase ${label}`} data-testid={`${testId}-inc`} onClick={() => onStep('up')} className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-text-2 hover:text-text-1">
+        <button type="button" aria-label={t('Increase {label}', { label })} data-testid={`${testId}-inc`} onClick={() => onStep('up')} className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-text-2 hover:text-text-1">
           <Plus size={14} />
         </button>
-        <button type="button" aria-label={`Decrease ${label}`} data-testid={`${testId}-dec`} onClick={() => onStep('down')} className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-text-2 hover:text-text-1">
+        <button type="button" aria-label={t('Decrease {label}', { label })} data-testid={`${testId}-dec`} onClick={() => onStep('down')} className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-text-2 hover:text-text-1">
           <Minus size={14} />
         </button>
       </div>

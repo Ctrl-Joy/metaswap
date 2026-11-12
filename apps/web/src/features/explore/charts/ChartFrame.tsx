@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ChartLine, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 
 export type ChartStatus = 'loading' | 'error' | 'empty' | 'ready'
 
@@ -15,9 +16,9 @@ export function ChartFrame({
   header,
   footer,
   children,
-  emptyTitle = 'No chart data yet',
-  emptyText = 'Price and volume history appear as trades happen on the devnet.',
-  errorText = 'Chart unavailable right now.',
+  emptyTitle,
+  emptyText,
+  errorText,
   onRetry,
   heightClass = 'h-[260px] md:h-[340px]',
   testId,
@@ -45,16 +46,16 @@ export function ChartFrame({
         {status === 'empty' && (
           <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl text-center text-text-2" data-testid="chart-empty">
             <ChartLine size={28} className="text-text-3" aria-hidden />
-            <div className="text-body-2 font-semibold text-text-1">{emptyTitle}</div>
-            <div className="max-w-sm text-body-3">{emptyText}</div>
+            <div className="text-body-2 font-semibold text-text-1">{emptyTitle ?? t('No chart data yet')}</div>
+            <div className="max-w-sm text-body-3">{emptyText ?? t('Price and volume history appear as trades happen on the devnet.')}</div>
           </div>
         )}
         {status === 'error' && (
           <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl text-center text-text-2" data-testid="chart-error">
-            <div className="text-body-2">{errorText}</div>
+            <div className="text-body-2">{errorText ?? t('Chart unavailable right now.')}</div>
             {onRetry && (
               <Button variant="secondary" size="sm" onClick={onRetry} leftIcon={<RefreshCw size={14} />}>
-                Retry
+                {t('Retry')}
               </Button>
             )}
           </div>

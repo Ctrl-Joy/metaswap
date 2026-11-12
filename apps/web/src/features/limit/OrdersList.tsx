@@ -13,6 +13,7 @@ import { toast } from '@/state/toasts'
 import { useWallet } from '@/wallet/hooks'
 import { decodeOrder, type ExclusiveDutchOrder } from './order'
 import { cancelLimitOrder, orderLabel } from './executeLimit'
+import { t } from '@/i18n'
 
 type Tab = 'open' | 'filled' | 'closed'
 
@@ -53,7 +54,7 @@ export function OrdersList({ compact = false }: { compact?: boolean }) {
     filled: rows.filter((r) => r.raw.status === 'filled').length,
   }
 
-  if (!address) return <EmptyState title="Connect a wallet to see your orders" className="py-8" />
+  if (!address) return <EmptyState title={t('Connect a wallet to see your orders')} className="py-8" />
 
   return (
     <div className="flex flex-col gap-3" data-testid="orders-list">
@@ -62,9 +63,9 @@ export function OrdersList({ compact = false }: { compact?: boolean }) {
         value={tab}
         onChange={setTab}
         items={[
-          { value: 'open', label: `Open${counts.open ? ` (${counts.open})` : ''}`, testId: 'orders-tab-open' },
-          { value: 'filled', label: `Filled${counts.filled ? ` (${counts.filled})` : ''}`, testId: 'orders-tab-filled' },
-          { value: 'closed', label: 'Expired / cancelled', testId: 'orders-tab-closed' },
+          { value: 'open', label: counts.open ? t('Open ({count})', { count: counts.open }) : t('Open'), testId: 'orders-tab-open' },
+          { value: 'filled', label: counts.filled ? t('Filled ({count})', { count: counts.filled }) : t('Filled'), testId: 'orders-tab-filled' },
+          { value: 'closed', label: t('Expired / cancelled'), testId: 'orders-tab-closed' },
         ]}
       />
       {q.isLoading ? (
@@ -73,14 +74,14 @@ export function OrdersList({ compact = false }: { compact?: boolean }) {
           <Skeleton width="100%" height={64} rounded="lg" />
         </div>
       ) : q.isError ? (
-        <p className="py-6 text-center text-body-3 text-text-2">Orders unavailable — the MetaSwap API is not reachable.</p>
+        <p className="py-6 text-center text-body-3 text-text-2">{t('Orders unavailable — the MetaSwap API is not reachable.')}</p>
       ) : filtered.length === 0 ? (
         <EmptyState
           className="py-6"
           icon={<Clock size={20} />}
-          title={tab === 'open' ? 'No open orders' : tab === 'filled' ? 'No filled orders yet' : 'Nothing here'}
+          title={tab === 'open' ? t('No open orders') : tab === 'filled' ? t('No filled orders yet') : t('Nothing here')}
         >
-          {tab === 'open' && !compact ? 'Place a limit order above. Fillers execute it gaslessly when the market reaches your price.' : undefined}
+          {tab === 'open' && !compact ? t('Place a limit order above. Fillers execute it gaslessly when the market reaches your price.') : undefined}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -114,7 +115,7 @@ function OrderRow({ row, account }: { row: Row; account: Address }) {
       await cancelLimitOrder({ account, permit2: contractAddress('Permit2'), nonce: o.info.nonce, label: orderLabel(o, tIn, tOut) })
     } catch (e) {
       const err = parseTxError(e)
-      if (err.kind !== 'rejected') toast.error('Could not cancel order', err.message)
+      if (err.kind !== 'rejected') toast.error(t('Could not cancel order'), err.message)
     } finally {
       setCancelling(false)
     }
@@ -135,22 +136,22 @@ function OrderRow({ row, account }: { row: Row; account: Address }) {
               1 {tIn?.symbol} = {formatAmount(price)} {tOut?.symbol}
             </>
           )}
-          {status === 'open' && deadline ? ` · expires in ${formatDuration(deadline - nowSec)}` : ''}
+          {status === 'open' && deadline ? ` · ${t('expires in {duration}', { duration: formatDuration(deadline - nowSec) })}` : ''}
           {status !== 'open' && created ? ` · ${formatRelativeTime(created)}` : ''}
         </div>
         {fillTx && (
-          <CopyButton value={fillTx} label="Copy fill transaction" className="font-mono text-body-4">
-            fill {shortenAddress(fillTx, 4)}
+          <CopyButton value={fillTx} label={t('Copy fill transaction')} className="font-mono text-body-4">
+            {t('fill {hash}', { hash: shortenAddress(fillTx, 4) })}
           </CopyButton>
         )}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <Badge tone={status === 'open' ? 'accent' : status === 'filled' ? 'success' : status === 'cancelled' ? 'neutral' : 'warning'}>
-          {status === 'open' ? 'Open' : status === 'filled' ? 'Filled' : status === 'cancelled' ? 'Cancelled' : status === 'expired' ? 'Expired' : status}
+          {status === 'open' ? t('Open') : status === 'filled' ? t('Filled') : status === 'cancelled' ? t('Cancelled') : status === 'expired' ? t('Expired') : status}
         </Badge>
         {status === 'open' && o && (
           <Button size="sm" variant="secondary" onClick={cancel} loading={cancelling} data-testid="cancel-order" className="h-7">
-            Cancel
+            {t('Cancel')}
           </Button>
         )}
       </div>

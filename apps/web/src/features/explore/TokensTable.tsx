@@ -13,6 +13,7 @@ import { useTrendingTokens } from './discoveryApi'
 import { CATEGORY_LABEL, MORE_CATEGORIES, PRIMARY_CATEGORIES, matchesCategory, parseCategory, tokenBadges, type TokenCategory } from './discovery'
 import { filterTokenRows, sortRows, type SortDir } from './transforms'
 import type { RangeKey, TokenRow } from './types'
+import { t } from '@/i18n'
 
 type SortKey = 'rank' | 'price' | 'change1h' | 'change24h' | 'fdv' | 'volume'
 
@@ -94,7 +95,7 @@ export function TokensTable({
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }))
 
-  if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load tokens" />
+  if (error && !rows) return <ApiErrorState error={error} onRetry={onRetry} title={t('Could not load tokens')} />
 
   const moreActive = MORE_CATEGORIES.some((c) => c.value === category)
   const chipClass = (active: boolean) =>
@@ -103,14 +104,14 @@ export function TokensTable({
   return (
     <div className="flex flex-col gap-4" data-testid="tokens-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Token categories" className="flex flex-wrap items-center gap-1">
+        <div role="tablist" aria-label={t('Token categories')} className="flex flex-wrap items-center gap-1">
           {PRIMARY_CATEGORIES.map((c) => {
             const Icon = CHIP_ICON[c.value]
             const active = category === c.value
             return (
               <button key={c.value} type="button" role="tab" aria-selected={active} data-testid={`chip-${c.value}`} onClick={() => setCategory(c.value)} className={chipClass(active)}>
                 {Icon && <Icon size={16} aria-hidden />}
-                {c.label}
+                {t(c.label)}
               </button>
             )
           })}
@@ -121,7 +122,7 @@ export function TokensTable({
             trigger={
               <button type="button" data-testid="chip-more" aria-haspopup="menu" aria-expanded={moreOpen} className={chipClass(moreActive)}>
                 <LayoutGrid size={16} aria-hidden />
-                {moreActive ? CATEGORY_LABEL[category] : 'More'}
+                {moreActive ? t(CATEGORY_LABEL[category]) : t('More')}
                 <ChevronDown size={16} aria-hidden />
               </button>
             }
@@ -140,7 +141,7 @@ export function TokensTable({
                     }}
                     className={cn('flex w-full rounded-xl px-3 py-2 text-left text-body-2 hover:bg-surface-2-hover', category === c.value && 'font-semibold text-text-1')}
                   >
-                    {c.label}
+                    {t(c.label)}
                   </button>
                 </li>
               ))}
@@ -149,7 +150,7 @@ export function TokensTable({
         </div>
         <div className="flex items-center gap-2">
           <label className="relative flex items-center">
-            <span className="sr-only">Volume window</span>
+            <span className="sr-only">{t('Volume window')}</span>
             <select
               data-testid="volume-range"
               value={range}
@@ -158,7 +159,7 @@ export function TokensTable({
             >
               {RANGE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.value === 'ALL' ? 'All time' : `${o.label} volume`}
+                  {o.value === 'ALL' ? t('All time') : t('{range} volume', { range: o.label })}
                 </option>
               ))}
             </select>
@@ -166,7 +167,7 @@ export function TokensTable({
           {searchOpen ? (
             <label className="relative flex w-[220px] items-center">
               <Search size={16} className="pointer-events-none absolute left-3 text-text-3" aria-hidden />
-              <span className="sr-only">Search tokens</span>
+              <span className="sr-only">{t('Search tokens')}</span>
               <input
                 autoFocus
                 data-testid="token-search"
@@ -174,14 +175,14 @@ export function TokensTable({
                 value={query}
                 onBlur={() => !query && setSearchOpen(false)}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search tokens"
+                placeholder={t('Search tokens')}
                 className="h-10 w-full rounded-xl border border-border bg-surface-1 pr-3 pl-9 text-body-2 text-text-1 outline-none placeholder:text-text-3 focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
           ) : (
             <button
               type="button"
-              aria-label="Search tokens"
+              aria-label={t('Search tokens')}
               data-testid="token-search-open"
               onClick={() => setSearchOpen(true)}
               className="flex h-10 w-[44px] items-center justify-center rounded-xl border border-border bg-surface-1 text-text-2 hover:text-text-1"
@@ -195,13 +196,13 @@ export function TokensTable({
       <ExTable minWidth={760}>
         <ExTHead>
           <ExTh className="sticky left-0 z-[2] w-12">#</ExTh>
-          <ExTh className="sticky left-12 z-[2]">Token</ExTh>
-          <ExSortTh label="Price" active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
+          <ExTh className="sticky left-12 z-[2]">{t('Token')}</ExTh>
+          <ExSortTh label={t('Price')} active={effectiveSort.key === 'price'} direction={effectiveSort.dir} onClick={() => toggleSort('price')} />
           <ExSortTh label="1H" active={effectiveSort.key === 'change1h'} direction={effectiveSort.dir} onClick={() => toggleSort('change1h')} />
           <ExSortTh label="1D" active={effectiveSort.key === 'change24h'} direction={effectiveSort.dir} onClick={() => toggleSort('change24h')} />
           <ExSortTh label="FDV" active={effectiveSort.key === 'fdv'} direction={effectiveSort.dir} onClick={() => toggleSort('fdv')} />
-          <ExSortTh label="Volume" active={effectiveSort.key === 'volume'} direction={effectiveSort.dir} onClick={() => toggleSort('volume')} />
-          <ExTh align="right">1D chart</ExTh>
+          <ExSortTh label={t('Volume')} active={effectiveSort.key === 'volume'} direction={effectiveSort.dir} onClick={() => toggleSort('volume')} />
+          <ExTh align="right">{t('1D chart')}</ExTh>
         </ExTHead>
         {isLoading && !rows ? (
           <ExTableSkeleton rows={8} cols={8} />
@@ -209,7 +210,7 @@ export function TokensTable({
           <tbody>
             <tr>
               <td colSpan={8} className="px-4 py-10 text-center text-body-2 text-text-2" data-testid="tokens-empty">
-                {rows && rows.length ? `No tokens in ${CATEGORY_LABEL[category]} right now.` : 'No tokens are listed yet.'}
+                {rows && rows.length ? t('No tokens in {category} right now.', { category: t(CATEGORY_LABEL[category]) }) : t('No tokens are listed yet.')}
               </td>
             </tr>
           </tbody>
@@ -229,7 +230,7 @@ export function TokensTable({
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-body-2 font-medium text-text-1">{r.name}</span>
                           {badges.slice(0, 2).map((b) => (
-                            <TagBadge key={b} label={b} />
+                            <TagBadge key={b} label={t(b)} />
                           ))}
                         </span>
                         <span className="text-body-3 text-text-2">{r.symbol}</span>

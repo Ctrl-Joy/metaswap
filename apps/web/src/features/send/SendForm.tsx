@@ -17,8 +17,9 @@ import { useWallet, useSwitchToDevnet } from '@/wallet/hooks'
 import { TokenSelector } from '@/features/tokens/TokenSelector'
 import { useTokenList, useTokenPrices } from '@/features/tokens/useTokenList'
 import { useTokenBalance } from '@/hooks/useTokenBalances'
-import { addRecentRecipient, checkRecipient, RECIPIENT_ERROR_TEXT } from './sendValidation'
+import { addRecentRecipient, checkRecipient, recipientErrorText } from './sendValidation'
 import { safeStorage } from '@/lib/storage'
+import { t } from '@/i18n'
 
 const RECENT_KEY = 'metaswap.send.recent'
 function loadRecipients(): string[] {
@@ -70,12 +71,12 @@ export function SendForm() {
   const isContract = !!code.data && code.data !== '0x'
 
   let cta: { label: string; disabled: boolean; onClick?: () => void; tone?: 'tint' | 'critical' | 'warning' }
-  if (!wallet.address) cta = { label: 'Connect wallet', disabled: false, onClick: openConnect, tone: 'tint' }
-  else if (wallet.wrongNetwork) cta = { label: 'Switch to MetaChain Devnet', disabled: false, onClick: () => void switchToDevnet(), tone: 'warning' }
-  else if (!amount) cta = { label: 'Enter an amount', disabled: true }
-  else if (balance !== undefined && balance < amount) cta = { label: `Insufficient ${token.symbol} balance`, disabled: true, tone: 'critical' }
-  else if (!check.ok) cta = { label: check.error === 'empty' ? 'Enter a recipient' : RECIPIENT_ERROR_TEXT[check.error], disabled: true }
-  else cta = { label: 'Review send', disabled: false, onClick: () => setReviewOpen(true) }
+  if (!wallet.address) cta = { label: t('Connect wallet'), disabled: false, onClick: openConnect, tone: 'tint' }
+  else if (wallet.wrongNetwork) cta = { label: t('Switch to MetaChain Devnet'), disabled: false, onClick: () => void switchToDevnet(), tone: 'warning' }
+  else if (!amount) cta = { label: t('Enter an amount'), disabled: true }
+  else if (balance !== undefined && balance < amount) cta = { label: t('Insufficient {symbol} balance', { symbol: token.symbol }), disabled: true, tone: 'critical' }
+  else if (!check.ok) cta = { label: check.error === 'empty' ? t('Enter a recipient') : recipientErrorText(check.error), disabled: true }
+  else cta = { label: t('Review send'), disabled: false, onClick: () => setReviewOpen(true) }
 
   const toggleUsd = () => {
     if (!price) return
@@ -88,14 +89,14 @@ export function SendForm() {
     <div className="flex flex-col gap-1">
       <div>
         <div className="flex min-h-[281px] flex-col rounded-t-2xl border border-border bg-surface-1 px-4 pt-4 pb-5" data-testid="send-amount-panel">
-          <div className="text-body-2 leading-[22px] font-medium">You're sending</div>
+          <div className="text-body-2 leading-[22px] font-medium">{t("You're sending")}</div>
           <div className="flex flex-1 flex-col items-center justify-end">
             <div className="flex max-w-full items-baseline justify-center">
               {usdMode && <span className="text-[70px] leading-[84px] font-medium text-text-3">$</span>}
               <input
                 inputMode="decimal"
                 placeholder="0"
-                aria-label={usdMode ? 'Amount in USD' : `Amount in ${token.symbol}`}
+                aria-label={usdMode ? t('Amount in USD') : t('Amount in {symbol}', { symbol: token.symbol })}
                 data-testid="send-amount-input"
                 value={text}
                 onChange={(e) => {
@@ -130,7 +131,7 @@ export function SendForm() {
             <span className="min-w-0 flex-1">
               <span className="block text-body-2 leading-[22px]">{token.symbol}</span>
               {wallet.address && balance !== undefined && (
-                <span className="block text-body-4 text-text-2 tabular">Balance: {formatTokenAmount(balance, token.decimals)}</span>
+                <span className="block text-body-4 text-text-2 tabular">{t('Balance: {amount}', { amount: formatTokenAmount(balance, token.decimals) })}</span>
               )}
             </span>
           </button>
@@ -143,7 +144,7 @@ export function SendForm() {
                 setText(toInputString(maxSpendable(balance, !!token.isNative), token.decimals, token.decimals))
               }}
             >
-              Max
+              {t('Max')}
             </button>
           )}
           <ChevronDown size={20} className="shrink-0 text-text-2" aria-hidden />
@@ -151,28 +152,28 @@ export function SendForm() {
       </div>
 
       <label className="mt-1 block rounded-2xl bg-surface-2 p-4" data-testid="send-recipient-panel">
-        <span className="text-body-3 text-text-2">To</span>
+        <span className="text-body-3 text-text-2">{t('To')}</span>
         <span className="mt-1 flex items-center gap-2">
           {check.ok && <Identicon address={check.address} size={24} />}
           <input
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
-            placeholder="Wallet address (0x…)"
-            aria-label="Recipient address"
+            placeholder={t('Wallet address (0x…)')}
+            aria-label={t('Recipient address')}
             data-testid="send-recipient"
             spellCheck={false}
             autoComplete="off"
             className="min-w-0 flex-1 bg-transparent text-body-2 leading-6 font-medium outline-none placeholder:text-text-2"
           />
         </span>
-        {recipient && !check.ok && check.error !== 'empty' && <span className="mt-2 block text-body-4 text-critical" data-testid="recipient-error">{RECIPIENT_ERROR_TEXT[check.error]}</span>}
-        {check.ok && check.warning === 'self' && <span className="mt-2 block text-body-4 text-warning">This is your own address.</span>}
-        {check.ok && check.warning === 'checksum' && <span className="mt-2 block text-body-4 text-warning">Checksum mismatch — double-check this address.</span>}
-        {check.ok && isContract && <span className="mt-2 block text-body-4 text-warning">This address is a contract. Make sure it can receive {token.symbol}.</span>}
+        {recipient && !check.ok && check.error !== 'empty' && <span className="mt-2 block text-body-4 text-critical" data-testid="recipient-error">{recipientErrorText(check.error)}</span>}
+        {check.ok && check.warning === 'self' && <span className="mt-2 block text-body-4 text-warning">{t('This is your own address.')}</span>}
+        {check.ok && check.warning === 'checksum' && <span className="mt-2 block text-body-4 text-warning">{t('Checksum mismatch — double-check this address.')}</span>}
+        {check.ok && isContract && <span className="mt-2 block text-body-4 text-warning">{t('This address is a contract. Make sure it can receive {symbol}.', { symbol: token.symbol })}</span>}
       </label>
       {!recipient && recents.length > 0 && (
         <div className="flex flex-col gap-1 rounded-2xl bg-surface-2 p-3" data-testid="send-recents">
-          <span className="px-1 text-body-4 text-text-2">Recent recipients</span>
+          <span className="px-1 text-body-4 text-text-2">{t('Recent recipients')}</span>
           {recents.map((a) => (
             <button key={a} type="button" onClick={() => setRecipient(a)} className="flex items-center gap-2 rounded-xl px-1 py-1.5 text-left hover:bg-surface-3" data-testid="send-recent">
               <Identicon address={a as `0x${string}`} size={22} />
@@ -226,6 +227,8 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
   const [phase, setPhase] = useState<'review' | 'pending' | 'done' | 'error'>('review')
   const [err, setErr] = useState<FriendlyError | null>(null)
   const label = `${formatTokenAmount(p.amount, p.token.decimals)} ${p.token.symbol}`
+  // "{amount} to {address}": the address is set in monospace where the translation places it.
+  const [toBefore = '', toAfter = ''] = t('{amount} to {address}', { amount: label }).split('{address}')
   const run = async () => {
     setPhase('pending')
     setErr(null)
@@ -233,7 +236,7 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
       const hash = p.token.isNative
         ? await sendTransaction(wagmiConfig, { to: p.to, value: p.amount })
         : await writeContract(wagmiConfig, { address: p.token.address, abi: erc20Abi, functionName: 'transfer', args: [p.to, p.amount] })
-      const receipt = await trackTx(p.account, { hash, type: 'send', summary: `Sent ${label} to ${shortenAddress(p.to)}`, meta: { token: p.token.address, to: p.to, amount: p.amount.toString() } })
+      const receipt = await trackTx(p.account, { hash, type: 'send', summary: t('Sent {amount} to {address}', { amount: label, address: shortenAddress(p.to) }), meta: { token: p.token.address, to: p.to, amount: p.amount.toString() } })
       if (!receipt || receipt.status !== 'success') throw new Error('Transfer reverted')
       setPhase('done')
       p.onSent()
@@ -244,23 +247,25 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
     }
   }
   return (
-    <Modal open={p.open} onOpenChange={p.onOpenChange} title={phase === 'done' ? 'Sent' : 'Review send'} dismissible={phase !== 'pending'} testId="send-review">
+    <Modal open={p.open} onOpenChange={p.onOpenChange} title={phase === 'done' ? t('Sent') : t('Review send')} dismissible={phase !== 'pending'} testId="send-review">
       {phase === 'done' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="send-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-medium">Sent!</div>
+          <div className="text-heading-3 font-medium">{t('Sent!')}</div>
           <p className="text-body-3 text-text-2">
-            {label} to <span className="font-mono">{shortenAddress(p.to)}</span>
+            {toBefore}
+            <span className="font-mono">{shortenAddress(p.to)}</span>
+            {toAfter}
           </p>
           <Button fullWidth size="lg" onClick={() => p.onOpenChange(false)}>
-            Close
+            {t('Close')}
           </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-body-3 text-text-2">You're sending</div>
+              <div className="text-body-3 text-text-2">{t("You're sending")}</div>
               <div className="text-heading-3 font-medium tabular">{label}</div>
               {p.usdValue !== undefined && <div className="text-body-3 text-text-2">{formatUsd(p.usdValue)}</div>}
             </div>
@@ -268,15 +273,15 @@ function SendReview(p: { open: boolean; onOpenChange: (o: boolean) => void; acco
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-body-3 text-text-2">To</div>
+              <div className="text-body-3 text-text-2">{t('To')}</div>
               <div className="font-mono text-body-2 break-all">{p.to}</div>
             </div>
             <Identicon address={p.to} size={40} />
           </div>
           {err && phase === 'error' && <Banner tone="critical" title={err.title}>{err.message}</Banner>}
-          {phase === 'review' && err?.kind === 'rejected' && <p className="text-center text-body-4 text-text-2">Request rejected in wallet.</p>}
+          {phase === 'review' && err?.kind === 'rejected' && <p className="text-center text-body-4 text-text-2">{t('Request rejected in wallet.')}</p>}
           <Button size="xl" fullWidth onClick={run} loading={phase === 'pending'} data-testid="confirm-send">
-            {phase === 'pending' ? 'Sending…' : phase === 'error' ? 'Try again' : `Send ${formatAmount(toNumber(p.amount, p.token.decimals))} ${p.token.symbol}`}
+            {phase === 'pending' ? t('Sending…') : phase === 'error' ? t('Try again') : t('Send {amount} {symbol}', { amount: formatAmount(toNumber(p.amount, p.token.decimals)), symbol: p.token.symbol })}
           </Button>
         </div>
       )}

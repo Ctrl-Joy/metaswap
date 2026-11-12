@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useConnect, useConnectors, type Connector } from 'wagmi'
 import { ArrowLeft, ChevronRight, Code2, KeyRound, QrCode, ShieldAlert, Smartphone, Wallet, CircleCheck } from 'lucide-react'
-import { Spinner, Badge } from '@/components/ui'
+import { Spinner, Badge, richText } from '@/components/ui'
+import { t } from '@/i18n'
 import { cn } from '@/lib/cn'
 import { useUi } from '@/state/ui'
 import { parseTxError } from '@/lib/errors'
@@ -41,7 +42,7 @@ function Group({ children, testId }: { children: ReactNode; testId?: string }) {
 function SubHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <div className="flex items-center justify-between">
-      <button type="button" onClick={onBack} aria-label="Back" data-testid="connect-back" className="w-[15%] text-text-2 hover:text-text-1">
+      <button type="button" onClick={onBack} aria-label={t('Back')} data-testid="connect-back" className="w-[15%] text-text-2 hover:text-text-1">
         <ArrowLeft size={24} />
       </button>
       <span className="text-body-2 font-medium text-text-1">{title}</span>
@@ -69,12 +70,12 @@ export function ConnectModal() {
 
   useEffect(() => {
     if (open) return
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setPendingId(null)
       setError(null)
       setView('main')
     }, 250)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [open])
 
   const groups = useMemo(() => {
@@ -101,7 +102,7 @@ export function ConnectModal() {
       return true
     } catch (e) {
       const err = parseTxError(e)
-      if (err.kind !== 'rejected') setError({ id: c.id, message: /already pending|-32002/i.test(String((e as Error)?.message)) ? 'Check your wallet — a request is already open.' : err.message })
+      if (err.kind !== 'rejected') setError({ id: c.id, message: /already pending|-32002/i.test(String((e as Error)?.message)) ? t('Check your wallet — a request is already open.') : err.message })
       return false
     } finally {
       setPendingId(null)
@@ -151,26 +152,26 @@ export function ConnectModal() {
   const busy = !!pendingId
 
   return (
-    <TopRightPanel open={open} onOpenChange={setOpen} title="Connect a wallet" testId="connect-modal">
+    <TopRightPanel open={open} onOpenChange={setOpen} title={t('Connect a wallet')} testId="connect-modal">
       <div className="flex flex-col gap-4 p-4">
         {view === 'main' && (
           <>
-            <div className="text-center text-body-2 font-medium text-text-1">Connect a wallet</div>
+            <div className="text-center text-body-2 font-medium text-text-1">{t('Connect a wallet')}</div>
             <Group testId="connect-options">
               <OptionRow
                 icon={<Smartphone size={18} />}
                 label="MetaSwap Mobile"
                 testId="connect-mobile"
                 disabled={busy}
-                sub={pendingId === groups.wc?.id ? 'Scan the QR code with your wallet…' : error && error.id === groups.wc?.id ? <span className="text-critical">{error.message}</span> : undefined}
+                sub={pendingId === groups.wc?.id ? t('Scan the QR code with your wallet…') : error && error.id === groups.wc?.id ? <span className="text-critical">{error.message}</span> : undefined}
                 onClick={() => (groups.wc ? void connectWalletConnect(groups.wc) : setView('mobile'))}
                 right={pendingId === groups.wc?.id ? <Spinner size={18} className="text-accent" /> : <QrCode size={20} className="text-text-2" />}
               />
-              <OptionRow icon={<Wallet size={18} />} label="Other wallets" testId="connect-other-wallets" onClick={() => setView('other')} right={<ChevronRight size={20} className="text-text-2" />} />
+              <OptionRow icon={<Wallet size={18} />} label={t('Other wallets')} testId="connect-other-wallets" onClick={() => setView('other')} right={<ChevronRight size={20} className="text-text-2" />} />
             </Group>
             <div className="flex items-center gap-3 px-3 text-body-4 text-text-3" aria-hidden>
               <span className="h-px flex-1 bg-border" />
-              or
+              {t('or')}
               <span className="h-px flex-1 bg-border" />
             </div>
             <div className="flex flex-col items-center gap-3">
@@ -182,11 +183,11 @@ export function ConnectModal() {
                 className="flex h-[46px] w-full items-center justify-center gap-2 rounded-2xl bg-accent-fill px-4 text-body-2 font-semibold text-white transition-colors hover:bg-accent-fill-hover disabled:opacity-60"
               >
                 {pendingId === 'create' && <Spinner size={16} />}
-                {pendingId === 'create' ? 'Creating and funding…' : 'Create account'}
+                {pendingId === 'create' ? t('Creating and funding…') : t('Create account')}
               </button>
               {error?.id === 'create' && <p className="text-center text-body-4 text-critical">{error.message}</p>}
               <button type="button" onClick={logIn} disabled={busy} data-testid="log-in" className="inline-flex items-center gap-1.5 text-body-2 font-semibold text-accent hover:opacity-80">
-                {pendingId === LOCAL_ACCOUNT_ID ? <Spinner size={16} /> : <KeyRound size={16} />} Log in
+                {pendingId === LOCAL_ACCOUNT_ID ? <Spinner size={16} /> : <KeyRound size={16} />} {t('Log in')}
               </button>
             </div>
             <Terms />
@@ -195,17 +196,17 @@ export function ConnectModal() {
 
         {view === 'other' && (
           <>
-            <SubHeader title="Other wallets" onBack={() => setView('main')} />
+            <SubHeader title={t('Other wallets')} onBack={() => setView('main')} />
             <Group testId="other-wallets">
               {groups.injected.map((c) => (
-                <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => void connect(c)} badge="Detected" />
+                <ConnectorRow key={c.uid} connector={c} pending={pendingId === c.id} error={error?.id === c.id ? error.message : undefined} onClick={() => void connect(c)} badge={t('Detected')} />
               ))}
               {groups.injected.length === 0 && (
                 <div className="flex min-h-[62px] items-center gap-3 bg-surface-2 p-3 text-body-3 text-text-2" data-testid="no-browser-wallet">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-text-2">
                     <ShieldAlert size={18} />
                   </span>
-                  <span>No browser wallet detected — install MetaMask or Rabby.</span>
+                  <span>{t('No browser wallet detected — install MetaMask or Rabby.')}</span>
                 </div>
               )}
               {groups.cb && <ConnectorRow connector={groups.cb} pending={pendingId === groups.cb.id} error={error?.id === groups.cb.id ? error.message : undefined} onClick={() => void connect(groups.cb!)} />}
@@ -217,10 +218,10 @@ export function ConnectModal() {
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-tint text-accent">
                       <Code2 size={18} />
                     </span>
-                    <span className="min-w-0 flex-1 text-body-2">Dev wallet</span>
+                    <span className="min-w-0 flex-1 text-body-2">{t('Dev wallet')}</span>
                     <Badge tone="accent">Anvil</Badge>
                   </div>
-                  <div className="mt-3 grid grid-cols-5 gap-1" role="radiogroup" aria-label="Dev wallet account" data-testid="dev-account-select">
+                  <div className="mt-3 grid grid-cols-5 gap-1" role="radiogroup" aria-label={t('Dev wallet account')} data-testid="dev-account-select">
                     {ANVIL_ACCOUNTS.map((addr, i) => (
                       <button
                         key={addr}
@@ -248,7 +249,7 @@ export function ConnectModal() {
                     className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-accent-tint px-3 text-body-3 font-semibold text-accent transition-colors hover:bg-accent-tint-hover disabled:opacity-60"
                   >
                     {pendingId === devConnector?.id && <Spinner size={14} />}
-                    Connect account #{devIndex} · {shortenAddress(ANVIL_ACCOUNTS[devIndex]!)}
+                    {t('Connect account #{index} · {address}', { index: devIndex, address: shortenAddress(ANVIL_ACCOUNTS[devIndex]!) })}
                   </button>
                   {error && error.id === devConnector?.id && <p className="mt-2 text-center text-body-4 text-critical">{error.message}</p>}
                 </div>
@@ -263,9 +264,11 @@ export function ConnectModal() {
             <SubHeader title="MetaSwap Mobile" onBack={() => setView('main')} />
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface-2 p-4 text-center" data-testid="walletconnect-setup">
               <QrCode size={32} className="text-accent" />
-              <p className="text-body-3 text-text-1">Mobile wallets connect through WalletConnect.</p>
+              <p className="text-body-3 text-text-1">{t('Mobile wallets connect through WalletConnect.')}</p>
               <p className="text-body-4 text-text-2">
-                Set <code className="rounded bg-surface-3 px-1">VITE_WALLETCONNECT_PROJECT_ID</code> to a free project ID from cloud.walletconnect.com, restart the app, and this row opens a QR code to scan with your phone.
+                {richText(t('Set {variable} to a free project ID from cloud.walletconnect.com, restart the app, and this row opens a QR code to scan with your phone.'), {
+                  variable: <code className="rounded bg-surface-3 px-1">VITE_WALLETCONNECT_PROJECT_ID</code>,
+                })}
               </p>
             </div>
           </>
@@ -274,30 +277,32 @@ export function ConnectModal() {
         {view === 'created' && created && (
           <div className="flex flex-col items-center gap-3 py-2 text-center" data-testid="account-created">
             <CircleCheck size={40} className="text-success" />
-            <div className="text-body-1 font-medium">Devnet account ready</div>
+            <div className="text-body-1 font-medium">{t('Devnet account ready')}</div>
             <div className="text-body-3 text-text-2" data-testid="created-address">
               {shortenAddress(created.address)}
             </div>
             <div className="text-body-4 text-text-2">
-              Funded with {formatAmount(Number(created.eth / 10n ** 18n))} ETH{created.tokens.length ? ` and test ${created.tokens.join(', ')}` : ''}.
+              {created.tokens.length
+                ? t('Funded with {amount} ETH and test {tokens}.', { amount: formatAmount(Number(created.eth / 10n ** 18n)), tokens: created.tokens.join(', ') })
+                : t('Funded with {amount} ETH.', { amount: formatAmount(Number(created.eth / 10n ** 18n)) })}
             </div>
-            <p className="rounded-xl bg-warning-tint px-3 py-2 text-body-4 text-warning">This key lives in this browser and only works on MetaChain Devnet. Never send real funds to it.</p>
+            <p className="rounded-xl bg-warning-tint px-3 py-2 text-body-4 text-warning">{t('This key lives in this browser and only works on MetaChain Devnet. Never send real funds to it.')}</p>
             <button type="button" onClick={() => setOpen(false)} data-testid="created-done" className="flex h-[46px] w-full items-center justify-center rounded-2xl bg-accent-fill text-body-2 font-semibold text-white hover:bg-accent-fill-hover">
-              Start trading
+              {t('Start trading')}
             </button>
           </div>
         )}
 
         {view === 'login-none' && (
           <>
-            <SubHeader title="Log in" onBack={() => setView('main')} />
+            <SubHeader title={t('Log in')} onBack={() => setView('main')} />
             <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4 text-center" data-testid="login-none">
-              <p className="text-body-3 text-text-1">No devnet account in this browser yet.</p>
+              <p className="text-body-3 text-text-1">{t('No devnet account in this browser yet.')}</p>
               <button type="button" onClick={() => void createAccount()} className="h-10 rounded-xl bg-accent-fill text-body-3 font-semibold text-white hover:bg-accent-fill-hover">
-                Create account
+                {t('Create account')}
               </button>
               <button type="button" onClick={() => setView('other')} className="text-body-3 font-semibold text-accent hover:opacity-80">
-                Use another wallet
+                {t('Use another wallet')}
               </button>
             </div>
           </>
@@ -310,7 +315,10 @@ export function ConnectModal() {
 function Terms() {
   return (
     <p className="px-2 text-center text-body-4 font-medium text-text-3" data-testid="connect-terms">
-      MetaChain Devnet is a test network. By connecting a wallet you agree to MetaSwap&apos;s <span className="text-text-2">devnet terms</span>; <span className="text-text-2">never use a wallet holding real funds</span>.
+      {richText(t("MetaChain Devnet is a test network. By connecting a wallet you agree to MetaSwap's {terms}; {warning}."), {
+        terms: <span className="text-text-2">{t('devnet terms')}</span>,
+        warning: <span className="text-text-2">{t('never use a wallet holding real funds')}</span>,
+      })}
     </p>
   )
 }
@@ -332,9 +340,9 @@ function ConnectorRow({ connector, onClick, pending, error, badge }: { connector
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-2">{connector.name === 'Injected' ? 'Browser wallet' : connector.name}</span>
-        {pending && <span className="block text-body-4 text-text-2">Connecting… open your wallet</span>}
-        {error && !pending && <span className="block text-body-4 text-critical">{error} — try again</span>}
+        <span className="block truncate text-body-2">{connector.name === 'Injected' ? t('Browser wallet') : connector.name}</span>
+        {pending && <span className="block text-body-4 text-text-2">{t('Connecting… open your wallet')}</span>}
+        {error && !pending && <span className="block text-body-4 text-critical">{t('{error} — try again', { error })}</span>}
       </span>
       {badge && !pending && <Badge tone="success">{badge}</Badge>}
       {pending ? <Spinner size={18} className="text-accent" /> : <ChevronRight size={20} className="text-text-2" />}

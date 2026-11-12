@@ -10,6 +10,7 @@ import {
   formatUsd as sdkFormatUsd,
 } from '@metaswap/sdk'
 import { currencySymbol, displayCurrency, displayLocale, isDefaultDisplay } from './displayPrefs'
+import { t } from '../i18n'
 export { shortenAddress } from '@metaswap/sdk'
 
 const fmtCache = new Map<string, Intl.NumberFormat>()
@@ -80,6 +81,17 @@ export function formatPercent(value: number | null | undefined, opts: { sign?: b
   return value > 0 ? `+${s}` : value < 0 ? `-${s}` : s
 }
 
+/** A number with a fixed count of decimals in the display locale (English: the same as toFixed). */
+export function fixedNumber(value: number, digits: number): string {
+  if (displayLocale() === 'en-US') return value.toFixed(digits)
+  return nf({ minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false }).format(value)
+}
+
+/** Zero in the display currency for an empty amount field: "$0" in USD, as before; "0 €" etc. otherwise. */
+export function fiatZero(): string {
+  return isDefaultDisplay() ? '$0' : formatUsd(0)
+}
+
 /** A plain number in the display locale. */
 export function formatNumber(value: number, opts: Intl.NumberFormatOptions = {}): string {
   return nf(opts).format(value)
@@ -134,26 +146,26 @@ export function formatPrice(value: number | null | undefined): string {
 export function formatRelativeTime(ms: number, now = Date.now()): string {
   const diff = Math.max(0, now - ms)
   const s = Math.floor(diff / 1000)
-  if (s < 60) return s <= 5 ? 'just now' : `${s}s ago`
+  if (s < 60) return s <= 5 ? t('just now') : t('{n}s ago', { n: s })
   const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return t('{n}m ago', { n: m })
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return t('{n}h ago', { n: h })
   const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
+  if (d < 7) return t('{n}d ago', { n: d })
   return new Date(ms).toLocaleDateString(displayLocale(), { month: 'short', day: 'numeric' })
 }
 
 /** "in 6d 23h" style countdown for expiries. */
 export function formatDuration(seconds: number): string {
-  if (seconds <= 0) return 'now'
+  if (seconds <= 0) return t('now')
   const d = Math.floor(seconds / 86400)
   const h = Math.floor((seconds % 86400) / 3600)
   const m = Math.floor((seconds % 3600) / 60)
-  if (d > 0) return `${d}d ${h}h`
-  if (h > 0) return `${h}h ${m}m`
-  if (m > 0) return `${m}m`
-  return `${Math.floor(seconds)}s`
+  if (d > 0) return t('{d}d {h}h', { d, h })
+  if (h > 0) return t('{h}h {m}m', { h, m })
+  if (m > 0) return t('{m}m', { m })
+  return t('{s}s', { s: Math.floor(seconds) })
 }
 
 /** Price-impact percent with Uniswap-style "<0.01%" floor. */

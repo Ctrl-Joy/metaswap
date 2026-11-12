@@ -1,7 +1,8 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { PositionsList } from '@/features/positions/list/PositionsList'
+import { t } from '@/i18n'
 
 export default function PositionsPage() {
-  useDocumentTitle('Pool')
+  useDocumentTitle(t('Pool'))
   return <PositionsList />
 }

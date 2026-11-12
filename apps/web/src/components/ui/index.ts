@@ -23,6 +23,7 @@ export {
   CopyButton,
   EmptyState,
   Card,
+  richText,
   type TabItem,
 } from './misc'
 export { Marquee, ChartCard, TickerPill, type MarqueeProps, type ChartCardProps } from './Marquee'

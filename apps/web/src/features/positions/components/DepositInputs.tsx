@@ -6,6 +6,7 @@ import { priceOf, useTokenPrices } from '@/features/tokens/useTokenList'
 import { useTokenBalances } from '@/hooks/useTokenBalances'
 import { maxSpendable, parseAmount, toInputString, toNumber } from '@/lib/amount'
 import type { Token } from '../tokens'
+import { t } from '@/i18n'
 
 /**
  * Linking rule between the two deposit amounts. Returns the other side's amount for an exact
@@ -104,7 +105,7 @@ export function DepositInputs({
       return (
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2 p-4 text-body-3 text-text-2" data-testid={`${tid}-locked`}>
           <Lock size={18} className="shrink-0" />
-          The price range is outside the current price, so this position takes only the other token. No {token.symbol} needed.
+          {t('The price range is outside the current price, so this position takes only the other token. No {symbol} needed.', { symbol: token.symbol })}
         </div>
       )
     return (

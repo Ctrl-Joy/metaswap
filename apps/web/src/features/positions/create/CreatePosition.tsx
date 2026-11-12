@@ -40,6 +40,7 @@ import { FeeTierSelector } from '../components/FeeTierSelector'
 import { RangeSelector, formatDisplayPrice } from '../components/RangeSelector'
 import { DepositInputs, useLinkedAmounts, type LinkFn } from '../components/DepositInputs'
 import { ReviewRow, TxFlowModal } from '../components/TxFlowModal'
+import { t } from '@/i18n'
 
 type Version = 'v2' | 'v3'
 
@@ -73,19 +74,19 @@ export function CreatePosition() {
 
   return (
     <div className="mx-auto w-full max-w-[1264px] px-4 pt-6 pb-24 md:px-8" data-testid="create-position">
-      <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-1 text-body-2 leading-[22px] text-text-2">
+      <nav aria-label={t('Breadcrumb')} className="mb-6 flex items-center gap-1 text-body-2 leading-[22px] text-text-2">
         <Link to="/positions" className="hover:text-text-1">
-          Your positions
+          {t('Your positions')}
         </Link>
         <ChevronRight size={16} />
-        <span className="text-text-1">New position</span>
+        <span className="text-text-1">{t('New position')}</span>
       </nav>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-3 text-heading-3 font-medium">
-          <Link to="/positions" aria-label="Back to your positions" className="text-text-1 hover:text-text-2">
+          <Link to="/positions" aria-label={t('Back to your positions')} className="text-text-1 hover:text-text-2">
             <ArrowLeft size={24} />
           </Link>
-          New position
+          {t('New position')}
         </h1>
         <div className="flex items-center gap-2">
           <button
@@ -97,10 +98,10 @@ export function CreatePosition() {
             className="inline-flex h-[38px] items-center gap-2 rounded-xl bg-surface-2 px-3 text-body-3 font-semibold text-text-2 transition-colors hover:text-text-1"
             data-testid="create-reset"
           >
-            <RotateCcw size={16} /> Reset
+            <RotateCcw size={16} /> {t('Reset')}
           </button>
           <SegmentedTabs
-            ariaLabel="Protocol version"
+            ariaLabel={t('Protocol version')}
             size="sm"
             className="h-[38px] rounded-xl border border-border"
             value={version}
@@ -124,24 +125,24 @@ export function CreatePosition() {
           {step === 1 ? (
             <div className="flex flex-col gap-8 rounded-[20px] border border-border p-6">
               <section>
-                <h2 className="text-body-1 font-medium">Select pair</h2>
-                <p className="mb-4 text-body-3 text-text-2">Choose the tokens you want to provide liquidity for.</p>
+                <h2 className="text-body-1 font-medium">{t('Select pair')}</h2>
+                <p className="mb-4 text-body-3 text-text-2">{t('Choose the tokens you want to provide liquidity for.')}</p>
                 <PairPicker tokenA={tokenA} tokenB={tokenB} onA={selectA} onB={selectB} onFlip={() => setParam({ currencyA: tokenB ? tokenParam(tokenB) : undefined, currencyB: tokenA ? tokenParam(tokenA) : undefined })} />
               </section>
               {version === 'v3' && (
                 <section>
-                  <h2 className="text-body-1 font-medium">Fee tier</h2>
-                  <p className="mb-4 text-body-3 text-text-2">The amount earned providing liquidity. Choose an amount that suits your risk tolerance and strategy.</p>
+                  <h2 className="text-body-1 font-medium">{t('Fee tier')}</h2>
+                  <p className="mb-4 text-body-3 text-text-2">{t('The amount earned providing liquidity. Choose an amount that suits your risk tolerance and strategy.')}</p>
                   <FeeTierSection tokenA={tokenA} tokenB={tokenB} fee={fee} onFee={(f) => setParam({ fee: String(f) })} />
                 </section>
               )}
               {version === 'v2' && (
-                <Banner tone="info" title="V2 positions">
-                  V2 pools charge a fixed 0.3% fee and spread your liquidity over the full price range.
+                <Banner tone="info" title={t('V2 positions')}>
+                  {t('V2 pools charge a fixed 0.3% fee and spread your liquidity over the full price range.')}
                 </Banner>
               )}
               <Button size="xl" fullWidth style={{ height: 54, borderRadius: 20 }} disabled={!pairReady} onClick={() => setStep(2)} data-testid="create-continue">
-                {pairReady ? 'Continue' : 'Select a pair'}
+                {pairReady ? t('Continue') : t('Select a pair')}
               </Button>
             </div>
           ) : tokenA && tokenB && version === 'v3' ? (
@@ -159,12 +160,12 @@ function StepsRail({ version, step, onStep }: { version: Version; step: 1 | 2; o
   const items =
     version === 'v3'
       ? [
-          { n: 1 as const, title: 'Select token pair and fees' },
-          { n: 2 as const, title: 'Set price range and deposit amounts' },
+          { n: 1 as const, title: t('Select token pair and fees') },
+          { n: 2 as const, title: t('Set price range and deposit amounts') },
         ]
       : [
-          { n: 1 as const, title: 'Select token pair' },
-          { n: 2 as const, title: 'Enter deposit amounts' },
+          { n: 1 as const, title: t('Select token pair') },
+          { n: 2 as const, title: t('Enter deposit amounts') },
         ]
   return (
     <div className="hidden h-fit flex-col rounded-3xl border border-border px-4 py-5 lg:flex" data-testid="create-steps">
@@ -174,7 +175,7 @@ function StepsRail({ version, step, onStep }: { version: Version; step: 1 | 2; o
           <button type="button" onClick={() => onStep(it.n)} className="flex items-center gap-3 text-left">
             <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-body-2 font-medium', step === it.n ? 'bg-text-1 text-bg' : 'bg-surface-3 text-text-2')}>{it.n}</span>
             <span>
-              <span className={cn('block text-body-3', step === it.n ? 'text-text-2' : 'text-text-3')}>Step {it.n}</span>
+              <span className={cn('block text-body-3', step === it.n ? 'text-text-2' : 'text-text-3')}>{t('Step {n}', { n: it.n })}</span>
               <span className={cn('block text-body-2 leading-5', step === it.n ? 'text-text-1' : 'text-text-2')}>{it.title}</span>
             </span>
           </button>
@@ -189,7 +190,7 @@ function PairPicker({ tokenA, tokenB, onA, onB, onFlip }: { tokenA?: Token; toke
   return (
     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
       <PairButton token={tokenA} onClick={() => setOpen('A')} testId="pair-token-a" />
-      <button type="button" aria-label="Swap token order" onClick={onFlip} className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
+      <button type="button" aria-label={t('Swap token order')} onClick={onFlip} className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
         <ArrowLeftRight size={16} />
       </button>
       <PairButton token={tokenB} onClick={() => setOpen('B')} testId="pair-token-b" />
@@ -210,7 +211,7 @@ function PairButton({ token, onClick, testId }: { token?: Token; onClick: () => 
       )}
     >
       {token && <TokenLogo token={token} size={24} chainBadge />}
-      <span className="min-w-0 flex-1 truncate text-left">{token ? token.symbol : <><span className="sm:hidden">Choose</span><span className="hidden sm:inline">Choose token</span></>}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{token ? token.symbol : <><span className="sm:hidden">{t('Choose')}</span><span className="hidden sm:inline">{t('Choose token')}</span></>}</span>
       <ChevronDown size={20} />
     </button>
   )
@@ -314,18 +315,18 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
   const [minted, setMinted] = useState<string | null>(null)
 
   const cta = !account
-    ? { label: 'Connect wallet', action: onConnect, disabled: false }
+    ? { label: t('Connect wallet'), action: onConnect, disabled: false }
     : !sqrtP
-      ? { label: 'Enter a starting price', disabled: true }
+      ? { label: t('Enter a starting price'), disabled: true }
       : amount0 === 0n && amount1 === 0n
-        ? { label: 'Enter an amount', disabled: true }
+        ? { label: t('Enter an amount'), disabled: true }
         : insufficientA
-          ? { label: `Insufficient ${tokenA.symbol} balance`, disabled: true }
+          ? { label: t('Insufficient {symbol} balance', { symbol: tokenA.symbol }), disabled: true }
           : insufficientB
-            ? { label: `Insufficient ${tokenB.symbol} balance`, disabled: true }
+            ? { label: t('Insufficient {symbol} balance', { symbol: tokenB.symbol }), disabled: true }
             : liquidity === 0n
-              ? { label: 'Amount too small', disabled: true }
-              : { label: 'Review', action: () => setReview(true), disabled: false }
+              ? { label: t('Amount too small'), disabled: true }
+              : { label: t('Review'), action: () => setReview(true), disabled: false }
 
   const confirm = () => {
     if (!account || !sqrtP) return
@@ -344,11 +345,11 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
           txStep(
             {
               id: 'mint',
-              title: exists ? 'Create position' : 'Create pool and position',
-              description: 'Confirm in your wallet',
+              title: exists ? t('Create position') : t('Create pool and position'),
+              description: t('Confirm in your wallet'),
               account,
               type: 'add-liquidity',
-              summary: `Added ${formatTokenAmount(amounts.amountA, tokenA.decimals)} ${tokenA.symbol} and ${formatTokenAmount(amounts.amountB, tokenB.decimals)} ${tokenB.symbol} (V3 ${feeLabel(fee)})`,
+              summary: t('Added {amountA} {symbolA} and {amountB} {symbolB} (V3 {fee})', { amountA: formatTokenAmount(amounts.amountA, tokenA.decimals), symbolA: tokenA.symbol, amountB: formatTokenAmount(amounts.amountB, tokenB.decimals), symbolB: tokenB.symbol, fee: feeLabel(fee) }),
               gas: exists ? GAS.mint : GAS.createAndMint,
             },
             () =>
@@ -395,27 +396,27 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
           <div className="flex gap-1.5 text-body-4 text-text-2">
             <span className="rounded-full bg-surface-3 px-2 py-0.5">v3</span>
             <span className="rounded-full bg-surface-3 px-2 py-0.5">{feeLabel(fee)}</span>
-            {!poolsQ.isLoading && !exists && <span className="rounded-full bg-warning-tint px-2 py-0.5 text-warning">New pool</span>}
+            {!poolsQ.isLoading && !exists && <span className="rounded-full bg-warning-tint px-2 py-0.5 text-warning">{t('New pool')}</span>}
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={onEdit}>
-          Edit
+          {t('Edit')}
         </Button>
       </Card>
 
       <Card className="flex flex-col gap-4 p-5">
-        <h2 className="text-body-1 font-medium">Set price range</h2>
+        <h2 className="text-body-1 font-medium">{t('Set price range')}</h2>
         {poolsQ.isLoading ? (
           <Skeleton width="100%" height={200} rounded="lg" />
         ) : (
           <>
             {!exists && (
               <div className="flex flex-col gap-2" data-testid="start-price">
-                <Banner tone="info" title="Creating a new pool">
-                  This pool does not exist yet. Set the starting exchange rate; your deposit then sets the pool price. Check the rate carefully.
+                <Banner tone="info" title={t('Creating a new pool')}>
+                  {t('This pool does not exist yet. Set the starting exchange rate; your deposit then sets the pool price. Check the rate carefully.')}
                 </Banner>
                 <label className="flex items-center gap-3 rounded-2xl border border-border p-3">
-                  <span className="text-body-3 text-text-2">Starting price</span>
+                  <span className="text-body-3 text-text-2">{t('Starting price')}</span>
                   <input
                     inputMode="decimal"
                     placeholder="0"
@@ -428,7 +429,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
                     className="min-w-0 flex-1 bg-transparent text-right text-heading-3 font-medium outline-none tabular"
                   />
                   <span className="shrink-0 text-body-3 text-text-2">
-                    {quote.symbol} per {base.symbol}
+                    {t('{quote} per {base}', { quote: quote.symbol, base: base.symbol })}
                   </span>
                 </label>
               </div>
@@ -452,12 +453,12 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
       </Card>
 
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-body-1 font-medium">Deposit tokens</h2>
-        <p className="-mt-2 text-body-3 text-text-2">Specify the token amounts for your liquidity contribution.</p>
+        <h2 className="text-body-1 font-medium">{t('Deposit tokens')}</h2>
+        <p className="-mt-2 text-body-3 text-text-2">{t('Specify the token amounts for your liquidity contribution.')}</p>
         {sqrtP ? (
           <DepositInputs tokenA={tokenA} tokenB={tokenB} amounts={amounts} account={account} disabled={disabled} />
         ) : (
-          <p className="rounded-xl bg-surface-2 px-4 py-3 text-body-3 text-text-2">Enter a starting price first.</p>
+          <p className="rounded-xl bg-surface-2 px-4 py-3 text-body-3 text-text-2">{t('Enter a starting price first.')}</p>
         )}
         <Button size="xl" fullWidth disabled={cta.disabled} onClick={cta.action} data-testid="create-review">
           {cta.label}
@@ -470,19 +471,19 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
           setReview(o)
           if (!o) setMinted(null)
         }}
-        title="Add liquidity"
+        title={t('Add liquidity')}
         runner={runner}
-        confirmLabel={exists ? 'Create position' : 'Create pool and position'}
+        confirmLabel={exists ? t('Create position') : t('Create pool and position')}
         onConfirm={confirm}
         testId="create-modal"
         success={
           minted ? (
             <ButtonLink to={`/positions/v3/${minted}`} fullWidth data-testid="view-new-position">
-              View position #{minted}
+              {t('View position #{id}', { id: minted })}
             </ButtonLink>
           ) : (
             <ButtonLink to="/positions" fullWidth>
-              View positions
+              {t('View positions')}
             </ButtonLink>
           )
         }
@@ -494,7 +495,7 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
               {tokenA.symbol} / {tokenB.symbol}
             </div>
             <div className="text-body-4 text-text-2">
-              v3 · {feeLabel(fee)} · {inRange ? 'In range' : 'Out of range'}
+              v3 · {feeLabel(fee)} · {inRange ? t('In range') : t('Out of range')}
             </div>
           </div>
         </div>
@@ -505,21 +506,21 @@ function V3Deposit({ tokenA, tokenB, fee, account, onConnect, onEdit }: { tokenA
           <ReviewRow label={tokenB.symbol} testId="review-amount-b">
             {formatTokenAmount(amounts.amountB, tokenB.decimals)}
           </ReviewRow>
-          <ReviewRow label="Value">{formatUsd(usd)}</ReviewRow>
-          <ReviewRow label="Min price">
+          <ReviewRow label={t('Value')}>{formatUsd(usd)}</ReviewRow>
+          <ReviewRow label={t('Min price')}>
             {formatDisplayPrice(Math.min(...rangeDisplay(tickLower, tickUpper, spacing, token0!, token1!, invert)))} {quote.symbol}/{base.symbol}
           </ReviewRow>
-          <ReviewRow label="Max price">
+          <ReviewRow label={t('Max price')}>
             {formatDisplayPrice(Math.max(...rangeDisplay(tickLower, tickUpper, spacing, token0!, token1!, invert)))} {quote.symbol}/{base.symbol}
           </ReviewRow>
           {currentTick !== undefined && (
-            <ReviewRow label={exists ? 'Current price' : 'Starting price'}>
+            <ReviewRow label={exists ? t('Current price') : t('Starting price')}>
               {formatDisplayPrice(displayAt(currentTick, token0!, token1!, invert))} {quote.symbol}/{base.symbol}
             </ReviewRow>
           )}
-          <ReviewRow label="Fee tier">{feeLabel(fee)}</ReviewRow>
-          <ReviewRow label="Pool share">{formatPercent(poolShare * 100)}</ReviewRow>
-          <ReviewRow label="Slippage">{formatPercent(slippageBps / 100)}</ReviewRow>
+          <ReviewRow label={t('Fee tier')}>{feeLabel(fee)}</ReviewRow>
+          <ReviewRow label={t('Pool share')}>{formatPercent(poolShare * 100)}</ReviewRow>
+          <ReviewRow label={t('Slippage')}>{formatPercent(slippageBps / 100)}</ReviewRow>
         </div>
       </TxFlowModal>
     </div>
@@ -588,14 +589,14 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
   const [pairAddr, setPairAddr] = useState<string | null>(null)
 
   const cta = !account
-    ? { label: 'Connect wallet', action: onConnect, disabled: false }
+    ? { label: t('Connect wallet'), action: onConnect, disabled: false }
     : amounts.amountA === 0n || amounts.amountB === 0n
-      ? { label: 'Enter an amount', disabled: true }
+      ? { label: t('Enter an amount'), disabled: true }
       : balA !== undefined && amounts.amountA > balA
-        ? { label: `Insufficient ${tokenA.symbol} balance`, disabled: true }
+        ? { label: t('Insufficient {symbol} balance', { symbol: tokenA.symbol }), disabled: true }
         : balB !== undefined && amounts.amountB > balB
-          ? { label: `Insufficient ${tokenB.symbol} balance`, disabled: true }
-          : { label: 'Review', action: () => setReview(true), disabled: false }
+          ? { label: t('Insufficient {symbol} balance', { symbol: tokenB.symbol }), disabled: true }
+          : { label: t('Review'), action: () => setReview(true), disabled: false }
 
   const confirm = () => {
     if (!account) return
@@ -613,11 +614,11 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
           txStep(
             {
               id: 'add',
-              title: hasReserves ? 'Add liquidity' : 'Create pair and add liquidity',
-              description: 'Confirm in your wallet',
+              title: hasReserves ? t('Add liquidity') : t('Create pair and add liquidity'),
+              description: t('Confirm in your wallet'),
               account,
               type: 'add-liquidity',
-              summary: `Added ${formatTokenAmount(amounts.amountA, tokenA.decimals)} ${tokenA.symbol} and ${formatTokenAmount(amounts.amountB, tokenB.decimals)} ${tokenB.symbol} (V2)`,
+              summary: t('Added {amountA} {symbolA} and {amountB} {symbolB} (V2)', { amountA: formatTokenAmount(amounts.amountA, tokenA.decimals), symbolA: tokenA.symbol, amountB: formatTokenAmount(amounts.amountB, tokenB.decimals), symbolB: tokenB.symbol }),
               gas: pair?.address ? GAS.v2Add : GAS.v2AddNewPair,
             },
             () =>
@@ -658,23 +659,23 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
           <div className="flex gap-1.5 text-body-4 text-text-2">
             <span className="rounded-full bg-surface-3 px-2 py-0.5">v2</span>
             <span className="rounded-full bg-surface-3 px-2 py-0.5">0.3%</span>
-            {!pairQ.isLoading && !hasReserves && <span className="rounded-full bg-warning-tint px-2 py-0.5 text-warning">New pair</span>}
+            {!pairQ.isLoading && !hasReserves && <span className="rounded-full bg-warning-tint px-2 py-0.5 text-warning">{t('New pair')}</span>}
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={onEdit}>
-          Edit
+          {t('Edit')}
         </Button>
       </Card>
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-body-1 font-medium">Deposit tokens</h2>
+        <h2 className="text-body-1 font-medium">{t('Deposit tokens')}</h2>
         {!pairQ.isLoading && !hasReserves && (
-          <Banner tone="info" title="You are the first liquidity provider">
-            The ratio of tokens you add sets the price of this pool.
+          <Banner tone="info" title={t('You are the first liquidity provider')}>
+            {t('The ratio of tokens you add sets the price of this pool.')}
           </Banner>
         )}
         {hasReserves && (
           <div className="flex justify-between text-body-3 text-text-2">
-            <span>Pool price</span>
+            <span>{t('Pool price')}</span>
             <span className="tabular">
               1 {tokenA.symbol} = {formatDisplayPrice(toNumber(rB, tokenB.decimals) / toNumber(rA, tokenA.decimals))} {tokenB.symbol}
             </span>
@@ -688,14 +689,14 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
       <TxFlowModal
         open={review}
         onOpenChange={setReview}
-        title="Add V2 liquidity"
+        title={t('Add V2 liquidity')}
         runner={runner}
-        confirmLabel={hasReserves ? 'Add liquidity' : 'Create pair'}
+        confirmLabel={hasReserves ? t('Add liquidity') : t('Create pair')}
         onConfirm={confirm}
         testId="create-modal"
         success={
           <ButtonLink to={pairAddr ? `/positions/v2/${pairAddr}` : '/positions'} fullWidth data-testid="view-new-position">
-            View position
+            {t('View position')}
           </ButtonLink>
         }
       >
@@ -706,10 +707,10 @@ function V2Deposit({ tokenA, tokenB, account, onConnect, onEdit }: { tokenA: Tok
           <ReviewRow label={tokenB.symbol} testId="review-amount-b">
             {formatTokenAmount(amounts.amountB, tokenB.decimals)}
           </ReviewRow>
-          <ReviewRow label="Value">{formatUsd(usd)}</ReviewRow>
-          <ReviewRow label="LP tokens (est.)">{formatTokenAmount(minted, 18)}</ReviewRow>
-          <ReviewRow label="Pool share">{formatPercent(share * 100)}</ReviewRow>
-          <ReviewRow label="Slippage">{formatPercent((hasReserves ? slippageBps : 0) / 100)}</ReviewRow>
+          <ReviewRow label={t('Value')}>{formatUsd(usd)}</ReviewRow>
+          <ReviewRow label={t('LP tokens (est.)')}>{formatTokenAmount(minted, 18)}</ReviewRow>
+          <ReviewRow label={t('Pool share')}>{formatPercent(share * 100)}</ReviewRow>
+          <ReviewRow label={t('Slippage')}>{formatPercent((hasReserves ? slippageBps : 0) / 100)}</ReviewRow>
         </div>
       </TxFlowModal>
     </div>

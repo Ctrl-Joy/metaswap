@@ -19,6 +19,7 @@ import { useTokenBalances } from '@/hooks/useTokenBalances'
 import { useTokenPrices } from '@/features/tokens/useTokenList'
 import { TokenSelector } from '@/features/tokens/TokenSelector'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 
 export const ETH_FAUCET_AMOUNT = 10n * 10n ** 18n
 
@@ -31,7 +32,7 @@ export async function requestDevEth(account: `0x${string}`, amount = ETH_FAUCET_
     return body.result
   }
   const chainId = Number(await rpc('eth_chainId', []))
-  if (chainId !== DEVNET_CHAIN_ID) throw new Error('The ETH faucet only works on the local MetaChain Devnet')
+  if (chainId !== DEVNET_CHAIN_ID) throw new Error(t('The ETH faucet only works on the local MetaChain Devnet'))
   const current = BigInt((await rpc('eth_getBalance', [account, 'latest'])) as string)
   const next = current + amount
   await rpc('anvil_setBalance', [account, `0x${next.toString(16)}`])
@@ -40,7 +41,7 @@ export async function requestDevEth(account: `0x${string}`, amount = ETH_FAUCET_
 
 const faucetTokens = DEVNET_TOKENS.filter((t) => t.symbol !== 'WETH')
 const faucetSet = new Set([NATIVE_ETH, ...faucetTokens].map((t) => t.address.toLowerCase()))
-const isFaucetToken = (t: Token) => faucetSet.has(t.address.toLowerCase())
+const isFaucetToken = (token: Token) => faucetSet.has(token.address.toLowerCase())
 
 /** /buy on devnet: a faucet instead of a fiat on-ramp (ui-ux.md §6.1 → PLAN "Buy"). */
 export function BuyForm() {
@@ -78,17 +79,17 @@ export function BuyForm() {
 
   const mark = (k: string) => setDone((s) => new Set(s).add(k))
 
-  async function claimToken(t: Token, quiet = false): Promise<boolean> {
+  async function claimToken(token: Token, quiet = false): Promise<boolean> {
     if (!wallet.address) return false
-    const meta = info.data?.[t.address.toLowerCase()]
+    const meta = info.data?.[token.address.toLowerCase()]
     if (meta && meta.waitSec > 0) {
-      if (!quiet) toast.info(`${t.symbol} faucet cooling down`, `Available again in ${formatDuration(meta.waitSec)}.`)
+      if (!quiet) toast.info(t('{symbol} faucet cooling down', { symbol: token.symbol }), t('Available again in {duration}.', { duration: formatDuration(meta.waitSec) }))
       return false
     }
-    const hash = await writeContract(wagmiConfig, { address: t.address, abi: testErc20Abi, functionName: 'faucet' })
-    const receipt = await trackTx(wallet.address, { hash, type: 'faucet', summary: `Received ${meta?.amount ? formatTokenAmount(meta.amount, t.decimals) : ''} test ${t.symbol}` }, { toast: !quiet })
-    if (!receipt || receipt.status !== 'success') throw new Error(`${t.symbol} faucet reverted`)
-    mark(t.address)
+    const hash = await writeContract(wagmiConfig, { address: token.address, abi: testErc20Abi, functionName: 'faucet' })
+    const receipt = await trackTx(wallet.address, { hash, type: 'faucet', summary: t('Received {amount} test {symbol}', { amount: meta?.amount ? formatTokenAmount(meta.amount, token.decimals) : '', symbol: token.symbol }) }, { toast: !quiet })
+    if (!receipt || receipt.status !== 'success') throw new Error(`${token.symbol} faucet reverted`)
+    mark(token.address)
     return true
   }
 
@@ -97,7 +98,7 @@ export function BuyForm() {
     await requestDevEth(wallet.address)
     invalidateChainQueries()
     mark(NATIVE_ETH.address)
-    if (!quiet) toast.success('Received 10 test ETH', 'Balance set directly on the local Anvil node.')
+    if (!quiet) toast.success(t('Received 10 test ETH'), t('Balance set directly on the local Anvil node.'))
   }
 
   async function run(key: string, fn: () => Promise<unknown>) {
@@ -106,7 +107,7 @@ export function BuyForm() {
       await fn()
     } catch (e) {
       const err = parseTxError(e)
-      if (err.kind !== 'rejected') toast.error('Faucet failed', err.message)
+      if (err.kind !== 'rejected') toast.error(t('Faucet failed'), err.message)
     } finally {
       setBusy(null)
       void qc.invalidateQueries({ queryKey: ['faucet-info'] })
@@ -117,8 +118,11 @@ export function BuyForm() {
     run('all', async () => {
       await claimEth(true)
       let n = 0
-      for (const t of faucetTokens) if (await claimToken(t, true)) n++
-      toast.success('Test tokens received', `10 ETH${n ? ` and ${n} test token${n === 1 ? '' : 's'}` : ''} added to your wallet.`)
+      for (const token of faucetTokens) if (await claimToken(token, true)) n++
+      toast.success(
+        t('Test tokens received'),
+        n === 0 ? t('10 ETH added to your wallet.') : n === 1 ? t('10 ETH and 1 test token added to your wallet.') : t('10 ETH and {count} test tokens added to your wallet.', { count: n }),
+      )
     })
 
   const pickMeta = pick.isNative ? undefined : info.data?.[pick.address.toLowerCase()]
@@ -132,13 +136,13 @@ export function BuyForm() {
   if (!wallet.address)
     cta = (
       <Button size="xl" fullWidth variant="tint" style={{ height: 54, borderRadius: 20 }} onClick={openConnect} data-testid="buy-connect">
-        Connect wallet
+        {t('Connect wallet')}
       </Button>
     )
   else if (wallet.wrongNetwork)
     cta = (
       <Button size="xl" fullWidth variant="warning" style={{ height: 54, borderRadius: 20 }} onClick={() => void switchToDevnet()}>
-        Switch to MetaChain Devnet
+        {t('Switch to MetaChain Devnet')}
       </Button>
     )
   else
@@ -152,7 +156,7 @@ export function BuyForm() {
         disabled={!!busy || pickCooldown > 0}
         onClick={() => run(pick.address, () => (pick.isNative ? claimEth() : claimToken(pick)))}
       >
-        {pickCooldown > 0 ? `Available in ${formatDuration(pickCooldown)}` : `Get ${pickAmount ?? ''} ${pick.symbol}`}
+        {pickCooldown > 0 ? t('Available in {duration}', { duration: formatDuration(pickCooldown) }) : t('Get {amount} {symbol}', { amount: pickAmount ?? '', symbol: pick.symbol })}
       </Button>
     )
 
@@ -160,9 +164,9 @@ export function BuyForm() {
     <div className="flex flex-col gap-1">
       <div className="flex min-h-[264px] flex-col rounded-[20px] border border-border bg-surface-1 px-4 pt-3 pb-[52px]" data-testid="buy-hero">
         <div className="flex items-center justify-between">
-          <span className="text-body-3 text-text-2">You're getting</span>
+          <span className="text-body-3 text-text-2">{t("You're getting")}</span>
           <span className="flex h-6 items-center gap-1 rounded-full bg-surface-3 px-2 text-body-4 font-semibold text-text-2">
-            <FlaskConical size={14} /> Test tokens
+            <FlaskConical size={14} /> {t('Test tokens')}
           </span>
         </div>
         <div className="flex flex-1 flex-col items-center justify-end">
@@ -176,7 +180,7 @@ export function BuyForm() {
               </>
             )}
           </div>
-          <div className="mt-[28px] flex flex-wrap justify-center gap-2" role="radiogroup" aria-label="Token">
+          <div className="mt-[28px] flex flex-wrap justify-center gap-2" role="radiogroup" aria-label={t('Token')}>
             {chips.map((t) => (
               <button
                 key={t.address}
@@ -213,16 +217,16 @@ export function BuyForm() {
         <ChevronRight size={20} className="text-text-2" />
       </button>
       {cta}
-      <TokenSelector open={selectorOpen} onOpenChange={setSelectorOpen} selected={pick} onSelect={setPick} filter={isFaucetToken} title="Select a test token" />
+      <TokenSelector open={selectorOpen} onOpenChange={setSelectorOpen} selected={pick} onSelect={setPick} filter={isFaucetToken} title={t('Select a test token')} />
 
       {wallet.address && !wallet.wrongNetwork && (
         <section className="mt-6" aria-labelledby="all-test-tokens">
           <div className="mb-2 flex items-center justify-between px-1">
             <h2 id="all-test-tokens" className="text-body-1 font-medium">
-              All test tokens
+              {t('All test tokens')}
             </h2>
             <Button size="sm" variant="secondary" onClick={claimAll} loading={busy === 'all'} disabled={!!busy} data-testid="get-test-tokens" leftIcon={<Droplets size={14} />}>
-              Get all
+              {t('Get all')}
             </Button>
           </div>
           <ul className="flex flex-col rounded-[20px] border border-border px-4" data-testid="faucet-list">
@@ -255,11 +259,11 @@ export function BuyForm() {
               )
             })}
           </ul>
-          {faucetTokens.length === 0 && <Banner tone="warning" title="No test tokens deployed">Run the deploy scripts and sdk sync to populate the token list.</Banner>}
+          {faucetTokens.length === 0 && <Banner tone="warning" title={t('No test tokens deployed')}>{t('Run the deploy scripts and sdk sync to populate the token list.')}</Banner>}
         </section>
       )}
       <p className="mt-3 px-2 text-center text-body-4 text-text-3">
-        MetaChain Devnet is a local test network. Tokens here have no value: ETH is set on your local Anvil node and each test token has a public faucet (once per hour per address).
+        {t('MetaChain Devnet is a local test network. Tokens here have no value: ETH is set on your local Anvil node and each test token has a public faucet (once per hour per address).')}
       </p>
     </div>
   )
@@ -284,7 +288,7 @@ function FaucetRow(p: {
       <div className="min-w-0 flex-1">
         <div className="font-medium">{p.token.symbol}</div>
         <div className="text-body-4 text-text-2 tabular">
-          Balance {p.balance !== undefined ? formatTokenAmount(p.balance, p.token.decimals) : '…'}
+          {t('Balance {amount}', { amount: p.balance !== undefined ? formatTokenAmount(p.balance, p.token.decimals) : '…' })}
           {p.balance !== undefined && p.price !== undefined && ` · ${formatUsd(toNumber(p.balance, p.token.decimals) * p.price)}`}
         </div>
       </div>
@@ -298,7 +302,7 @@ function FaucetRow(p: {
         className="w-[88px]"
         leftIcon={p.done && !p.busy ? <Check size={14} /> : undefined}
       >
-        {cooling ? formatDuration(p.cooldown!) : p.done ? 'Again' : 'Get'}
+        {cooling ? formatDuration(p.cooldown!) : p.done ? t('Again') : t('Get')}
       </Button>
     </li>
   )

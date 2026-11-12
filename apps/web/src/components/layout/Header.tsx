@@ -12,6 +12,7 @@ import { shortenAddress } from '@/lib/format'
 import { LogoMark, Wordmark } from './Logo'
 import { SearchModal } from './SearchModal'
 import { GlobalPreferences } from './PreferencesMenu'
+import { t } from '@/i18n'
 
 export const NAV_ITEMS = [
   { to: '/swap', label: 'Trade', match: ['/swap', '/limit', '/send', '/buy'] },
@@ -58,7 +59,7 @@ export const NAV_MENUS: Record<string, Array<{ to: string; label: string; icon?:
 }
 
 function BetaBadge() {
-  return <span className="ml-1.5 rounded-md bg-accent-tint px-1.5 py-0.5 align-middle text-[11px] leading-none font-semibold text-accent">Beta</span>
+  return <span className="ml-1.5 rounded-md bg-accent-tint px-1.5 py-0.5 align-middle text-[11px] leading-none font-semibold text-accent">{t('Beta')}</span>
 }
 
 function useActive() {
@@ -73,17 +74,17 @@ export function Header() {
   return (
     <header className="sticky top-0 z-[980] h-[72px] bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1920px] items-center gap-2 px-4 tablet:px-3 lg:px-4">
-        <IconButton label="Open menu" className="lg:hidden" onClick={() => setMobileOpen(true)} data-testid="mobile-menu-button">
+        <IconButton label={t('Open menu')} className="lg:hidden" onClick={() => setMobileOpen(true)} data-testid="mobile-menu-button">
           <Menu size={22} />
         </IconButton>
         <ProductMenu />
-        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 lg:flex">
+        <nav aria-label={t('Main')} className="ml-4 hidden items-center gap-1 lg:flex">
           {NAV_ITEMS.map((item) => (
             <NavItem key={item.to} item={item} active={isActive(item.match)} />
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1">
-          <IconButton label="Search tokens and pools" onClick={() => setSearchOpen(true)} data-testid="search-button">
+          <IconButton label={t('Search tokens and pools')} onClick={() => setSearchOpen(true)} data-testid="search-button">
             <Search size={20} />
           </IconButton>
           <MoreMenu />
@@ -160,7 +161,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
       }}
       className={cn('block rounded-xl px-3 py-2 text-body-1 font-medium transition-colors', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
     >
-      {item.label}
+      {t(item.label)}
       {'beta' in item && item.beta && <BetaBadge />}
     </NavLink>
   )
@@ -191,7 +192,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
     >
       {link}
       <div className={cn('absolute top-full left-1/2 z-[990] -translate-x-1/2 pt-2.5 transition-opacity duration-100', open ? 'visible opacity-100' : 'invisible opacity-0')}>
-        <div role="menu" aria-label={`${item.label} menu`} data-testid={`nav-menu-${item.label.toLowerCase()}`} className="flex w-[182px] flex-col gap-1 rounded-2xl border border-surface-2 bg-surface-1 p-[5px] shadow-large">
+        <div role="menu" aria-label={t('{label} menu', { label: t(item.label) })} data-testid={`nav-menu-${item.label.toLowerCase()}`} className="flex w-[182px] flex-col gap-1 rounded-2xl border border-surface-2 bg-surface-1 p-[5px] shadow-large">
           {menu.map((m) => (
             <Link
               key={m.to}
@@ -202,7 +203,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
               className="flex h-12 items-center gap-2 rounded-xl bg-surface-2 px-3 text-body-2 font-semibold text-text-2 transition-colors hover:bg-surface-2-hover hover:text-text-1 focus-visible:text-text-1 focus-visible:outline-none"
             >
               {m.icon}
-              {m.label}
+              {t(m.label)}
             </Link>
           ))}
         </div>
@@ -214,7 +215,7 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
 function ProductMenu() {
   return (
     <div className="flex items-center">
-      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1" aria-label="MetaSwap home">
+      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1" aria-label={t('MetaSwap home')}>
         <LogoMark size={28} />
         <Wordmark className="hidden sm:inline" />
       </Link>
@@ -223,7 +224,7 @@ function ProductMenu() {
 }
 
 const THEME_OPTIONS = [
-  { value: 'auto', label: 'Auto (follow system)', icon: <span className="text-body-4 font-semibold">Auto</span> },
+  { value: 'auto', label: 'Auto (follow system)', icon: <span className="text-body-4 font-semibold">{t('Auto')}</span> },
   { value: 'light', label: 'Light theme', icon: <Sun size={16} /> },
   { value: 'dark', label: 'Dark theme', icon: <Moon size={16} /> },
 ] as const
@@ -232,19 +233,19 @@ export function ThemeToggle() {
   const choice = useSettings((s) => s.themeChoice)
   const setChoice = useSettings((s) => s.setThemeChoice)
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1">
-      {THEME_OPTIONS.map((t) => (
+    <div role="radiogroup" aria-label={t('Theme')} className="inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1">
+      {THEME_OPTIONS.map((o) => (
         <button
-          key={t.value}
+          key={o.value}
           role="radio"
-          aria-checked={choice === t.value}
-          aria-label={t.label}
-          title={t.label}
-          data-testid={`theme-${t.value}`}
-          onClick={() => setChoice(t.value)}
-          className={cn('inline-flex h-6 min-w-9 items-center justify-center rounded-full px-2 transition-colors', choice === t.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+          aria-checked={choice === o.value}
+          aria-label={t(o.label)}
+          title={t(o.label)}
+          data-testid={`theme-${o.value}`}
+          onClick={() => setChoice(o.value)}
+          className={cn('inline-flex h-6 min-w-9 items-center justify-center rounded-full px-2 transition-colors', choice === o.value ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
         >
-          {t.icon}
+          {o.icon}
         </button>
       ))}
     </div>
@@ -257,7 +258,7 @@ function MoreMenu() {
     <Popover
       className="w-[325px] border-surface-2 py-3 pr-1 pl-4"
       trigger={
-        <IconButton label="More" data-testid="more-button" className="data-[state=open]:bg-surface-2">
+        <IconButton label={t('More')} data-testid="more-button" className="data-[state=open]:bg-surface-2">
           <MoreHorizontal size={20} />
         </IconButton>
       }
@@ -272,7 +273,7 @@ function NetworkPill() {
     <Link
       to="/metachain"
       className="mr-1 hidden h-9 items-center gap-2 rounded-full bg-surface-2 px-3 text-body-3 font-medium text-text-2 transition-colors hover:text-text-1 tablet:inline-flex lg:hidden min-[1440px]:inline-flex"
-      title="MetaChain Devnet (chain 31337)"
+      title={t('MetaChain Devnet (chain {id})', { id: 31337 })}
     >
       <span className="size-2 rounded-full bg-success" aria-hidden />
       MetaChain Devnet
@@ -303,7 +304,7 @@ function AccountButton() {
         data-panel-trigger
         className="h-[34px] rounded-xl px-3 text-body-3"
       >
-        Get started
+        {t('Get started')}
       </Button>
     )
   return (
@@ -321,7 +322,7 @@ function AccountButton() {
       </span>
       {pending > 0 ? (
         <span className="hidden whitespace-nowrap text-accent xl:inline" data-testid="account-pending">
-          {pending} pending
+          {t('{count} pending', { count: pending })}
         </span>
       ) : (
         <span className="hidden whitespace-nowrap xl:inline" data-testid="account-address">
@@ -343,7 +344,7 @@ function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
       onClick={() => onOpenChange(false)}
       className={cn('flex h-12 items-center rounded-xl px-3 text-body-1 font-medium', isActive(item.match) ? 'text-text-1' : 'text-text-2 hover:bg-surface-2 hover:text-text-1')}
     >
-      {item.label}
+      {t(item.label)}
       {item.beta && <BetaBadge />}
     </NavLink>
   )
@@ -360,23 +361,23 @@ function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
             <Dialog.Title className="flex items-center gap-2">
               <LogoMark size={24} /> <Wordmark />
             </Dialog.Title>
-            <Dialog.Description className="sr-only">Site navigation</Dialog.Description>
+            <Dialog.Description className="sr-only">{t('Site navigation')}</Dialog.Description>
             <Dialog.Close asChild>
-              <IconButton label="Close menu" size={36}>
+              <IconButton label={t('Close menu')} size={36}>
                 <X size={20} />
               </IconButton>
             </Dialog.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <nav aria-label="Mobile" className="flex flex-col">
-              <div className="px-3 pt-2 pb-1 text-body-3 text-text-2">App</div>
+            <nav aria-label={t('Mobile')} className="flex flex-col">
+              <div className="px-3 pt-2 pb-1 text-body-3 text-text-2">{t('App')}</div>
               {app.map((i) => link(i))}
-              <div className="mt-2 border-t border-border px-3 pt-4 pb-1 text-body-3 text-text-2">More</div>
+              <div className="mt-2 border-t border-border px-3 pt-4 pb-1 text-body-3 text-text-2">{t('More')}</div>
               {more.map((i) => link(i))}
             </nav>
           </div>
           <div className="mt-2 flex items-center justify-between border-t border-border px-3 pt-4">
-            <span className="text-body-3 text-text-2">Theme</span>
+            <span className="text-body-3 text-text-2">{t('Theme')}</span>
             <ThemeToggle />
           </div>
         </Dialog.Content>

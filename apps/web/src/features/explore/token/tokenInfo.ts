@@ -1,4 +1,7 @@
+import { t } from '@/i18n'
+
 // Original, devnet-specific descriptions for the seed tokens (not third-party copy).
+// English source text; tokenDescription() translates it at render time.
 export const TOKEN_INFO: Record<string, string> = {
   ETH: 'Native gas token of MetaChain Devnet. It pays for transactions on the local chain and wraps 1:1 into WETH for trading in pools.',
   WETH: 'Wrapped Ether for MetaChain Devnet. Pools trade WETH, and native ETH swaps wrap and unwrap through it automatically.',
@@ -12,5 +15,6 @@ export const TOKEN_INFO: Record<string, string> = {
 }
 
 export function tokenDescription(symbol: string): string {
-  return TOKEN_INFO[symbol] ?? `${symbol} is a test token on MetaChain Devnet. Its price and volume come from the local MetaSwap pools.`
+  const text = TOKEN_INFO[symbol]
+  return text ? t(text) : t('{symbol} is a test token on MetaChain Devnet. Its price and volume come from the local MetaSwap pools.', { symbol })
 }

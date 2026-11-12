@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { DEVNET_CHAIN_ID, RPC_URL } from '@/config'
 import { parseTxError } from '@/lib/errors'
 import { toast } from '@/state/toasts'
+import { t } from '@/i18n'
 
 export interface WalletStatus {
   address: `0x${string}` | undefined
@@ -43,16 +44,16 @@ type Eip1193 = { request: (args: { method: string; params?: unknown[] }) => Prom
 export async function addDevnetToWallet(provider?: Eip1193): Promise<boolean> {
   const p = provider ?? ((globalThis as unknown as { ethereum?: Eip1193 }).ethereum)
   if (!p) {
-    toast.error('No browser wallet found', 'Install a wallet extension, or use the Dev wallet on this devnet.')
+    toast.error(t('No browser wallet found'), t('Install a wallet extension, or use the Dev wallet on this devnet.'))
     return false
   }
   try {
     await p.request({ method: 'wallet_addEthereumChain', params: [ADD_DEVNET_PARAMS] })
-    toast.success('MetaChain Devnet added', 'Your wallet can now switch to chain 31337.')
+    toast.success(t('MetaChain Devnet added'), t('Your wallet can now switch to chain {id}.', { id: DEVNET_CHAIN_ID }))
     return true
   } catch (e) {
     const err = parseTxError(e)
-    if (err.kind !== 'rejected') toast.error('Could not add network', err.message)
+    if (err.kind !== 'rejected') toast.error(t('Could not add network'), err.message)
     return false
   }
 }
@@ -73,7 +74,7 @@ export function useSwitchToDevnet() {
         await addDevnetToWallet(provider)
       } else {
         const err = parseTxError(e)
-        if (err.kind !== 'rejected') toast.error('Could not switch network', err.message)
+        if (err.kind !== 'rejected') toast.error(t('Could not switch network'), err.message)
       }
     } finally {
       setPending(false)

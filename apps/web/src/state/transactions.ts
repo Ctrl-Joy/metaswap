@@ -6,6 +6,7 @@ import { persistStorage } from '@/lib/storage'
 import { wagmiConfig } from '@/wallet/wagmi'
 import { queryClient } from '@/api/queryClient'
 import { toast } from './toasts'
+import { t } from '@/i18n'
 
 export type TxType =
   | 'swap'
@@ -123,12 +124,12 @@ export async function watchTx(account: string, tx: Pick<TrackedTx, 'hash' | 'sum
     if (toastId)
       toast.update(toastId, ok
         ? { kind: 'success', title: doneTitle(tx.type), message: tx.summary, duration: 5000 }
-        : { kind: 'error', title: 'Transaction failed', message: `${tx.summary} reverted on-chain.`, duration: 8000 })
+        : { kind: 'error', title: t('Transaction failed'), message: t('{summary} reverted on-chain.', { summary: tx.summary }), duration: 8000 })
     invalidateChainQueries()
     return receipt
   } catch (err) {
     useTxStore.getState().update(account, tx.hash, { status: 'dropped' })
-    if (toastId) toast.update(toastId, { kind: 'error', title: 'Transaction not found', message: 'It may have been dropped or replaced.', duration: 8000 })
+    if (toastId) toast.update(toastId, { kind: 'error', title: t('Transaction not found'), message: t('It may have been dropped or replaced.'), duration: 8000 })
     void err
     return null
   } finally {
@@ -153,37 +154,37 @@ export function trackTx(
 
 function pendingTitle(type: TxType): string {
   switch (type) {
-    case 'swap': return 'Swapping'
-    case 'wrap': return 'Wrapping'
-    case 'unwrap': return 'Unwrapping'
-    case 'approve': return 'Approving'
-    case 'send': return 'Sending'
-    case 'faucet': return 'Minting test tokens'
-    case 'cancel-order': return 'Cancelling order'
-    case 'earn-deposit': return 'Depositing'
-    case 'earn-withdraw': return 'Withdrawing'
-    case 'add-liquidity': return 'Adding liquidity'
-    case 'remove-liquidity': return 'Removing liquidity'
-    case 'collect-fees': return 'Collecting fees'
-    default: return 'Transaction pending'
+    case 'swap': return t('Swapping')
+    case 'wrap': return t('Wrapping')
+    case 'unwrap': return t('Unwrapping')
+    case 'approve': return t('Approving')
+    case 'send': return t('Sending')
+    case 'faucet': return t('Minting test tokens')
+    case 'cancel-order': return t('Cancelling order')
+    case 'earn-deposit': return t('Depositing')
+    case 'earn-withdraw': return t('Withdrawing')
+    case 'add-liquidity': return t('Adding liquidity')
+    case 'remove-liquidity': return t('Removing liquidity')
+    case 'collect-fees': return t('Collecting fees')
+    default: return t('Transaction pending')
   }
 }
 
 function doneTitle(type: TxType): string {
   switch (type) {
-    case 'swap': return 'Swapped'
-    case 'wrap': return 'Wrapped'
-    case 'unwrap': return 'Unwrapped'
-    case 'approve': return 'Approved'
-    case 'send': return 'Sent'
-    case 'faucet': return 'Test tokens received'
-    case 'cancel-order': return 'Order cancelled'
-    case 'earn-deposit': return 'Deposited'
-    case 'earn-withdraw': return 'Withdrawn'
-    case 'add-liquidity': return 'Liquidity added'
-    case 'remove-liquidity': return 'Liquidity removed'
-    case 'collect-fees': return 'Fees collected'
-    default: return 'Transaction confirmed'
+    case 'swap': return t('Swapped')
+    case 'wrap': return t('Wrapped')
+    case 'unwrap': return t('Unwrapped')
+    case 'approve': return t('Approved')
+    case 'send': return t('Sent')
+    case 'faucet': return t('Test tokens received')
+    case 'cancel-order': return t('Order cancelled')
+    case 'earn-deposit': return t('Deposited')
+    case 'earn-withdraw': return t('Withdrawn')
+    case 'add-liquidity': return t('Liquidity added')
+    case 'remove-liquidity': return t('Liquidity removed')
+    case 'collect-fees': return t('Fees collected')
+    default: return t('Transaction confirmed')
   }
 }
 

@@ -12,6 +12,7 @@ import type { PoolApiRow } from './types'
 import { usePools30dVolume } from './api'
 import { PoolFiltersModal } from './PoolFiltersModal'
 import { activeFilterCount, applyPoolFilters, EMPTY_POOL_FILTERS, type PoolFilters } from './poolFilters'
+import { t } from '@/i18n'
 
 type SortKey = 'rank' | 'tvl' | 'apr' | 'volume' | 'volume30d' | 'ratio'
 
@@ -26,7 +27,7 @@ export function PoolsTable({
   error,
   onRetry,
   showNewPosition = true,
-  emptyText = 'No pools yet. Create the first one.',
+  emptyText,
   testId = 'pools-table',
   toolbar = showNewPosition,
 }: {
@@ -67,7 +68,7 @@ export function PoolsTable({
 
   const toggle = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }))
 
-  if (error && !pools) return <ApiErrorState error={error} onRetry={onRetry} title="Could not load pools" />
+  if (error && !pools) return <ApiErrorState error={error} onRetry={onRetry} title={t('Could not load pools')} />
 
   return (
     <div className="flex flex-col gap-4" data-testid={testId}>
@@ -76,7 +77,7 @@ export function PoolsTable({
           {showNewPosition && (
             <Link to="/positions/create" className={buttonClass({ variant: 'tint', size: 'md' })}>
               <Plus size={16} aria-hidden />
-              New position
+              {t('New position')}
             </Link>
           )}
           {toolbar && (
@@ -85,16 +86,16 @@ export function PoolsTable({
                 type="button"
                 onClick={() => setFiltersOpen(true)}
                 data-testid="pool-filters-button"
-                aria-label={nFilters ? `Filters (${nFilters} active)` : 'Filters'}
+                aria-label={nFilters ? t('Filters ({count} active)', { count: nFilters }) : t('Filters')}
                 className={cn('inline-flex h-10 items-center gap-2 rounded-full border px-3.5 text-body-3 font-semibold transition-colors', nFilters ? 'border-accent bg-accent-tint text-accent' : 'border-border text-text-2 hover:bg-surface-2 hover:text-text-1')}
               >
                 <SlidersHorizontal size={16} aria-hidden />
-                Filters
+                {t('Filters')}
                 {nFilters > 0 && <span className="rounded-full bg-accent-fill px-1.5 text-body-4 text-white tabular">{nFilters}</span>}
               </button>
               <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border px-3.5 focus-within:border-accent sm:max-w-[280px]">
                 <Search size={16} className="shrink-0 text-text-3" aria-hidden />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search pools" aria-label="Search pools" data-testid="pool-search" className="w-full min-w-0 bg-transparent text-body-3 outline-none" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search pools')} aria-label={t('Search pools')} data-testid="pool-search" className="w-full min-w-0 bg-transparent text-body-3 outline-none" />
               </label>
               <PoolFiltersModal open={filtersOpen} onOpenChange={setFiltersOpen} value={filters} onApply={setFilters} maxApr={maxApr} />
             </>
@@ -104,12 +105,12 @@ export function PoolsTable({
       <ExTable minWidth={860}>
         <ExTHead>
           <ExTh className="sticky left-0 z-[2] w-12 bg-surface-2">#</ExTh>
-          <ExTh className="sticky left-12 z-[2] bg-surface-2">Pool</ExTh>
+          <ExTh className="sticky left-12 z-[2] bg-surface-2">{t('Pool')}</ExTh>
           <ExSortTh label="TVL" active={sort.key === 'tvl'} direction={sort.dir} onClick={() => toggle('tvl')} />
-          <ExSortTh label="1D vol" active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggle('volume')} />
-          <ExSortTh label="30D vol" active={sort.key === 'volume30d'} direction={sort.dir} onClick={() => toggle('volume30d')} />
-          <ExSortTh label="1D vol/TVL" active={sort.key === 'ratio'} direction={sort.dir} onClick={() => toggle('ratio')} />
-          <ExSortTh label="Pool APR" active={sort.key === 'apr'} direction={sort.dir} onClick={() => toggle('apr')} />
+          <ExSortTh label={t('1D vol')} active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggle('volume')} />
+          <ExSortTh label={t('30D vol')} active={sort.key === 'volume30d'} direction={sort.dir} onClick={() => toggle('volume30d')} />
+          <ExSortTh label={t('1D vol/TVL')} active={sort.key === 'ratio'} direction={sort.dir} onClick={() => toggle('ratio')} />
+          <ExSortTh label={t('Pool APR')} active={sort.key === 'apr'} direction={sort.dir} onClick={() => toggle('apr')} />
         </ExTHead>
         {isLoading && !pools ? (
           <ExTableSkeleton rows={8} cols={7} />
@@ -117,7 +118,7 @@ export function PoolsTable({
           <tbody>
             <tr>
               <td colSpan={7} className="px-4 py-10 text-center text-body-2 text-text-2" data-testid="pools-empty">
-                {(pools?.length ?? 0) > 0 ? "No pools match your search or filters." : emptyText}
+                {(pools?.length ?? 0) > 0 ? t('No pools match your search or filters.') : (emptyText ?? t('No pools yet. Create the first one.'))}
               </td>
             </tr>
           </tbody>

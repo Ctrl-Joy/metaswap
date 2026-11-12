@@ -3,9 +3,10 @@ import { ChevronDown } from 'lucide-react'
 import type { Token } from '@metaswap/sdk'
 import { TokenLogo, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/cn'
-import { formatTokenAmount, formatUsd } from '@/lib/format'
+import { formatTokenAmount, formatUsd, fiatZero } from '@/lib/format'
 import { sanitizeAmountInput } from '@/lib/amount'
 import { TokenSelector } from './TokenSelector'
+import { t } from '@/i18n'
 
 export interface CurrencyInputPanelProps {
   label: ReactNode
@@ -88,7 +89,7 @@ export function CurrencyInputPanel({
               autoCorrect="off"
               spellCheck={false}
               placeholder="0"
-              aria-label={typeof label === 'string' ? `${label} amount` : 'Amount'}
+              aria-label={typeof label === 'string' ? t('{label} amount', { label }) : t('Amount')}
               data-testid={testId ? `${testId}-input` : undefined}
               readOnly={readOnly}
               value={value}
@@ -121,7 +122,7 @@ export function CurrencyInputPanel({
       <div className="mt-2 flex min-h-[18px] items-center justify-between gap-2 text-body-3 text-text-2">
         {/* Uniswap shows "$0" under an empty panel; a typed amount without a price shows nothing. */}
         <span className="tabular" data-testid={testId ? `${testId}-fiat` : undefined}>
-          {!token || compact ? '' : !value || Number(value) === 0 ? '$0' : usdValue !== undefined ? formatUsd(usdValue) : ''}
+          {!token || compact ? '' : !value || Number(value) === 0 ? fiatZero() : usdValue !== undefined ? formatUsd(usdValue) : ''}
         </span>
         {showBalance && (
           <span className="flex items-center gap-2">
@@ -135,7 +136,7 @@ export function CurrencyInputPanel({
                 className="rounded-full bg-accent-tint px-2 py-0.5 text-body-4 font-semibold text-accent transition-colors hover:bg-accent-tint-hover"
                 data-testid={testId ? `${testId}-max` : undefined}
               >
-                Max
+                {t('Max')}
               </button>
             )}
           </span>
@@ -152,17 +153,17 @@ export function CurrencyInputPanel({
 function QuickPicks({ tokens, onPick, testId }: { tokens: Token[]; onPick: (t: Token) => void; testId?: string }) {
   return (
     <>
-      {tokens.slice(0, 5).map((t) => (
+      {tokens.slice(0, 5).map((token) => (
         <button
-          key={t.address}
+          key={token.address}
           type="button"
-          title={t.symbol}
-          aria-label={`Select ${t.symbol}`}
-          onClick={() => onPick(t)}
-          data-testid={testId ? `${testId}-quick-${t.symbol}` : undefined}
+          title={token.symbol}
+          aria-label={t('Select {symbol}', { symbol: token.symbol })}
+          onClick={() => onPick(token)}
+          data-testid={testId ? `${testId}-quick-${token.symbol}` : undefined}
           className="flex size-7 items-center justify-center rounded-full bg-surface-3 p-1 transition-colors hover:bg-surface-3-hover"
         >
-          <TokenLogo token={t} size={20} />
+          <TokenLogo token={token} size={20} />
         </button>
       ))}
     </>
@@ -178,7 +179,7 @@ export function TokenButton({ token, onClick, testId }: { token: Token | undefin
         data-testid={testId}
         className="flex h-[38px] shrink-0 items-center gap-1 rounded-full border border-surface-3-solid bg-accent-fill pr-2 pl-3 text-body-2 font-semibold text-white transition-colors hover:bg-accent-fill-hover"
       >
-        Select token <ChevronDown size={20} />
+        {t('Select token')} <ChevronDown size={20} />
       </button>
     )
   return (

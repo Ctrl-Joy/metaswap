@@ -9,6 +9,7 @@ import { usePoolHistory, usePoolTicks } from '../api'
 import { bucketSum, currentPrice, depthCurve, filterRange, liquidityBars, poolSeries, RANGES, RANGE_KEYS, toSeries } from '../transforms'
 import type { PoolDetailApi, RangeKey, SeriesPoint } from '../types'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 export type PoolChartTab = 'price' | 'volume' | 'liquidity' | 'depth'
 
@@ -80,18 +81,18 @@ export function PoolChartPanel({
     if (tab === 'liquidity' && !isV3) return tvlSeries.at(-1)?.value ?? null
     return null
   })()
-  const headLabel = tab === 'price' ? headValue === null ? null : `1 ${base} = ${formatAmount(headValue)} ${quote}` : tab === 'volume' ? 'Volume' : tab === 'liquidity' ? (isV3 ? 'Liquidity by price' : 'Total value locked') : 'Cumulative depth'
+  const headLabel = tab === 'price' ? headValue === null ? null : `1 ${base} = ${formatAmount(headValue)} ${quote}` : tab === 'volume' ? t('Volume') : tab === 'liquidity' ? (isV3 ? t('Liquidity by price') : t('Total value locked')) : t('Cumulative depth')
 
   const showRange = tab === 'price' || tab === 'volume' || (tab === 'liquidity' && !isV3)
   const rangeFooter = showRange ? (
-    <PillGroup ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `pool-range-${r}` }))} />
+    <PillGroup ariaLabel={t('Chart range')} value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: t(RANGES[r].label), testId: `pool-range-${r}` }))} />
   ) : (
-    <span className="text-body-3 text-text-2">{isV3 ? 'Snapshot of current liquidity' : 'V2 pools chart TVL history'}</span>
+    <span className="text-body-3 text-text-2">{isV3 ? t('Snapshot of current liquidity') : t('V2 pools chart TVL history')}</span>
   )
 
   return (
     <section className="relative flex flex-col" data-testid="pool-chart-panel">
-      <ExploreSectionTabs size="md" value={tab} onSelect={(t) => { setTab(t); setHover(null) }} items={TABS.map((t) => ({ value: t.value, label: t.label, testId: `pool-tab-${t.value}` }))} className="mb-9 flex-wrap" />
+      <ExploreSectionTabs size="md" value={tab} onSelect={(next) => { setTab(next); setHover(null) }} items={TABS.map((it) => ({ value: it.value, label: t(it.label), testId: `pool-tab-${it.value}` }))} className="mb-9 flex-wrap" />
       {/* Uniswap overlays the readout on the chart's top-left corner (24px value, 16px label). */}
       <div className="pointer-events-none absolute top-[60px] left-0 z-[2] flex flex-col">
         <span className="text-[24px] leading-9 font-medium tabular" data-testid="pool-headline">
@@ -106,23 +107,23 @@ export function PoolChartPanel({
         status={status}
         fetching={history.isFetching}
         onRetry={() => { void history.refetch(); void ticks.refetch() }}
-        emptyTitle={tab === 'depth' && !isV3 ? 'Depth is for v3 pools' : 'Not enough history yet'}
-        emptyText={tab === 'depth' && !isV3 ? 'V2 pools hold liquidity across the full curve, so there is no tick depth to show.' : 'Pool history fills in as swaps and liquidity changes are indexed.'}
+        emptyTitle={tab === 'depth' && !isV3 ? t('Depth is for v3 pools') : t('Not enough history yet')}
+        emptyText={tab === 'depth' && !isV3 ? t('V2 pools hold liquidity across the full curve, so there is no tick depth to show.') : t('Pool history fills in as swaps and liquidity changes are indexed.')}
         heightClass="h-[300px] md:h-[356px]"
         footer={<div className="flex justify-end">{rangeFooter}</div>}
       >
-        {status === 'ready' && tab === 'price' && <TimeChart kind="line" data={priceSeries} formatValue={(v) => formatAmount(v)} onHover={setHover} testId="pool-price-chart" ariaLabel="Pool price" className="size-full" />}
-        {status === 'ready' && tab === 'volume' && <TimeChart kind="bar" data={volumeSeries} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHover} testId="pool-volume-chart" ariaLabel="Pool volume" className="size-full" />}
+        {status === 'ready' && tab === 'price' && <TimeChart kind="line" data={priceSeries} formatValue={(v) => formatAmount(v)} onHover={setHover} testId="pool-price-chart" ariaLabel={t('Pool price')} className="size-full" />}
+        {status === 'ready' && tab === 'volume' && <TimeChart kind="bar" data={volumeSeries} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHover} testId="pool-volume-chart" ariaLabel={t('Pool volume')} className="size-full" />}
         {status === 'ready' && tab === 'liquidity' && isV3 && (
           <div className="flex size-full flex-col gap-2">
-            <LiquidityHistogram bars={bars} currentPriceIndex={curIdx >= 0 ? curIdx : null} ariaLabel="Liquidity by price" className="min-h-0 flex-1" />
+            <LiquidityHistogram bars={bars} currentPriceIndex={curIdx >= 0 ? curIdx : null} ariaLabel={t('Liquidity by price')} className="min-h-0 flex-1" />
             <PriceAxis left={bars[0]?.price} right={bars.at(-1)?.price} current={curPrice} base={base} quote={quote} />
           </div>
         )}
-        {status === 'ready' && tab === 'liquidity' && !isV3 && <TimeChart kind="area" data={tvlSeries} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHover} testId="pool-tvl-chart" ariaLabel="Pool TVL" className="size-full" />}
+        {status === 'ready' && tab === 'liquidity' && !isV3 && <TimeChart kind="area" data={tvlSeries} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHover} testId="pool-tvl-chart" ariaLabel={t('Pool TVL')} className="size-full" />}
         {status === 'ready' && tab === 'depth' && isV3 && (
           <div className="flex size-full flex-col gap-2">
-            <DepthChart points={depth} currentPriceIndex={depth.findIndex((p) => curPrice !== null && p.price >= curPrice)} ariaLabel="Cumulative depth" className="min-h-0 flex-1" />
+            <DepthChart points={depth} currentPriceIndex={depth.findIndex((p) => curPrice !== null && p.price >= curPrice)} ariaLabel={t('Cumulative depth')} className="min-h-0 flex-1" />
             <PriceAxis left={depth[0]?.price} right={depth.at(-1)?.price} current={curPrice} base={base} quote={quote} />
           </div>
         )}
@@ -137,7 +138,7 @@ function PriceAxis({ left, right, current, base, quote }: { left?: number; right
     <div className="flex items-center justify-between text-body-4 text-text-2 tabular" data-testid="price-axis">
       <span>{fmt(left)}</span>
       <span className="text-text-1">
-        {current !== null ? `Current: 1 ${base} = ${fmt(current)} ${quote}` : ''}
+        {current !== null ? t('Current: 1 {base} = {price} {quote}', { base, price: fmt(current), quote }) : ''}
       </span>
       <span>{fmt(right)}</span>
     </div>

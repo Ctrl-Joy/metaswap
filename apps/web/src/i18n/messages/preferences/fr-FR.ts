@@ -1,0 +1,22 @@
+// Global preferences menu (fr-FR).
+export default {
+  "Global preferences": "Préférences globales",
+  "Theme": "Thème",
+  "Language": "Langue",
+  "Currency": "Devise",
+  "Hide small balances": "Masquer les petits soldes",
+  "Back": "Retour",
+  "Skip to content": "Aller au contenu",
+  "English": "Anglais",
+  "Chinese, Simplified": "Chinois simplifié",
+  "French": "Français",
+  "Indonesian": "Indonésien",
+  "Japanese": "Japonais",
+  "Korean": "Coréen",
+  "Portuguese": "Portugais",
+  "Russian": "Russe",
+  "Spanish": "Espagnol",
+  "Auto (follow system)": "Automatique (selon le système)",
+  "Light": "Clair",
+  "Dark": "Sombre",
+} satisfies Record<string, string>

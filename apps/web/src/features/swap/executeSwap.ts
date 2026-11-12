@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/errors'
 import { normalizeTypedData } from '@/lib/typedData'
 import { trackTx } from '@/state/transactions'
 import type { WrapType } from './swapReducer'
+import { t } from '@/i18n'
 
 // Swap execution engine — docs/analysis/flows.md §4–§6:
 //   ERC20 → Permit2 approve (once per token) → sign PermitSingle (if quote.permit2.required)
@@ -27,11 +28,11 @@ export interface SwapStep {
 /** Ordered step list shown in the review modal. Pure — unit tested. */
 export function buildSwapSteps(o: { wrapType: WrapType; needsApproval: boolean; needsPermit: boolean; inputSymbol: string }): SwapStep[] {
   if (o.wrapType)
-    return [{ id: 'wrap', title: o.wrapType === 'wrap' ? 'Wrap ETH' : 'Unwrap WETH', description: 'Confirm in your wallet' }]
+    return [{ id: 'wrap', title: o.wrapType === 'wrap' ? t('Wrap ETH') : t('Unwrap WETH'), description: t('Confirm in your wallet') }]
   const steps: SwapStep[] = []
-  if (o.needsApproval) steps.push({ id: 'approve', title: `Approve ${o.inputSymbol} for Permit2`, description: 'One-time approval so MetaSwap can use your token' })
-  if (o.needsPermit) steps.push({ id: 'permit', title: `Sign ${o.inputSymbol} permit`, description: 'Gasless signature, valid for this router' })
-  steps.push({ id: 'swap', title: 'Confirm swap', description: 'Send the swap transaction' })
+  if (o.needsApproval) steps.push({ id: 'approve', title: t('Approve {symbol} for Permit2', { symbol: o.inputSymbol }), description: t('One-time approval so MetaSwap can use your token') })
+  if (o.needsPermit) steps.push({ id: 'permit', title: t('Sign {symbol} permit', { symbol: o.inputSymbol }), description: t('Gasless signature, valid for this router') })
+  steps.push({ id: 'swap', title: t('Confirm swap'), description: t('Send the swap transaction') })
   return steps
 }
 
@@ -81,7 +82,7 @@ export async function executeSwap(a: ExecuteSwapArgs, cb: ExecuteCallbacks): Pro
     if (allowance < required) {
       cb.onStep('approve', 'active')
       const hash = await writeContract(wagmiConfig, { address: a.inputToken.address, abi: erc20Abi, functionName: 'approve', args: [p2, maxUint256] })
-      const receipt = await trackTx(a.account, { hash, type: 'approve', summary: `Approved ${a.inputToken.symbol} for Permit2` }, { toast: false })
+      const receipt = await trackTx(a.account, { hash, type: 'approve', summary: t('Approved {symbol} for Permit2', { symbol: a.inputToken.symbol }) }, { toast: false })
       if (!receipt || receipt.status !== 'success') throw new Error('Approval transaction reverted')
       cb.onStep('approve', 'done')
     } else cb.onStep('approve', 'skipped')

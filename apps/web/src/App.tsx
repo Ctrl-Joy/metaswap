@@ -12,6 +12,8 @@ import { Toaster } from '@/components/layout/Toaster'
 import { TooltipProvider, Spinner } from '@/components/ui'
 import { AccountDrawer } from '@/features/account/AccountDrawer'
 import { useSettings } from '@/state/settings'
+import { useFxRates } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 import { useTxStore, watchTx } from '@/state/transactions'
 import { FOOTERLESS } from './routes'
 import { RealtimeBridge } from '@/api/RealtimeBridge'
@@ -37,7 +39,7 @@ function TxResumer() {
 function PageFallback() {
   return (
     <div className="flex justify-center pt-32 text-text-3">
-      <Spinner size={28} label="Loading page" />
+      <Spinner size={28} label={t('Loading page')} />
     </div>
   )
 }
@@ -45,13 +47,17 @@ function PageFallback() {
 export function Shell() {
   const { pathname } = useLocation()
   const showFooter = !FOOTERLESS.includes(pathname)
-  // Money, numbers and dates are formatted during render from the display preferences, so the page
-  // re-renders from scratch when they change (cached data is kept; nothing is refetched).
-  const displayKey = useSettings((s) => `${s.currency}:${s.language}`)
+  // Text, money, numbers and dates are produced during render from the display preferences, so the
+  // interface re-renders from scratch when they change (cached data is kept; nothing is refetched).
+  // A new language redraws everything; a new currency (or fresh exchange rates) redraws the page.
+  const language = useSettings((s) => s.language)
+  const currency = useSettings((s) => s.currency)
+  const fxAt = useFxRates((s) => s.updatedAt)
+  const displayKey = `${currency}:${currency === 'USD' ? 0 : fxAt}`
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div key={`shell:${language}`} className="flex min-h-dvh flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[2000] focus:rounded-lg focus:bg-surface-1 focus:px-3 focus:py-2">
-        Skip to content
+        {t('Skip to content')}
       </a>
       <Header />
       <StatusBanners />

@@ -2,6 +2,7 @@ import { Check, Circle, X } from 'lucide-react'
 import { Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import type { StepStatus } from './executeSwap'
+import { t } from '@/i18n'
 
 export interface StepView {
   id: string
@@ -14,7 +15,7 @@ export interface StepView {
 export function StepList({ steps }: { steps: StepView[] }) {
   const visible = steps.filter((s) => s.status !== 'skipped')
   return (
-    <ol className="flex flex-col gap-1" aria-label="Transaction steps" data-testid="step-list">
+    <ol className="flex flex-col gap-1" aria-label={t('Transaction steps')} data-testid="step-list">
       {visible.map((s, i) => (
         <li key={s.id} data-testid={`step-${s.id}`} data-status={s.status} className="flex items-center gap-3 rounded-xl px-1 py-2">
           <span
@@ -33,7 +34,7 @@ export function StepList({ steps }: { steps: StepView[] }) {
             {s.status === 'active' && s.description && <span className="block text-body-4 text-text-2">{s.description}</span>}
           </span>
           <span className="text-body-4 text-text-3">
-            Step {i + 1} of {visible.length}
+            {t('Step {n} of {total}', { n: i + 1, total: visible.length })}
           </span>
         </li>
       ))}

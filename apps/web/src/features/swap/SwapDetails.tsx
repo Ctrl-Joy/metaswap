@@ -8,6 +8,7 @@ import { toNumber } from '@/lib/amount'
 import type { QuoteResponse, RouteHop, ApiToken } from '@/api/types'
 import { useTokenList } from '@/features/tokens/useTokenList'
 import { IMPACT_TEXT_CLASS, impactSeverity } from './ctaState'
+import { t } from '@/i18n'
 
 /** "1 ETH = 3,000 mUSDC" with an invert toggle. */
 export function RateLine({ inputToken, outputToken, amountIn, amountOut, usdPrice, loading }: {
@@ -35,7 +36,7 @@ export function RateLine({ inputToken, outputToken, amountIn, amountOut, usdPric
         setInverted((v) => !v)
       }}
       className={cn('inline-flex min-w-0 items-center gap-1.5 text-body-3 text-text-1 hover:text-text-2', loading && 'opacity-50')}
-      aria-label="Invert price"
+      aria-label={t('Invert price')}
       data-testid="rate-line"
     >
       <span className="truncate tabular">
@@ -74,32 +75,32 @@ export function SwapDetailRows({ quote, inputToken, outputToken, exactOut, slipp
   const maxIn = quote.amountInMax ? BigInt(quote.amountInMax) : undefined
   return (
     <div className="flex flex-col">
-      <Row label="Fee" tip="MetaSwap charges no interface fee on devnet. Pool LP fees are already included in the quoted price." testId="detail-fee">
-        {quote.feeUsd ? formatUsd(quote.feeUsd) : <span className="text-success">Free</span>}
+      <Row label={t('Fee')} tip={t('MetaSwap charges no interface fee on devnet. Pool LP fees are already included in the quoted price.')} testId="detail-fee">
+        {quote.feeUsd ? formatUsd(quote.feeUsd) : <span className="text-success">{t('Free')}</span>}
       </Row>
-      <Row label="Network cost" tip="Estimated gas for this swap at the current base fee." testId="detail-gas">
+      <Row label={t('Network cost')} tip={t('Estimated gas for this swap at the current base fee.')} testId="detail-gas">
         <span className="inline-flex items-center gap-1">
           <Fuel size={13} className="text-text-3" />
           {formatUsd(quote.gasUsd)}
         </span>
       </Row>
-      <Row label="Price impact" tip="How much your trade moves the pool price. Large trades in thin pools move it more." testId="detail-impact">
+      <Row label={t('Price impact')} tip={t('How much your trade moves the pool price. Large trades in thin pools move it more.')} testId="detail-impact">
         <span className={IMPACT_TEXT_CLASS[sev]}>{formatImpact(quote.priceImpactBps)}</span>
       </Row>
-      <Row label="Max slippage" tip="Your transaction reverts if the price moves more than this before it is mined." testId="detail-slippage">
-        {slippageAuto && <span className="mr-1.5 rounded-md bg-surface-3 px-1.5 py-0.5 text-body-4 text-text-2">Auto</span>}
+      <Row label={t('Max slippage')} tip={t('Your transaction reverts if the price moves more than this before it is mined.')} testId="detail-slippage">
+        {slippageAuto && <span className="mr-1.5 rounded-md bg-surface-3 px-1.5 py-0.5 text-body-4 text-text-2">{t('Auto')}</span>}
         {(slippageBps / 100).toFixed(2).replace(/\.?0+$/, '')}%
       </Row>
       {exactOut ? (
-        <Row label="Max sent" tip="The most you will pay; the rest is refunded if the price is better." testId="detail-max-in">
+        <Row label={t('Max sent')} tip={t('The most you will pay; the rest is refunded if the price is better.')} testId="detail-max-in">
           {maxIn !== undefined ? `${formatTokenAmount(maxIn, inputToken.decimals)} ${inputToken.symbol}` : '-'}
         </Row>
       ) : (
-        <Row label="Min received" tip="The least you will receive after slippage, or the swap reverts." testId="detail-min-out">
+        <Row label={t('Min received')} tip={t('The least you will receive after slippage, or the swap reverts.')} testId="detail-min-out">
           {minOut !== undefined ? `${formatTokenAmount(minOut, outputToken.decimals)} ${outputToken.symbol}` : '-'}
         </Row>
       )}
-      <Row label="Order routing" tip="MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optional split) for the best price net of gas." testId="detail-routing">
+      <Row label={t('Order routing')} tip={t("MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optional split) for the best price net of gas.")} testId="detail-routing">
         <RouteViewButton quote={quote} />
       </Row>
     </div>
@@ -128,7 +129,7 @@ export function SwapDetailsAccordion(props: DetailsProps & { loading?: boolean; 
             </span>
           )}
           <ChevronDown size={18} className={cn('transition-transform duration-150', open && 'rotate-180')} />
-          <span className="sr-only">{open ? 'Hide details' : 'Show details'}</span>
+          <span className="sr-only">{open ? t('Hide details') : t('Show details')}</span>
         </button>
       </div>
       {open && (
@@ -162,15 +163,15 @@ function RouteViewButton({ quote }: { quote: QuoteResponse }) {
       MetaSwap API
       {has && (
         <button type="button" onClick={() => setOpen(true)} className="font-semibold text-accent hover:underline" data-testid="route-view">
-          View
+          {t('View')}
         </button>
       )}
       {has && (
-        <Modal open={open} onOpenChange={setOpen} title="Order routing" width={420} testId="route-modal">
+        <Modal open={open} onOpenChange={setOpen} title={t('Order routing')} width={420} testId="route-modal">
           <div className="flex flex-col gap-3 text-left">
             <RouteDiagram quote={quote} />
             <p className="text-body-3 text-text-2">
-              MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optionally split) for the best price after network cost.
+              {t("MetaSwap's router searched every V2 and V3 pool (up to 3 hops, optionally split) for the best price after network cost.")}
             </p>
           </div>
         </Modal>
@@ -185,7 +186,7 @@ export function RouteDiagram({ quote }: { quote: QuoteResponse }) {
   const routes = quote.route ?? []
   if (!routes.length) return null
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4" data-testid="route-diagram" aria-label="Route">
+    <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4" data-testid="route-diagram" aria-label={t('Route')}>
       {routes.map((hops, ri) => {
         if (!hops.length) return null
         const pct = quote.routes?.[ri]?.percent ?? hops[0]?.percent ?? (routes.length === 1 ? 100 : undefined)

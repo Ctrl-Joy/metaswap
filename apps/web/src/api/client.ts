@@ -1,5 +1,6 @@
 import { API_URL } from '@/config'
 import { ApiError } from '@/lib/errors'
+import { t } from '@/i18n'
 
 type Query = Record<string, string | number | boolean | undefined | null>
 
@@ -34,7 +35,7 @@ export async function apiGet<T>(path: string, params?: Query, init?: RequestInit
   try {
     res = await fetch(`${API_URL}${path}${qs(params)}`, { ...init, headers: { accept: 'application/json', ...init?.headers } })
   } catch (e) {
-    throw new ApiError(`Could not reach the MetaSwap API at ${API_URL}`, 0, 'NETWORK', e)
+    throw new ApiError(t('Could not reach the MetaSwap API at {url}', { url: API_URL }), 0, 'NETWORK', e)
   }
   const body = await parse(res)
   if (!res.ok) throw errorFrom(res, body)
@@ -50,7 +51,7 @@ export async function apiPost<T>(path: string, data: unknown): Promise<T> {
       body: JSON.stringify(data, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)),
     })
   } catch (e) {
-    throw new ApiError(`Could not reach the MetaSwap API at ${API_URL}`, 0, 'NETWORK', e)
+    throw new ApiError(t('Could not reach the MetaSwap API at {url}', { url: API_URL }), 0, 'NETWORK', e)
   }
   const body = await parse(res)
   if (!res.ok) throw errorFrom(res, body)

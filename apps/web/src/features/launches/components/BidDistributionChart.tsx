@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatAmount } from '@/lib/format'
+import { t } from '@/i18n'
 
 export interface DistributionBar {
   price: number
@@ -20,7 +21,7 @@ export function BidDistributionChart({ bars, clearing, floor, quoteSymbol, testI
   if (bars.length === 0)
     return (
       <div className="flex h-[220px] items-center justify-center rounded-2xl border border-dashed border-border text-body-3 text-text-2" data-testid={testId}>
-        No bids yet. Bids appear here by max price.
+        {t('No bids yet. Bids appear here by max price.')}
       </div>
     )
   const sorted = [...bars].sort((a, b) => a.price - b.price)
@@ -37,7 +38,7 @@ export function BidDistributionChart({ bars, clearing, floor, quoteSymbol, testI
   const hb = hover !== null ? sorted[hover] : undefined
   return (
     <div className="relative" data-testid={testId}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[220px] w-full" preserveAspectRatio="none" role="img" aria-label="Bid demand by max price" onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[220px] w-full" preserveAspectRatio="none" role="img" aria-label={t('Bid demand by max price')} onMouseLeave={() => setHover(null)}>
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1={0} x2={W} y1={(H - AXIS) * f} y2={(H - AXIS) * f} stroke="var(--ms-border)" strokeDasharray="1 5" strokeLinecap="round" />
         ))}
@@ -64,12 +65,12 @@ export function BidDistributionChart({ bars, clearing, floor, quoteSymbol, testI
         <span>
           {formatAmount(sorted[0]!.price)} {quoteSymbol}
         </span>
-        <span className="text-success">Clearing {formatAmount(clearing)}{clearing <= floor ? ' (floor)' : ''}</span>
+        <span className="text-success">{clearing <= floor ? t('Clearing {price} (floor)', { price: formatAmount(clearing) }) : t('Clearing {price}', { price: formatAmount(clearing) })}</span>
         <span>{formatAmount(sorted[n - 1]!.price)}</span>
       </div>
       {hb && (
         <div className="pointer-events-none absolute top-1 left-1 rounded-lg border border-border bg-surface-1 px-2 py-1 text-body-4 shadow-short">
-          Max price {formatAmount(hb.price)} {quoteSymbol} · {formatAmount(hb.demand)} {quoteSymbol} bid
+          {t('Max price {price} · {amount} bid', { price: `${formatAmount(hb.price)} ${quoteSymbol}`, amount: `${formatAmount(hb.demand)} ${quoteSymbol}` })}
         </div>
       )}
     </div>

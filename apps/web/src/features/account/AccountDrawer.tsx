@@ -8,20 +8,21 @@ import { useUi } from '@/state/ui'
 import { useSettings } from '@/state/settings'
 import { useWallet } from '@/wallet/hooks'
 import { isDevWalletId } from '@/wallet/devWallet'
-import { formatUsd, shortenAddress } from '@/lib/format'
+import { formatUsd, shortenAddress, fixedNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { usePortfolioQuery } from '@/api/hooks'
 import { usePortfolio } from './TokenBalancesList'
 import { ActivityList } from './ActivityList'
 import { TopRightPanel } from './TopRightPanel'
+import { t } from '@/i18n'
 
 type View = 'main' | 'settings' | 'receive'
 
 /** "Dev wallet #4 · Anvil" / "Local account · devnet" / connector name. */
 export function walletLabel(connectorId: string | undefined, connectorName: string | undefined): string {
   if (isDevWalletId(connectorId)) return `${connectorName} · Anvil`
-  if (connectorId === 'metaswap-local') return 'Devnet account · this browser'
-  return connectorName ?? 'Wallet'
+  if (connectorId === 'metaswap-local') return t('Devnet account · this browser')
+  return connectorName ?? t('Wallet')
 }
 
 /** "$1,234" + faded ".56" (Uniswap fades the decimals of USD balances). */
@@ -69,7 +70,7 @@ function SubView({ title, onBack, children }: { title: string; onBack: () => voi
   return (
     <div className="mt-1 p-3 animate-fade-in">
       <div className="mb-6 flex items-center justify-between">
-        <button type="button" onClick={onBack} aria-label="Back" data-testid="drawer-back" className="w-[15%] text-text-2 hover:text-text-1">
+        <button type="button" onClick={onBack} aria-label={t('Back')} data-testid="drawer-back" className="w-[15%] text-text-2 hover:text-text-1">
           <ArrowLeft size={24} />
         </button>
         <span className="text-body-1 font-medium">{title}</span>
@@ -113,13 +114,13 @@ export function AccountDrawer() {
   // Like Uniswap: reset to the main view shortly after the drawer closes.
   useEffect(() => {
     if (open || view === 'main') return
-    const t = setTimeout(() => setView('main'), 250)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setView('main'), 250)
+    return () => clearTimeout(timer)
   }, [open, view])
   useEffect(() => {
     if (!copied) return
-    const t = setTimeout(() => setCopied(false), 1500)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(timer)
   }, [copied])
 
   const close = () => setOpen(false)
@@ -134,42 +135,42 @@ export function AccountDrawer() {
   }
 
   return (
-    <TopRightPanel open={open} onOpenChange={setOpen} title="Account" testId="account-drawer">
+    <TopRightPanel open={open} onOpenChange={setOpen} title={t('Account')} testId="account-drawer">
       {view === 'settings' ? (
-        <SubView title="Settings" onBack={() => setView('main')}>
+        <SubView title={t('Settings')} onBack={() => setView('main')}>
           <div className="flex flex-col" data-testid="drawer-settings-view">
-            <SettingRow label="Theme">
+            <SettingRow label={t('Theme')}>
               <ThemeToggle />
             </SettingRow>
-            <SettingRow label="Hide small balances">
-              <Switch checked={hide} onChange={setHide} label="Hide small balances" testId="hide-small-balances" />
+            <SettingRow label={t('Hide small balances')}>
+              <Switch checked={hide} onChange={setHide} label={t('Hide small balances')} testId="hide-small-balances" />
             </SettingRow>
-            <SettingRow label="Language">
+            <SettingRow label={t('Language')}>
               <span className="inline-flex items-center gap-1 text-body-2 font-semibold">
-                English <ChevronRight size={20} className="text-text-2" />
+                {t('English')} <ChevronRight size={20} className="text-text-2" />
               </span>
             </SettingRow>
-            <SettingRow label="Currency">
+            <SettingRow label={t('Currency')}>
               <span className="inline-flex items-center gap-1 text-body-2 font-semibold">
                 USD <ChevronRight size={20} className="text-text-2" />
               </span>
             </SettingRow>
-            <SettingRow label="Wallet">
+            <SettingRow label={t('Wallet')}>
               <span className="text-body-3 text-text-2">{walletLabel(connectorId, connectorName)}</span>
             </SettingRow>
           </div>
         </SubView>
       ) : view === 'receive' ? (
-        <SubView title="Receive" onBack={() => setView('main')}>
+        <SubView title={t('Receive')} onBack={() => setView('main')}>
           <div className="flex flex-col items-center gap-4 pb-2 text-center">
             <Identicon address={address} size={72} />
             <p className="font-mono text-body-3 break-all text-text-2" data-testid="receive-address">
               {address}
             </p>
             <button type="button" onClick={copy} className="inline-flex h-10 items-center gap-2 rounded-full bg-surface-3 px-4 text-body-3 font-semibold text-text-1 hover:bg-surface-3-hover">
-              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Copied' : 'Copy address'}
+              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? t('Copied') : t('Copy address')}
             </button>
-            <p className="text-body-4 text-text-3">Only send MetaChain Devnet (chain 31337) assets to this address.</p>
+            <p className="text-body-4 text-text-3">{t('Only send MetaChain Devnet (chain 31337) assets to this address.')}</p>
           </div>
         </SubView>
       ) : (
@@ -177,11 +178,11 @@ export function AccountDrawer() {
           <div className="mb-2 flex items-start justify-between">
             <Identicon address={address} size={48} />
             <div className="flex items-center gap-1">
-              <IconAction label="Settings" onClick={() => setView('settings')} testId="drawer-settings">
+              <IconAction label={t('Settings')} onClick={() => setView('settings')} testId="drawer-settings">
                 <Settings size={24} />
               </IconAction>
               <IconAction
-                label="Disconnect"
+                label={t('Disconnect')}
                 testId="disconnect-button"
                 onClick={() => {
                   disconnect()
@@ -192,7 +193,7 @@ export function AccountDrawer() {
               </IconAction>
             </div>
           </div>
-          <button type="button" onClick={copy} className="group flex w-max items-center gap-1.5 text-left" title="Copy address">
+          <button type="button" onClick={copy} className="group flex w-max items-center gap-1.5 text-left" title={t('Copy address')}>
             <span className="text-body-1 font-medium text-text-1" data-testid="drawer-address">
               {shortenAddress(address)}
             </span>
@@ -211,25 +212,25 @@ export function AccountDrawer() {
                 <span aria-hidden className="text-[0.75em]">
                   {ch >= 0 ? '▲' : '▼'}
                 </span>
-                {formatUsd(Math.abs(ch))} ({Math.abs(chPct ?? 0).toFixed(2)}%)
+                {formatUsd(Math.abs(ch))} ({fixedNumber(Math.abs(chPct ?? 0), 2)}%)
               </div>
             )}
           </div>
 
           <div className="flex gap-2">
-            <ActionTile icon={<Send size={24} />} label="Send" onClick={() => go('/send')} testId="shortcut-send" />
-            <ActionTile icon={<ArrowDownCircle size={24} />} label="Receive" onClick={() => setView('receive')} testId="shortcut-receive" />
+            <ActionTile icon={<Send size={24} />} label={t('Send')} onClick={() => go('/send')} testId="shortcut-send" />
+            <ActionTile icon={<ArrowDownCircle size={24} />} label={t('Receive')} onClick={() => setView('receive')} testId="shortcut-receive" />
           </div>
 
           <div className="mt-3 flex flex-col gap-1">
-            <ViewAll label="View portfolio" onClick={() => go('/portfolio')} full testId="drawer-view-portfolio" />
+            <ViewAll label={t('View portfolio')} onClick={() => go('/portfolio')} full testId="drawer-view-portfolio" />
             <div className="flex flex-col gap-2 pt-4">
-              <span className="p-2 text-body-2 font-semibold text-text-1">Recent activity</span>
+              <span className="p-2 text-body-2 font-semibold text-text-1">{t('Recent activity')}</span>
               <div className="-mx-3" data-testid="drawer-activity">
                 <ActivityList address={address} limit={3} />
               </div>
             </div>
-            <ViewAll label="View all activity" onClick={() => go('/portfolio/activity')} testId="drawer-view-activity" />
+            <ViewAll label={t('View all activity')} onClick={() => go('/portfolio/activity')} testId="drawer-view-activity" />
           </div>
         </div>
       )}

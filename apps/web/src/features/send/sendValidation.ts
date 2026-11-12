@@ -1,5 +1,6 @@
 import { getAddress, isAddress, zeroAddress } from 'viem'
 import type { Token } from '@metaswap/sdk'
+import { t } from '@/i18n'
 
 export type RecipientCheck =
   | { ok: true; address: `0x${string}`; warning?: 'self' | 'checksum' }
@@ -22,11 +23,20 @@ export function checkRecipient(input: string, opts: { token?: Token; self?: stri
   return { ok: true, address }
 }
 
-export const RECIPIENT_ERROR_TEXT: Record<Exclude<RecipientCheck, { ok: true }>['error'], string> = {
-  empty: 'Enter a recipient address',
-  invalid: 'Not a valid address',
-  zero: 'Cannot send to the zero address',
-  'token-contract': 'That is a token contract — tokens sent there are lost',
+export type RecipientError = Exclude<RecipientCheck, { ok: true }>['error']
+
+/** User-facing text for a recipient error, in the current language (call at render time). */
+export function recipientErrorText(error: RecipientError): string {
+  switch (error) {
+    case 'empty':
+      return t('Enter a recipient address')
+    case 'invalid':
+      return t('Not a valid address')
+    case 'zero':
+      return t('Cannot send to the zero address')
+    case 'token-contract':
+      return t('That is a token contract — tokens sent there are lost')
+  }
 }
 
 /** Most-recent-first list of recipients (lower-case de-dupe, original casing kept), capped at `max`. */

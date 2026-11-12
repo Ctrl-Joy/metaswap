@@ -4,7 +4,8 @@ import { Rocket } from 'lucide-react'
 import { hueFrom, Skeleton, TokenLogo } from '@/components/ui'
 import { Sparkline } from '@/features/explore/charts/SvgCharts'
 import { cn } from '@/lib/cn'
-import { formatUsd } from '@/lib/format'
+import { formatUsd, fixedNumber } from '@/lib/format'
+import { t } from '@/i18n'
 import { launchpadName, sparkValues, type LaunchRow } from '../types'
 
 /** Compact fiat in the display currency: $116.2M, $767.4K, $85.20, <$0.01. */
@@ -52,7 +53,7 @@ export function Delta({ value, className, testId }: { value: number | null | und
       <svg width="9" height="8" viewBox="0 0 9 8" aria-hidden className={up ? '' : 'rotate-180'}>
         <path d="M4.5 0 9 8H0z" fill="currentColor" />
       </svg>
-      {Math.abs(value).toFixed(2)}%<span className="sr-only">{up ? ' up' : ' down'}</span>
+      {fixedNumber(Math.abs(value), 2)}%<span className="sr-only">{' '}{up ? t('up') : t('down')}</span>
     </span>
   )
 }
@@ -122,7 +123,7 @@ export function LaunchCard({ row, to }: { row: LaunchRow; to: string }) {
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="text-body-4 whitespace-nowrap tabular">
-          {usdCompact(row.volume24hUsd)} <span className="text-text-2">24H volume</span>
+          {usdCompact(row.volume24hUsd)} <span className="text-text-2">{t('24H volume')}</span>
         </span>
         <LaunchpadChip name={launchpadName(row).replace(/\s*Launchpad$/i, '') || launchpadName(row)} maxWidth={100} />
       </div>

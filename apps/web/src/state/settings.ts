@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { persistStorage } from '@/lib/storage'
-import { DEFAULT_CURRENCY, DEFAULT_LOCALE, setDisplayPrefs } from '@/lib/displayPrefs'
+import { DEFAULT_CURRENCY, currencyOption, setDisplayPrefs } from '@/lib/displayPrefs'
+import { DEFAULT_LANGUAGE, languageOption, loadLanguage, setLanguage as applyLanguage } from '@/i18n'
 
 /** Resolved theme applied to <html data-theme>. */
 export type ThemePref = 'dark' | 'light'
@@ -43,12 +44,13 @@ export interface SettingsState {
   /** Prefer MetaSwapX (gasless intent orders) when available. */
   xGasless: boolean
   hideSmallBalances: boolean
-  /** Display currency for fiat values (ISO 4217, converted from USD at fixed indicative rates). */
+  /** Display currency for fiat values (ISO 4217), converted from USD. */
   currency: string
-  /** Locale for number and date formatting (BCP 47). */
+  /** Interface language (BCP 47); numbers and dates are formatted for it too. */
   language: string
   setCurrency: (code: string) => void
-  setLanguage: (code: string) => void
+  /** Downloads the language's translations, then switches the whole interface to it. */
+  setLanguage: (code: string) => Promise<void>
   /** Mask USD values / balances on the portfolio (eye toggle). */
   hideBalances: boolean
   setHideBalances: (on: boolean) => void
@@ -81,12 +83,16 @@ export const useSettings = create<SettingsState>()(
       xGasless: false,
       hideSmallBalances: false,
       currency: DEFAULT_CURRENCY,
-      language: DEFAULT_LOCALE,
-      setCurrency: (currency) => {
+      language: DEFAULT_LANGUAGE,
+      setCurrency: (code) => {
+        const currency = currencyOption(code).code
         setDisplayPrefs({ currency })
         set({ currency })
       },
-      setLanguage: (language) => {
+      setLanguage: async (code) => {
+        const language = languageOption(code).code
+        await loadLanguage(language)
+        applyLanguage(language)
         setDisplayPrefs({ locale: language })
         set({ language })
       },
@@ -111,7 +117,8 @@ export const useSettings = create<SettingsState>()(
       version: 2,
       // Formatting helpers read the display choice outside React; hand them the saved one on load.
       onRehydrateStorage: () => (state) => {
-        if (state) setDisplayPrefs({ currency: state.currency, locale: state.language })
+        // The saved language's translations are loaded before the first render (main.tsx).
+        if (state) setDisplayPrefs({ currency: currencyOption(state.currency).code, locale: languageOption(state.language).code })
       },
       // v1 stored only the resolved theme: keep it as an explicit choice.
       migrate: (persisted, version) => {

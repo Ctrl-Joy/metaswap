@@ -2,10 +2,11 @@ import { Link } from 'react-router-dom'
 import type { Address } from 'viem'
 import { Button, Skeleton, TokenLogo } from '@/components/ui'
 import type { EarnPosition, EarnVault } from '@/api/types'
-import { formatAmount, formatUsd } from '@/lib/format'
+import { formatAmount, formatUsd, fixedNumber } from '@/lib/format'
 import { useTokenPrices } from '@/features/tokens/useTokenList'
 import { isEthVault, useLiveAssets, useVaultChain } from './useVault'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 export function assetLabel(v: EarnVault) {
   return isEthVault(v) ? 'ETH' : (v.asset?.symbol ?? v.symbol ?? '?')
@@ -19,7 +20,7 @@ export function LivePosition({ vault, account, position, size = 'md' }: { vault:
   const price = prices[vault.asset.address.toLowerCase()]
   if (!account) return <span className="text-text-3">-</span>
   if (chain.isLoading) return <Skeleton width={90} height={16} />
-  if (!chain.data || chain.data.shares === 0n) return <span className="text-text-2">No deposit</span>
+  if (!chain.data || chain.data.shares === 0n) return <span className="text-text-2">{t('No deposit')}</span>
   const amount = (live ?? 0) / 10 ** vault.asset.decimals
   const earnings = position?.lifetimeEarningsUsd
   return (
@@ -29,7 +30,7 @@ export function LivePosition({ vault, account, position, size = 'md' }: { vault:
       </span>
       <span className="text-body-4 text-text-2 tabular">
         {price !== undefined ? formatUsd(amount * price) : ''}
-        {earnings != null && earnings > 0 && <span className="text-success"> · +{formatUsd(earnings)} earned</span>}
+        {earnings != null && earnings > 0 && <span className="text-success"> · {t('+{amount} earned', { amount: formatUsd(earnings) })}</span>}
       </span>
     </span>
   )
@@ -45,7 +46,7 @@ export function VaultCard({ vault, account, position, onDeposit }: { vault: Earn
           <div className="truncate text-body-4 text-text-2">{vault.name ?? vault.symbol}</div>
         </div>
         <div className="ml-auto text-right">
-          <div className="text-heading-3 font-semibold text-success tabular">{vault.apyPct.toFixed(2)}%</div>
+          <div className="text-heading-3 font-semibold text-success tabular">{fixedNumber(vault.apyPct, 2)}%</div>
           <div className="text-body-4 text-text-2">APY</div>
         </div>
       </Link>
@@ -55,20 +56,20 @@ export function VaultCard({ vault, account, position, onDeposit }: { vault: Earn
           <div className="font-medium tabular">{formatUsd(vault.tvlUsd, { compact: true })}</div>
         </div>
         <div>
-          <div className="text-text-2">Depositors</div>
+          <div className="text-text-2">{t('Depositors')}</div>
           <div className="font-medium tabular">{formatAmount(vault.depositors)}</div>
         </div>
       </div>
       <div className="rounded-2xl bg-surface-2 px-4 py-3">
-        <div className="mb-1 text-body-4 text-text-2">Your position</div>
+        <div className="mb-1 text-body-4 text-text-2">{t('Your position')}</div>
         <LivePosition vault={vault} account={account} position={position} />
       </div>
       <div className="flex gap-2">
         <Button fullWidth onClick={onDeposit} data-testid={`vault-deposit-${vault.symbol}`}>
-          Deposit
+          {t('Deposit')}
         </Button>
         <Link to={`/earn/${vault.address}`} className="inline-flex h-10 items-center rounded-full bg-surface-3 px-4 font-semibold hover:bg-surface-3-hover">
-          Details
+          {t('Details')}
         </Link>
       </div>
     </div>

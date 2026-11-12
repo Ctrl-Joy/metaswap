@@ -2,6 +2,7 @@ import { Children, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 import { PercentChange } from './misc'
 import { TokenLogo } from './TokenLogo'
 
@@ -165,7 +166,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
         <>
           <button
             type="button"
-            aria-label="Scroll left"
+            aria-label={t('Scroll left')}
             onClick={() => nudge(-1)}
             className="absolute top-1/2 left-1 flex size-8 -translate-y-1/2 [@media(pointer:coarse)]:hidden items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
           >
@@ -173,7 +174,7 @@ export function Marquee({ children, speed = 35, gap: gapProp, itemGap, arrows, c
           </button>
           <button
             type="button"
-            aria-label="Scroll right"
+            aria-label={t('Scroll right')}
             onClick={() => nudge(1)}
             className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 [@media(pointer:coarse)]:hidden items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-short hover:text-text-1"
           >

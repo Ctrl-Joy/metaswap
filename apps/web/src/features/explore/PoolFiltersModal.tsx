@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Modal } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { EMPTY_POOL_FILTERS, TVL_BUCKETS, type PoolFilters } from './poolFilters'
+import { t } from '@/i18n'
 
 function Chip({ active, onClick, children, testId }: { active: boolean; onClick: () => void; children: React.ReactNode; testId?: string }) {
   return (
@@ -43,10 +44,10 @@ export function PoolFiltersModal({ open, onOpenChange, value, onApply, maxApr }:
   const aprInvalid = minN !== null && maxN !== null && minN > maxN
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Filters" width={460} testId="pool-filters-modal">
+    <Modal open={open} onOpenChange={onOpenChange} title={t('Filters')} width={460} testId="pool-filters-modal">
       <div className="flex flex-col gap-5">
         <section className="flex items-center justify-between gap-3">
-          <span className="text-body-2 font-semibold">Protocol</span>
+          <span className="text-body-2 font-semibold">{t('Protocol')}</span>
           <div className="flex gap-2">
             {(['v3', 'v2'] as const).map((v) => (
               <Chip key={v} active={draft.versions.includes(v)} onClick={() => setDraft((d) => ({ ...d, versions: toggle(d.versions, v) }))} testId={`pool-filter-version-${v}`}>
@@ -59,7 +60,7 @@ export function PoolFiltersModal({ open, onOpenChange, value, onApply, maxApr }:
           <span className="text-body-2 font-semibold">APR</span>
           <div className="flex items-center gap-2">
             <label className="flex h-11 flex-1 items-center rounded-2xl border border-border bg-surface-2 px-3 focus-within:border-accent">
-              <input inputMode="decimal" value={aprMin} onChange={(e) => setAprMin(e.target.value)} placeholder="0" aria-label="Minimum APR percent" data-testid="pool-filter-apr-min" className="w-full bg-transparent text-body-3 outline-none tabular" />
+              <input inputMode="decimal" value={aprMin} onChange={(e) => setAprMin(e.target.value)} placeholder="0" aria-label={t('Minimum APR percent')} data-testid="pool-filter-apr-min" className="w-full bg-transparent text-body-3 outline-none tabular" />
               <span className="text-text-2">%</span>
             </label>
             <span className="text-text-3">–</span>
@@ -68,15 +69,15 @@ export function PoolFiltersModal({ open, onOpenChange, value, onApply, maxApr }:
                 inputMode="decimal"
                 value={aprMax}
                 onChange={(e) => setAprMax(e.target.value)}
-                placeholder={maxApr !== undefined ? String(Math.ceil(maxApr)) : 'Any'}
-                aria-label="Maximum APR percent"
+                placeholder={maxApr !== undefined ? String(Math.ceil(maxApr)) : t('Any')}
+                aria-label={t('Maximum APR percent')}
                 data-testid="pool-filter-apr-max"
                 className="w-full bg-transparent text-body-3 outline-none tabular"
               />
               <span className="text-text-2">%</span>
             </label>
           </div>
-          {aprInvalid && <p className="text-body-4 text-critical">Minimum APR must be below the maximum.</p>}
+          {aprInvalid && <p className="text-body-4 text-critical">{t('Minimum APR must be below the maximum.')}</p>}
         </section>
         <section className="flex flex-col gap-2">
           <span className="text-body-2 font-semibold">TVL</span>
@@ -100,7 +101,7 @@ export function PoolFiltersModal({ open, onOpenChange, value, onApply, maxApr }:
               setAprMax('')
             }}
           >
-            Clear all
+            {t('Clear all')}
           </Button>
           <Button
             size="lg"
@@ -112,7 +113,7 @@ export function PoolFiltersModal({ open, onOpenChange, value, onApply, maxApr }:
               onOpenChange(false)
             }}
           >
-            Apply
+            {t('Apply')}
           </Button>
         </div>
       </div>

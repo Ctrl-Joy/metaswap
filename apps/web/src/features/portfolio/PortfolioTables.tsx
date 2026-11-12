@@ -7,12 +7,13 @@ import { NameCell, PfHead, PfSectionHeader, PfTable, PfTd, PfTh, PfTr, PillLink 
 import type { EarnPosition, EarnVault, PortfolioNft, PositionRow } from '@/api/types'
 import { useEarnVaults } from '@/api/hooks'
 import { useTokenList } from '@/features/tokens/useTokenList'
-import { formatPrice, formatTokenAmount, formatUsd } from '@/lib/format'
+import { formatPrice, formatTokenAmount, formatUsd, fixedNumber } from '@/lib/format'
 import { toNumber } from '@/lib/amount'
 import { cn } from '@/lib/cn'
 import { CHAIN_SLUG } from '@/config'
 import { useMask, type HiddenRow, type HoldingRow } from './usePortfolioData'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 export function SectionHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
   return <PfSectionHeader title={title} subtitle={subtitle} right={right} />
@@ -58,7 +59,7 @@ function RowMenu({ row, hidden }: { row: HoldingRow; hidden: boolean }) {
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          aria-label={`${row.token.symbol} options`}
+          aria-label={t('{symbol} options', { symbol: row.token.symbol })}
           data-testid={`token-menu-${row.token.symbol}`}
           className="inline-flex size-7 items-center justify-center rounded-xl text-text-2 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-text-1 focus-visible:opacity-100 data-[state=open]:opacity-100"
         >
@@ -75,7 +76,7 @@ function RowMenu({ row, hidden }: { row: HoldingRow; hidden: boolean }) {
         data-testid={`token-${hidden ? 'unhide' : 'hide'}-${row.token.symbol}`}
         className="flex h-10 w-full items-center gap-2 rounded-lg px-2 text-body-3 font-semibold hover:bg-surface-2"
       >
-        {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {hidden ? 'Unhide token' : 'Hide token'}
+        {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {hidden ? t('Unhide token') : t('Hide token')}
       </button>
     </Popover>
   )
@@ -84,7 +85,7 @@ function RowMenu({ row, hidden }: { row: HoldingRow; hidden: boolean }) {
 function AllocationBar({ pct }: { pct: number }) {
   return (
     <span className="inline-flex items-center justify-end gap-2">
-      <span className="tabular">{pct.toFixed(1)}%</span>
+      <span className="tabular">{fixedNumber(pct, 1)}%</span>
       <span className="relative h-1 w-[52px] overflow-hidden rounded-full bg-surface-3" aria-hidden>
         <span className="absolute inset-y-0 left-0 rounded-full bg-text-1" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
       </span>
@@ -102,29 +103,33 @@ export function TokensTable({ rows, loading, limit, variant = 'overview', hidden
   const full = variant === 'full'
   const shown = limit ? rows.slice(0, limit) : rows
   const total = totalUsd ?? rows.reduce((s, r) => s + (r.valueUsd ?? 0), 0)
-  if (!loading && rows.length === 0 && emptyWhenNone)
+  if (!loading && rows.length === 0 && emptyWhenNone) {
+    const [before, after] = t('Get free test tokens on the {link} page.').split('{link}')
     return (
       <div className="rounded-2xl border border-border">
-        <EmptyState icon={<Coins size={20} />} title="No tokens yet">
-          Get free test tokens on the <Link to="/buy" className="text-accent hover:underline">Buy</Link> page.
+        <EmptyState icon={<Coins size={20} />} title={t('No tokens yet')}>
+          {before}
+          <Link to="/buy" className="text-accent hover:underline">{t('Buy')}</Link>
+          {after}
         </EmptyState>
       </div>
     )
+  }
   return (
     <PfTable minWidth={full ? 1000 : 600}>
       {!hidden && (
         <PfHead>
-          <PfTh>Token</PfTh>
-          <PfTh align="right">Price</PfTh>
-          {full && <PfTh align="right">Avg cost</PfTh>}
-          {full && <PfTh align="right">1D change</PfTh>}
-          <PfTh align="right">Balance</PfTh>
+          <PfTh>{t('Token')}</PfTh>
+          <PfTh align="right">{t('Price')}</PfTh>
+          {full && <PfTh align="right">{t('Avg cost')}</PfTh>}
+          {full && <PfTh align="right">{t('1D change')}</PfTh>}
+          <PfTh align="right">{t('Balance')}</PfTh>
           <PfTh align="right" className={cn(full && 'text-text-1')}>
-            {full && <ArrowDown size={14} className="mr-1 inline align-[-2px]" aria-hidden />}Value
+            {full && <ArrowDown size={14} className="mr-1 inline align-[-2px]" aria-hidden />}{t('Value')}
           </PfTh>
-          <PfTh align="right">Unrealized P/L</PfTh>
-          {full && <PfTh align="right">Allocation</PfTh>}
-          {full && <PfTh className="w-12 px-2" aria-label="Actions" />}
+          <PfTh align="right">{t('Unrealized P/L')}</PfTh>
+          {full && <PfTh align="right">{t('Allocation')}</PfTh>}
+          {full && <PfTh className="w-12 px-2" aria-label={t('Actions')} />}
         </PfHead>
       )}
       {loading ? (
@@ -156,7 +161,7 @@ export function TokensTable({ rows, loading, limit, variant = 'overview', hidden
                   sub={
                     <>
                       {r.token.symbol}
-                      {hidden && 'reason' in r && <span className="ml-1.5 text-text-3">· {(r as HiddenRow).reason === 'spam' ? 'Unverified' : (r as HiddenRow).reason === 'small' ? 'Small balance' : 'Hidden'}</span>}
+                      {hidden && 'reason' in r && <span className="ml-1.5 text-text-3">· {(r as HiddenRow).reason === 'spam' ? t('Unverified') : (r as HiddenRow).reason === 'small' ? t('Small balance') : t('Hidden')}</span>}
                     </>
                   }
                 />
@@ -194,15 +199,15 @@ export function HiddenTokens({ rows, totalUsd }: { rows: HiddenRow[]; totalUsd?:
   return (
     <div className="mt-4" data-testid="hidden-tokens">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="hidden-tokens-toggle" className="flex h-[54px] w-full items-center gap-2 rounded-xl p-4 text-left text-body-2 text-text-2 hover:text-text-1">
-        Hidden tokens ({rows.length}) <ChevronsUpDown size={16} aria-hidden />
+        {t('Hidden tokens ({count})', { count: rows.length })} <ChevronsUpDown size={16} aria-hidden />
       </button>
       {open && <TokensTable rows={rows} loading={false} variant="full" hidden totalUsd={totalUsd} />}
     </div>
   )
 }
 
-function addrOf(t: PositionRow['token0']): string {
-  return typeof t === 'string' ? t : t.address
+function addrOf(tok: PositionRow['token0']): string {
+  return typeof tok === 'string' ? tok : tok.address
 }
 
 /** Pools table (Pool, Status, Fees, Value) in the portfolio table style. */
@@ -210,21 +215,25 @@ export function PoolsTable({ rows, loading, limit }: { rows: PositionRow[]; load
   const { find } = useTokenList()
   const navigate = useNavigate()
   const mask = useMask()
-  if (!loading && rows.length === 0)
+  if (!loading && rows.length === 0) {
+    const [before, after] = t('{link} to earn fees on every trade.').split('{link}')
     return (
       <div className="rounded-2xl border border-border">
-        <EmptyState icon={<Layers size={20} />} title="No open positions">
-          <Link to="/positions/create" className="text-accent hover:underline">Create a position</Link> to earn fees on every trade.
+        <EmptyState icon={<Layers size={20} />} title={t('No open positions')}>
+          {before}
+          <Link to="/positions/create" className="text-accent hover:underline">{t('Create a position')}</Link>
+          {after}
         </EmptyState>
       </div>
     )
+  }
   return (
     <PfTable minWidth={520}>
       <PfHead>
-        <PfTh>Pool</PfTh>
-        <PfTh align="center">Status</PfTh>
-        <PfTh align="right">Fees</PfTh>
-        <PfTh align="right">Value</PfTh>
+        <PfTh>{t('Pool')}</PfTh>
+        <PfTh align="center">{t('Status')}</PfTh>
+        <PfTh align="right">{t('Fees')}</PfTh>
+        <PfTh align="right">{t('Value')}</PfTh>
       </PfHead>
       {loading ? (
         <tbody>
@@ -253,7 +262,7 @@ export function PoolsTable({ rows, loading, limit }: { rows: PositionRow[]; load
                   />
                 </PfTd>
                 <PfTd align="center">
-                  <span className={cn('inline-flex h-[22px] items-center rounded-lg px-2 text-body-3', p.inRange ? 'bg-success/12 text-success' : 'bg-warning/12 text-warning')}>{p.inRange ? 'In range' : 'Out of range'}</span>
+                  <span className={cn('inline-flex h-[22px] items-center rounded-lg px-2 text-body-3', p.inRange ? 'bg-success/12 text-success' : 'bg-warning/12 text-warning')}>{p.inRange ? t('In range') : t('Out of range')}</span>
                 </PfTd>
                 <PfTd align="right">{fees === null ? '-' : mask(formatUsd(fees))}</PfTd>
                 <PfTd align="right">{p.valueUsd == null ? '-' : mask(formatUsd(p.valueUsd as number))}</PfTd>
@@ -282,9 +291,9 @@ export function EarnSummary({ positions, loading }: { positions: EarnPosition[];
       <div className="mb-4 flex items-end justify-between px-2">
         <div>
           <h2 className="text-body-1 font-medium">
-            Earn{positions.length > 0 && <span> · {mask(formatUsd(total))}</span>}
+            {t('Earn')}{positions.length > 0 && <span> · {mask(formatUsd(total))}</span>}
           </h2>
-          <div className="text-body-3 text-text-2">Lifetime earnings</div>
+          <div className="text-body-3 text-text-2">{t('Lifetime earnings')}</div>
         </div>
         <span className="text-body-3 text-success tabular" data-testid="earn-lifetime">
           {mask(formatUsd(lifetime))}
@@ -294,7 +303,7 @@ export function EarnSummary({ positions, loading }: { positions: EarnPosition[];
         <Skeleton width="100%" height={48} rounded="lg" />
       ) : positions.length === 0 ? (
         <Link to="/earn" className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-3 text-body-3 text-text-2 hover:bg-surface-2">
-          <PiggyBank size={18} className="text-accent" /> Earn yield on mUSDC, mUSDT and ETH. No lockup.
+          <PiggyBank size={18} className="text-accent" /> {t('Earn yield on mUSDC, mUSDT and ETH. No lockup.')}
         </Link>
       ) : (
         <ul className="flex flex-col">
@@ -307,7 +316,7 @@ export function EarnSummary({ positions, loading }: { positions: EarnPosition[];
                   <TokenLogo token={token ? { symbol: token.symbol === 'WETH' ? 'ETH' : token.symbol, address: token.address } : undefined} size={32} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-body-3">{token?.symbol === 'WETH' ? 'ETH' : token?.symbol ?? v?.symbol}</span>
-                    {v && <span className="block text-body-4 text-accent">{v.apyPct.toFixed(2)}% APY</span>}
+                    {v && <span className="block text-body-4 text-accent">{t('{apy}% APY', { apy: v.apyPct.toFixed(2) })}</span>}
                   </span>
                   <span className="text-right">
                     <span className="block text-body-3 tabular">{p.valueUsd == null ? '-' : mask(formatUsd(p.valueUsd))}</span>
@@ -350,8 +359,8 @@ export function NftGrid({ nfts, loading }: { nfts: PortfolioNft[]; loading: bool
   if (nfts.length === 0)
     return (
       <div className="rounded-2xl border border-border">
-        <EmptyState icon={<ImageIcon size={20} />} title="No NFTs">
-          MetaSwap V3 positions are NFTs. They show up here when you create one.
+        <EmptyState icon={<ImageIcon size={20} />} title={t('No NFTs')}>
+          {t('MetaSwap V3 positions are NFTs. They show up here when you create one.')}
         </EmptyState>
       </div>
     )
@@ -362,7 +371,7 @@ export function NftGrid({ nfts, loading }: { nfts: PortfolioNft[]; loading: bool
         return (
           <Link key={n.tokenId} to={`/positions/v3/${n.tokenId}`} className="group flex flex-col gap-1 rounded-2xl border border-border p-1 transition-colors hover:bg-surface-2" data-testid="nft-card">
             <div className={cn('aspect-square w-full overflow-hidden rounded-xl bg-surface-3-solid', !img && 'flex items-center justify-center text-text-3')}>
-              {img ? <img src={img} alt={`Position #${n.tokenId}`} className="size-full object-cover object-top transition-transform duration-200 group-hover:scale-[1.03]" loading="lazy" /> : <ImageIcon size={28} />}
+              {img ? <img src={img} alt={t('Position #{id}', { id: n.tokenId })} className="size-full object-cover object-top transition-transform duration-200 group-hover:scale-[1.03]" loading="lazy" /> : <ImageIcon size={28} />}
             </div>
             <div className="flex flex-col gap-1 px-3 pt-2 pb-2.5">
               <span className="truncate text-body-3 text-text-1">{n.name ?? `MetaSwap V3 #${n.tokenId}`}</span>

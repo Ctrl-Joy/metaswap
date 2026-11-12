@@ -10,6 +10,7 @@ import { TokensTable } from '@/features/explore/TokensTable'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
 import { useExplorePoolRows, useExploreTokenRows, useExploreTransactions } from '@/features/explore/api'
 import type { RangeKey } from '@/features/explore/types'
+import { t } from '@/i18n'
 
 export type ExploreTab = 'tokens' | 'auctions' | 'pools' | 'transactions'
 
@@ -25,7 +26,7 @@ const TAB_PATH: Record<ExploreTab, string> = {
  * Earn rows, then Tokens · Auctions · Pools · Transactions with URL sync.
  */
 export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
-  useDocumentTitle('Explore')
+  useDocumentTitle(t('Explore'))
   const navigate = useNavigate()
   const [range, setRange] = useState<RangeKey>('1D')
   const tokens = useExploreTokenRows(range)
@@ -40,12 +41,12 @@ export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
       <div className="flex flex-col gap-4">
         <ExploreSectionTabs<ExploreTab>
           value={tab}
-          onSelect={(t) => navigate(TAB_PATH[t])}
+          onSelect={(next) => navigate(TAB_PATH[next])}
           items={[
-            { value: 'tokens', label: 'Tokens', testId: 'explore-tab-tokens' },
-            { value: 'auctions', label: 'Auctions', testId: 'explore-tab-auctions' },
-            { value: 'pools', label: 'Pools', testId: 'explore-tab-pools' },
-            { value: 'transactions', label: 'Transactions', testId: 'explore-tab-transactions' },
+            { value: 'tokens', label: t('Tokens'), testId: 'explore-tab-tokens' },
+            { value: 'auctions', label: t('Auctions'), testId: 'explore-tab-auctions' },
+            { value: 'pools', label: t('Pools'), testId: 'explore-tab-pools' },
+            { value: 'transactions', label: t('Transactions'), testId: 'explore-tab-transactions' },
           ]}
         />
         {tab === 'tokens' && (

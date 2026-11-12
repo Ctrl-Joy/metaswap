@@ -21,8 +21,23 @@ import { useDebounced } from '@/features/swap/useSwapQuote'
 import { StepList, type StepView } from '@/features/swap/StepList'
 import { EXPIRY_OPTIONS, minOutputFromPrice, type ExpiryKey } from './order'
 import { placeLimitOrder, type LimitStepId } from './executeLimit'
+import { t } from '@/i18n'
 
-const erc20Only = (t: Token) => !t.isNative
+const erc20Only = (token: Token) => !token.isNative
+
+/** Translated label of an expiry option (the option list keeps English labels). */
+function expiryText(key: ExpiryKey): string {
+  switch (key) {
+    case '1d':
+      return t('1 day')
+    case '1w':
+      return t('1 week')
+    case '1m':
+      return t('1 month')
+    case '1y':
+      return t('1 year')
+  }
+}
 
 function sym(symbol: string) {
   return deployment.tokens?.find((t) => t.symbol === symbol)?.address
@@ -109,28 +124,30 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
   })()
 
   let cta: { label: string; disabled: boolean; onClick?: () => void; tone?: 'primary' | 'tint' | 'critical' | 'warning' }
-  if (!wallet.address) cta = { label: 'Connect wallet', disabled: false, onClick: openConnect, tone: 'tint' }
-  else if (wallet.wrongNetwork) cta = { label: 'Switch to MetaChain Devnet', disabled: false, onClick: () => void switchToDevnet(), tone: 'warning' }
-  else if (!reactor) cta = { label: 'MetaSwapX not deployed', disabled: true }
-  else if (!inputToken || !outputToken) cta = { label: 'Select a token', disabled: true }
-  else if (inputToken.address === outputToken.address) cta = { label: 'Select different tokens', disabled: true }
-  else if (!amountIn) cta = { label: 'Enter an amount', disabled: true }
-  else if (!canonicalPrice || !minOut) cta = { label: 'Enter a limit price', disabled: true }
-  else if (inBal !== undefined && inBal < amountIn) cta = { label: `Insufficient ${inputToken.symbol} balance`, disabled: true, tone: 'critical' }
-  else cta = { label: 'Review limit', disabled: false, onClick: () => setReviewOpen(true) }
+  if (!wallet.address) cta = { label: t('Connect wallet'), disabled: false, onClick: openConnect, tone: 'tint' }
+  else if (wallet.wrongNetwork) cta = { label: t('Switch to MetaChain Devnet'), disabled: false, onClick: () => void switchToDevnet(), tone: 'warning' }
+  else if (!reactor) cta = { label: t('MetaSwapX not deployed'), disabled: true }
+  else if (!inputToken || !outputToken) cta = { label: t('Select a token'), disabled: true }
+  else if (inputToken.address === outputToken.address) cta = { label: t('Select different tokens'), disabled: true }
+  else if (!amountIn) cta = { label: t('Enter an amount'), disabled: true }
+  else if (!canonicalPrice || !minOut) cta = { label: t('Enter a limit price'), disabled: true }
+  else if (inBal !== undefined && inBal < amountIn) cta = { label: t('Insufficient {symbol} balance', { symbol: inputToken.symbol }), disabled: true, tone: 'critical' }
+  else cta = { label: t('Review limit'), disabled: false, onClick: () => setReviewOpen(true) }
 
   const expiryOpt = EXPIRY_OPTIONS.find((e) => e.key === expiry)!
+  // "When 1 {symbol} is worth": the token (logo + symbol) is placed where the translation puts it.
+  const [worthBefore = '', worthAfter = ''] = t('When 1 {symbol} is worth').split('{symbol}')
 
   return (
     <div className="flex flex-col gap-1">
       <div className="rounded-2xl border border-surface-2 bg-surface-2 p-4" data-testid="limit-price-panel">
         <div className="flex items-center justify-between text-body-2 leading-[22px] text-text-2">
           <span className="flex items-center gap-1.5">
-            When 1 {base && <TokenLogo token={base} size={16} />} <span className="text-text-1">{base?.symbol ?? '…'}</span> is worth
+            {worthBefore.trim()} {base && <TokenLogo token={base} size={16} />} <span className="text-text-1">{base?.symbol ?? '…'}</span> {worthAfter.trim()}
           </span>
           <button
             type="button"
-            aria-label="Invert price"
+            aria-label={t('Invert price')}
             onClick={() => {
               setInverted((v) => !v)
               if (typedPrice > 0) setPriceText(priceToInput(1 / typedPrice))
@@ -145,7 +162,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
           <input
             inputMode="decimal"
             placeholder="0"
-            aria-label="Limit price"
+            aria-label={t('Limit price')}
             data-testid="limit-price-input"
             value={priceText}
             onChange={(e) => {
@@ -179,22 +196,21 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
                   active ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:bg-surface-3 hover:text-text-1',
                 )}
               >
-                {pct === 0 ? 'Market' : `${inverted ? '-' : '+'}${pct}%`}
+                {pct === 0 ? t('Market') : `${inverted ? '-' : '+'}${pct}%`}
               </button>
             )
           })}
           {deltaPct !== undefined && Math.abs(deltaPct) >= 0.01 && (
             <span className={cn('ml-auto text-body-4 tabular', deltaPct < 0 ? 'text-warning' : 'text-success')} data-testid="limit-delta">
-              {deltaPct > 0 ? '+' : ''}
-              {deltaPct.toFixed(2)}% vs market
+              {t('{pct}% vs market', { pct: `${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(2)}` })}
             </span>
           )}
-          {market.isError && <span className="ml-auto text-body-4 text-text-3">Market price unavailable</span>}
+          {market.isError && <span className="ml-auto text-body-4 text-text-3">{t('Market price unavailable')}</span>}
         </div>
       </div>
 
       <CurrencyInputPanel
-        label="Sell"
+        label={t('Sell')}
         testId="limit-input"
         token={inputToken}
         value={amountText}
@@ -215,7 +231,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
       <div className="relative z-[1] -my-[22px] flex justify-center">
         <button
           type="button"
-          aria-label="Switch tokens"
+          aria-label={t('Switch tokens')}
           onClick={() => {
             setInputToken(outputToken)
             setOutputToken(inputToken)
@@ -227,7 +243,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
         </button>
       </div>
       <CurrencyInputPanel
-        label="Buy"
+        label={t('Buy')}
         testId="limit-output"
         token={outputToken}
         value={outputText}
@@ -245,8 +261,8 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
       />
 
       <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <span className="text-body-3 text-text-2">Expiry</span>
-        <div className="flex flex-wrap justify-end gap-1" role="radiogroup" aria-label="Expiry">
+        <span className="text-body-3 text-text-2">{t('Expiry')}</span>
+        <div className="flex flex-wrap justify-end gap-1" role="radiogroup" aria-label={t('Expiry')}>
           {EXPIRY_OPTIONS.map((e) => (
             <button
               key={e.key}
@@ -257,15 +273,15 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
               data-testid={`expiry-${e.key}`}
               className={cn('h-7 rounded-full border border-border px-2 text-body-3 leading-4 font-semibold transition-colors', expiry === e.key ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
             >
-              {e.label}
+              {expiryText(e.key)}
             </button>
           ))}
         </div>
       </div>
 
       {deltaPct !== undefined && deltaPct < -0.5 && (
-        <Banner tone="warning" className="mt-1" title="Limit price is below market">
-          Your order will likely fill right away at about the market price, not at your limit.
+        <Banner tone="warning" className="mt-1" title={t('Limit price is below market')}>
+          {t('Your order will likely fill right away at about the market price, not at your limit.')}
         </Banner>
       )}
 
@@ -276,9 +292,9 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
       <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface-2 p-4 text-body-3 leading-5 text-text-1">
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-text-2" />
         <span>
-          Limits may not execute exactly when tokens reach the specified price.{' '}
+          {t('Limits may not execute exactly when tokens reach the specified price.')}{' '}
           <Link to="/metaswapx" className="font-semibold text-accent hover:underline">
-            Learn more
+            {t('Learn more')}
           </Link>
         </span>
       </div>
@@ -300,7 +316,7 @@ export function LimitForm({ onTokensChange }: { onTokensChange?: (input: Token |
           outputToken={outputToken}
           amountIn={amountIn}
           minOut={minOut}
-          expiryLabel={expiryOpt.label}
+          expiryLabel={expiryText(expiryOpt.key)}
           expirySeconds={expiryOpt.seconds}
           priceLabel={`1 ${inputToken.symbol} = ${formatAmount(toNumber(minOut, outputToken.decimals) / toNumber(amountIn, inputToken.decimals))} ${outputToken.symbol}`}
           usdIn={prices[inputToken.address.toLowerCase()] !== undefined ? toNumber(amountIn, inputToken.decimals) * prices[inputToken.address.toLowerCase()]! : undefined}
@@ -330,9 +346,9 @@ function LimitReviewModal(p: {
   const [st, setSt] = useState<Partial<Record<LimitStepId, StepView['status']>>>({})
   const [err, setErr] = useState<FriendlyError | null>(null)
   const steps: StepView[] = [
-    { id: 'approve', title: `Approve ${p.inputToken.symbol} for Permit2`, description: 'One-time approval transaction', status: st.approve ?? 'idle' },
-    { id: 'sign', title: 'Sign limit order', description: 'Gasless signature in your wallet', status: st.sign ?? 'idle' },
-    { id: 'submit', title: 'Submit to MetaSwapX', description: 'Sending your signed order to the order book', status: st.submit ?? 'idle' },
+    { id: 'approve', title: t('Approve {symbol} for Permit2', { symbol: p.inputToken.symbol }), description: t('One-time approval transaction'), status: st.approve ?? 'idle' },
+    { id: 'sign', title: t('Sign limit order'), description: t('Gasless signature in your wallet'), status: st.sign ?? 'idle' },
+    { id: 'submit', title: t('Submit to MetaSwapX'), description: t('Sending your signed order to the order book'), status: st.submit ?? 'idle' },
   ]
   const run = async () => {
     setPhase('running')
@@ -357,7 +373,7 @@ function LimitReviewModal(p: {
         },
       )
       setPhase('done')
-      toast.success('Limit order placed', `${formatTokenAmount(p.amountIn, p.inputToken.decimals)} ${p.inputToken.symbol} → ${p.outputToken.symbol}`)
+      toast.success(t('Limit order placed'), `${formatTokenAmount(p.amountIn, p.inputToken.decimals)} ${p.inputToken.symbol} → ${p.outputToken.symbol}`)
       p.onDone()
     } catch (e) {
       const fe = parseTxError(e)
@@ -367,21 +383,21 @@ function LimitReviewModal(p: {
     }
   }
   return (
-    <Modal open={p.open} onOpenChange={p.onOpenChange} title={phase === 'done' ? 'Order placed' : 'Review limit order'} dismissible={phase !== 'running'} testId="limit-review">
+    <Modal open={p.open} onOpenChange={p.onOpenChange} title={phase === 'done' ? t('Order placed') : t('Review limit order')} dismissible={phase !== 'running'} testId="limit-review">
       {phase === 'done' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="limit-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-medium">Order placed</div>
-          <p className="text-body-3 text-text-2">Your order is open for {p.expiryLabel}. It fills when a filler can pay at least your limit price.</p>
+          <div className="text-heading-3 font-medium">{t('Order placed')}</div>
+          <p className="text-body-3 text-text-2">{t('Your order is open for {duration}. It fills when a filler can pay at least your limit price.', { duration: p.expiryLabel })}</p>
           <Button fullWidth size="lg" onClick={() => p.onOpenChange(false)}>
-            Close
+            {t('Close')}
           </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-body-3 text-text-2">You sell</div>
+              <div className="text-body-3 text-text-2">{t('You sell')}</div>
               <div className="text-heading-3 font-medium tabular">
                 {formatTokenAmount(p.amountIn, p.inputToken.decimals)} {p.inputToken.symbol}
               </div>
@@ -391,7 +407,7 @@ function LimitReviewModal(p: {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-body-3 text-text-2">You receive at least</div>
+              <div className="text-body-3 text-text-2">{t('You receive at least')}</div>
               <div className="text-heading-3 font-medium tabular">
                 {formatTokenAmount(p.minOut, p.outputToken.decimals)} {p.outputToken.symbol}
               </div>
@@ -399,15 +415,15 @@ function LimitReviewModal(p: {
             <TokenLogo token={p.outputToken} size={40} />
           </div>
           <div className="flex flex-col gap-1 border-t border-border pt-3 text-body-3">
-            <div className="flex justify-between"><span className="text-text-2">Limit price</span><span className="tabular">{p.priceLabel}</span></div>
-            <div className="flex justify-between"><span className="text-text-2">Expiry</span><span>{p.expiryLabel}</span></div>
-            <div className="flex justify-between"><span className="text-text-2">Network cost</span><span className="text-success">Free (gasless)</span></div>
+            <div className="flex justify-between"><span className="text-text-2">{t('Limit price')}</span><span className="tabular">{p.priceLabel}</span></div>
+            <div className="flex justify-between"><span className="text-text-2">{t('Expiry')}</span><span>{p.expiryLabel}</span></div>
+            <div className="flex justify-between"><span className="text-text-2">{t('Network cost')}</span><span className="text-success">{t('Free (gasless)')}</span></div>
           </div>
           {phase !== 'review' && <StepList steps={steps} />}
           {err && phase === 'error' && <Banner tone="critical" title={err.title}>{err.message}</Banner>}
           {phase !== 'running' && (
             <Button size="xl" fullWidth onClick={run} data-testid="confirm-limit">
-              {phase === 'error' ? 'Try again' : 'Confirm'}
+              {phase === 'error' ? t('Try again') : t('Confirm')}
             </Button>
           )}
         </div>

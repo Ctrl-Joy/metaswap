@@ -4,6 +4,7 @@ import { ButtonLink, Button, EmptyState } from '@/components/ui'
 import { ApiError } from '@/lib/errors'
 import { CHAIN_SLUG } from '@/config'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 
 /** Re-renders every `ms` so relative times ("14s ago") stay live. */
 export function useNow(ms = 10_000): number {
@@ -20,43 +21,43 @@ export function isNotFound(err: unknown): boolean {
 }
 
 /** Friendly message when the API is unreachable or returns an error. */
-export function ApiErrorState({ error, onRetry, title = 'Could not load this data', className }: { error: unknown; onRetry?: () => void; title?: string; className?: string }) {
+export function ApiErrorState({ error, onRetry, title, className }: { error: unknown; onRetry?: () => void; title?: string; className?: string }) {
   const offline = error instanceof ApiError && error.status === 0
-  const message = error instanceof Error ? error.message : 'Unknown error'
+  const message = error instanceof Error ? error.message : t('Unknown error')
   return (
     <div className={cn('rounded-2xl border border-border bg-surface-1', className)} role="alert" data-testid="api-error">
       <EmptyState
         icon={<WifiOff size={22} />}
-        title={offline ? 'MetaSwap API is offline' : title}
+        title={offline ? t('MetaSwap API is offline') : (title ?? t('Could not load this data'))}
         action={
           onRetry ? (
             <Button variant="secondary" size="md" onClick={onRetry}>
-              Try again
+              {t('Try again')}
             </Button>
           ) : undefined
         }
       >
-        {offline ? 'The explore data comes from the MetaSwap API on http://127.0.0.1:8787. Start it and this page will refresh on its own.' : message}
+        {offline ? t('The explore data comes from the MetaSwap API on {url}. Start it and this page will refresh on its own.', { url: 'http://127.0.0.1:8787' }) : message}
       </EmptyState>
     </div>
   )
 }
 
 /** Friendly 404-style page for an unknown token or pool. */
-export function NotFoundState({ what, backTo, backLabel }: { what: string; backTo: string; backLabel: string }) {
+export function NotFoundState({ title, backTo, backLabel }: { title: string; backTo: string; backLabel: string }) {
   return (
     <div className="mx-auto flex max-w-[560px] flex-col items-center px-4 pt-20 pb-24 text-center" data-testid="explore-not-found">
       <span className="flex size-14 items-center justify-center rounded-2xl bg-surface-3 text-text-2">
         <SearchX size={24} />
       </span>
-      <h1 className="mt-5 text-heading-3 font-semibold">{what} not found</h1>
-      <p className="mt-2 text-body-2 text-text-2">It is not listed on MetaChain Devnet. Check the address, or browse what is available in Explore.</p>
+      <h1 className="mt-5 text-heading-3 font-semibold">{title}</h1>
+      <p className="mt-2 text-body-2 text-text-2">{t('It is not listed on MetaChain Devnet. Check the address, or browse what is available in Explore.')}</p>
       <div className="mt-8 flex gap-2">
         <ButtonLink to={backTo} size="lg" variant="secondary">
           {backLabel}
         </ButtonLink>
         <ButtonLink to={`/explore/tokens`} size="lg">
-          Explore tokens
+          {t('Explore tokens')}
         </ButtonLink>
       </div>
     </div>

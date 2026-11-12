@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Hammer } from 'lucide-react'
 import { ButtonLink } from '@/components/ui'
+import { t } from '@/i18n'
 
 /** Placeholder used for routes owned by later areas (explore the explore area, positions the positions/launches area). */
 export function ComingSoon({ title, description, children }: { title: string; description?: ReactNode; children?: ReactNode }) {
@@ -10,14 +11,14 @@ export function ComingSoon({ title, description, children }: { title: string; de
         <Hammer size={28} />
       </span>
       <h1 className="mt-6 text-heading-3 font-semibold md:text-heading-2">{title}</h1>
-      <p className="mt-3 max-w-[480px] text-body-2 text-text-2">{description ?? 'This part of MetaSwap is being built. Check back soon.'}</p>
+      <p className="mt-3 max-w-[480px] text-body-2 text-text-2">{description ?? t('This part of MetaSwap is being built. Check back soon.')}</p>
       {children}
       <div className="mt-8 flex gap-2">
         <ButtonLink to="/swap" size="lg">
-          Go to swap
+          {t('Go to swap')}
         </ButtonLink>
         <ButtonLink to="/portfolio" size="lg" variant="secondary">
-          Portfolio
+          {t('Portfolio')}
         </ButtonLink>
       </div>
     </div>

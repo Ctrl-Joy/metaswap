@@ -22,12 +22,13 @@ import { StatusBadge } from '../components/StatusBadge'
 import { ReviewRow, TxFlowModal } from '../components/TxFlowModal'
 import { PercentPicker } from '../components/PercentPicker'
 import { MigrateV2Modal } from './MigrateV2Modal'
+import { t } from '@/i18n'
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-24 md:px-8" data-testid="position-detail">
       <Link to="/positions" className="mb-3 inline-flex items-center gap-1 text-body-3 text-text-2 hover:text-text-1">
-        <ChevronLeft size={16} /> Your positions
+        <ChevronLeft size={16} /> {t('Your positions')}
       </Link>
       {children}
     </div>
@@ -45,7 +46,7 @@ export function V2PositionDetail({ pairParam }: { pairParam: string | undefined 
     return (
       <Shell>
         <Card>
-          <EmptyState title="Invalid pair address" action={<ButtonLink to="/positions">Back to positions</ButtonLink>} />
+          <EmptyState title={t('Invalid pair address')} action={<ButtonLink to="/positions">{t('Back to positions')}</ButtonLink>} />
         </Card>
       </Shell>
     )
@@ -60,8 +61,8 @@ export function V2PositionDetail({ pairParam }: { pairParam: string | undefined 
     return (
       <Shell>
         <Card>
-          <EmptyState title="Pair not found" action={<ButtonLink to="/positions">Back to positions</ButtonLink>}>
-            {pair} is not a MetaSwap V2 pair on MetaChain Devnet.
+          <EmptyState title={t('Pair not found')} action={<ButtonLink to="/positions">{t('Back to positions')}</ButtonLink>}>
+            {t('{pair} is not a MetaSwap V2 pair on MetaChain Devnet.', { pair })}
           </EmptyState>
         </Card>
       </Shell>
@@ -100,27 +101,27 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
         {account ? (
           <div className="flex flex-wrap gap-2">
             <ButtonLink to={addHref} variant="secondary" data-testid="action-add">
-              <Plus size={16} /> Add liquidity
+              <Plus size={16} /> {t('Add liquidity')}
             </ButtonLink>
             <Button variant="secondary" leftIcon={<Minus size={16} />} disabled={closed} onClick={() => setRemoveOpen(true)} data-testid="action-remove">
-              Remove liquidity
+              {t('Remove liquidity')}
             </Button>
             <Button variant="tint" leftIcon={<ArrowUpRight size={16} />} disabled={closed} onClick={() => setMigrateOpen(true)} data-testid="action-migrate">
-              Migrate to V3
+              {t('Migrate to V3')}
             </Button>
           </div>
         ) : (
-          <Button onClick={openConnect}>Connect wallet</Button>
+          <Button onClick={openConnect}>{t('Connect wallet')}</Button>
         )}
       </div>
       {account && closed && (
-        <Banner tone="info" className="mt-4" title="No liquidity">
-          This wallet has no LP tokens in this pair.
+        <Banner tone="info" className="mt-4" title={t('No liquidity')}>
+          {t('This wallet has no LP tokens in this pair.')}
         </Banner>
       )}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Card className="p-5">
-          <div className="text-body-3 text-text-2">Liquidity</div>
+          <div className="text-body-3 text-text-2">{t('Liquidity')}</div>
           <div className="mt-1 text-heading-2 font-medium tabular" data-testid="position-value">
             {formatUsd(usd0 + usd1)}
           </div>
@@ -130,18 +131,18 @@ function Loaded({ state, t0, t1, account }: { state: V2PairState; t0: Token; t1:
           </div>
         </Card>
         <Card className="flex flex-col gap-3 p-5">
-          <ReviewRow label="LP tokens" testId="lp-balance">
+          <ReviewRow label={t('LP tokens')} testId="lp-balance">
             {formatTokenAmount(state.balance, 18)} MS-V2
           </ReviewRow>
-          <ReviewRow label="Pool share" testId="pool-share">
+          <ReviewRow label={t('Pool share')} testId="pool-share">
             {formatPercent(share * 100, { digits: share < 0.0001 && share > 0 ? 4 : 2 })}
           </ReviewRow>
-          <ReviewRow label="Pool reserves">
+          <ReviewRow label={t('Pool reserves')}>
             {formatTokenAmount(state.reserve0, t0.decimals)} {t0.symbol} · {formatTokenAmount(state.reserve1, t1.decimals)} {t1.symbol}
           </ReviewRow>
-          <ReviewRow label="Fees">Earned fees are added to the pool and included in your share.</ReviewRow>
+          <ReviewRow label={t('Fees')}>{t('Earned fees are added to the pool and included in your share.')}</ReviewRow>
           <Link to={`/explore/pools/${CHAIN_SLUG}/${state.address}`} className="text-body-3 font-semibold text-accent hover:underline">
-            View pool
+            {t('View pool')}
           </Link>
         </Card>
       </div>
@@ -189,8 +190,8 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
         if (allowance < liquidity)
           steps.push({
             id: 'permit',
-            title: 'Sign LP token permit',
-            description: 'Gasless signature allowing the router to use your LP tokens',
+            title: t('Sign LP token permit'),
+            description: t('Gasless signature allowing the router to use your LP tokens'),
             run: async () => {
               const [nonce, name] = await Promise.all([
                 readContract(wagmiConfig, { address: pairAddr, abi: v2PairAbi, functionName: 'nonces', args: [account] }),
@@ -211,11 +212,11 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
         txStep(
           {
             id: 'remove',
-            title: 'Remove liquidity',
-            description: 'Confirm in your wallet',
+            title: t('Remove liquidity'),
+            description: t('Confirm in your wallet'),
             account,
             type: 'remove-liquidity',
-            summary: `Removed ${formatTokenAmount(amount0, t0.decimals)} ${sym(t0, 'A')} and ${formatTokenAmount(amount1, t1.decimals)} ${sym(t1, 'B')} (V2)`,
+            summary: t('Removed {amount0} {symbol0} and {amount1} {symbol1} (V2)', { amount0: formatTokenAmount(amount0, t0.decimals), symbol0: sym(t0, 'A'), amount1: formatTokenAmount(amount1, t1.decimals), symbol1: sym(t1, 'B') }),
             gas: GAS.v2Remove,
           },
           () =>
@@ -239,7 +240,7 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
   }
 
   return (
-    <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove V2 liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
+    <TxFlowModal open={open} onOpenChange={onOpenChange} title={t('Remove V2 liquidity')} runner={runner} confirmLabel={t('Remove')} confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
       <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 'A')} testId="remove-amount0">
@@ -248,17 +249,17 @@ function RemoveV2Modal({ open, onOpenChange, state, t0, t1, account }: { open: b
         <ReviewRow label={sym(t1, 'B')} testId="remove-amount1">
           {formatTokenAmount(amount1, t1.decimals)}
         </ReviewRow>
-        <ReviewRow label="LP tokens burned">{formatTokenAmount(liquidity, 18)}</ReviewRow>
+        <ReviewRow label={t('LP tokens burned')}>{formatTokenAmount(liquidity, 18)}</ReviewRow>
       </div>
       {wethSide && (
         <label className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-body-3">
-          <span>Receive ETH (unwrap WETH)</span>
-          <Switch checked={receiveEth} onChange={setReceiveEth} label="Receive ETH" testId="eth-toggle" />
+          <span>{t('Receive ETH (unwrap WETH)')}</span>
+          <Switch checked={receiveEth} onChange={setReceiveEth} label={t('Receive ETH')} testId="eth-toggle" />
         </label>
       )}
       <label className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-body-3">
-        <span>Approve with a signature (permit)</span>
-        <Switch checked={usePermit} onChange={setUsePermit} label="Use permit signature" testId="permit-toggle" />
+        <span>{t('Approve with a signature (permit)')}</span>
+        <Switch checked={usePermit} onChange={setUsePermit} label={t('Use permit signature')} testId="permit-toggle" />
       </label>
     </TxFlowModal>
   )

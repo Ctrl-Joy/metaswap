@@ -2,6 +2,7 @@ import type { HTMLAttributes, Ref, ReactNode, TdHTMLAttributes, ThHTMLAttributes
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Skeleton } from '@/components/ui'
+import { t } from '@/i18n'
 
 /**
  * Explore table primitives, sized to Uniswap's explore tables (measured, 1440px dark):
@@ -119,7 +120,7 @@ export function ExTableSkeleton({ rows = 8, cols = 7, height = 64 }: { rows?: nu
 /** Uniswap-style section tabs: 24px text tabs, no underline. Each tab is a link so URLs sync. */
 export function ExploreSectionTabs<T extends string>({ items, value, onSelect, className, size = 'lg' }: { items: Array<{ value: T; label: string; testId?: string; href?: string }>; value: T; onSelect?: (v: T) => void; className?: string; size?: 'lg' | 'md' }) {
   return (
-    <div role="tablist" aria-label="Explore sections" className={cn('flex items-center overflow-x-auto scrollbar-thin', size === 'lg' ? 'gap-6' : 'gap-5', className)}>
+    <div role="tablist" aria-label={t('Explore sections')} className={cn('flex items-center overflow-x-auto scrollbar-thin', size === 'lg' ? 'gap-6' : 'gap-5', className)}>
       {items.map((it) => {
         const active = it.value === value
         return (

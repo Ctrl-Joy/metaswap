@@ -10,15 +10,16 @@ import { cn } from '@/lib/cn'
 import { extremes, toCandles } from '../transforms'
 import type { CandlePoint } from '../types'
 import { tokenDescription } from './tokenInfo'
+import { t } from '@/i18n'
 
 export function TokenHeader({ symbol, name, address, loading }: { symbol: string; name: string; address: string; loading: boolean }) {
   const isNative = address === NATIVE_ADDRESS
   const [copied, setCopied] = useState(false)
   return (
     <header className="flex flex-col gap-7 border-b border-border pb-5">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-body-2 leading-6 text-text-2">
+      <nav aria-label={t('Breadcrumb')} className="flex items-center gap-1 text-body-2 leading-6 text-text-2">
         <Link to="/explore/tokens" className="hover:text-text-1">
-          Tokens
+          {t('Tokens')}
         </Link>
         <ChevronRight size={16} aria-hidden />
         <span className="text-text-1">{symbol || '...'}</span>
@@ -43,17 +44,17 @@ export function TokenHeader({ symbol, name, address, loading }: { symbol: string
                 MetaChain Devnet
               </span>
               {!isNative && (
-                <CopyButton value={address} label="Copy token address" className="text-body-3">
+                <CopyButton value={address} label={t('Copy token address')} className="text-body-3">
                   <span>{shortenAddress(address)}</span>
                 </CopyButton>
               )}
-              {isNative && <span>Native token</span>}
+              {isNative && <span>{t('Native token')}</span>}
             </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <IconButton
-            label={copied ? 'Link copied' : 'Share link'}
+            label={copied ? t('Link copied') : t('Share link')}
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(window.location.href)
@@ -89,23 +90,23 @@ export function TokenStats({
 }) {
   const ext = extremes(toCandles(candles ?? []))
   const items: Array<{ label: string; node: ReactNode; testId: string }> = [
-    { label: 'TVL', node: <Usd value={tvl} compact />, testId: 'stat-tvl' },
-    { label: 'Market cap', node: <Usd value={marketCap} compact />, testId: 'stat-market-cap' },
-    { label: 'FDV', node: <Usd value={fdv} compact />, testId: 'stat-fdv' },
-    { label: '1D volume', node: <Usd value={volume24h} compact />, testId: 'stat-volume' },
+    { label: t('TVL'), node: <Usd value={tvl} compact />, testId: 'stat-tvl' },
+    { label: t('Market cap'), node: <Usd value={marketCap} compact />, testId: 'stat-market-cap' },
+    { label: t('FDV'), node: <Usd value={fdv} compact />, testId: 'stat-fdv' },
+    { label: t('1D volume'), node: <Usd value={volume24h} compact />, testId: 'stat-volume' },
     {
-      label: '52W high',
+      label: t('52W high'),
       node: ext ? <span className="tabular">{formatUsd(ext.high, { compact: false })}</span> : <span className="text-text-3">-</span>,
       testId: 'stat-high',
     },
     {
-      label: '52W low',
+      label: t('52W low'),
       node: ext ? <span className="tabular">{formatUsd(ext.low, { compact: false })}</span> : <span className="text-text-3">-</span>,
       testId: 'stat-low',
     },
   ]
   return (
-    <section aria-label="Token statistics" className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3" data-testid="token-stats">
+    <section aria-label={t('Token statistics')} className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3" data-testid="token-stats">
       {items.map((it) => (
         <div key={it.label} className="flex min-w-0 flex-col gap-1" data-testid={it.testId}>
           <span className="text-body-3 text-text-2">{it.label}</span>
@@ -126,36 +127,36 @@ export function TokenAbout({ symbol, address, topPool }: { symbol: string; name?
   const website = detail.data?.website
   const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 text-body-3 font-semibold text-text-1 transition-colors hover:bg-surface-3'
   return (
-    <section aria-label="About" className="flex flex-col gap-3" data-testid="token-about">
-      <h2 className="text-[24px] leading-7 font-medium">About</h2>
+    <section aria-label={t('About')} className="flex flex-col gap-3" data-testid="token-about">
+      <h2 className="text-[24px] leading-7 font-medium">{t('About')}</h2>
       <p className={cn('max-w-[720px] text-body-2 text-text-2', !open && 'line-clamp-2')}>{text}</p>
       <div>
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? 'Show less' : 'Show more'}
+          {open ? t('Show less') : t('Show more')}
         </Button>
       </div>
       <div className="flex flex-wrap gap-2" data-testid="token-links">
         {!isNative && (
-          <CopyButton value={address!} label="Copy contract address" className={chip}>
-            <FileCode2 size={15} aria-hidden /> Contract <span className="font-mono text-text-2">{shortenAddress(address!)}</span>
+          <CopyButton value={address!} label={t('Copy contract address')} className={chip}>
+            <FileCode2 size={15} aria-hidden /> {t('Contract')} <span className="font-mono text-text-2">{shortenAddress(address!)}</span>
           </CopyButton>
         )}
         {topPool && (
           <Link to={`/explore/pools/${CHAIN_SLUG}/${topPool.address}`} className={chip} data-testid="token-link-pool">
-            <Droplets size={15} aria-hidden /> Top pool · {topPool.label}
+            <Droplets size={15} aria-hidden /> {t('Top pool · {pool}', { pool: topPool.label })}
           </Link>
         )}
         <Link to={isNative ? '/swap?outputCurrency=ETH' : `/swap?outputCurrency=${address}`} className={chip} data-testid="token-link-trade">
-          <ArrowLeftRight size={15} aria-hidden /> Trade {symbol}
+          <ArrowLeftRight size={15} aria-hidden /> {t('Trade {symbol}', { symbol })}
         </Link>
         {launch && (
           <Link to={`/launches/${launch.auction}`} className={chip} data-testid="token-link-launch">
-            <Rocket size={15} aria-hidden /> Launch auction
+            <Rocket size={15} aria-hidden /> {t('Launch auction')}
           </Link>
         )}
         {website && /^https?:\/\//.test(website) && (
           <a href={website} target="_blank" rel="noreferrer noopener" className={chip} data-testid="token-link-website">
-            <Globe size={15} aria-hidden /> Website
+            <Globe size={15} aria-hidden /> {t('Website')}
           </a>
         )}
       </div>

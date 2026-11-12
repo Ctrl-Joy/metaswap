@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { BadgeCheck } from 'lucide-react'
+import { t } from '@/i18n'
 import { Badge, TokenLogo } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatDuration } from '@/lib/format'
@@ -21,16 +22,16 @@ export function formatCountdown(seconds: number): string {
   const h = Math.floor((s % 86400) / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
-  if (d > 0) return `${d}d ${h}h ${m}m`
-  if (h > 0) return `${h}h ${m}m ${sec}s`
-  return `${m}m ${sec}s`
+  if (d > 0) return t('{d}d {h}h {m}m', { d, h, m })
+  if (h > 0) return t('{h}h {m}m {s}s', { h, m, s: sec })
+  return t('{m}m {s}s', { m, s: sec })
 }
 
 export function formatAge(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '-'
-  if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))}m`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-  return `${Math.floor(seconds / 86400)}d`
+  if (seconds < 3600) return t('{n}m', { n: Math.max(1, Math.floor(seconds / 60)) })
+  if (seconds < 86400) return t('{n}h', { n: Math.floor(seconds / 3600) })
+  return t('{n}d', { n: Math.floor(seconds / 86400) })
 }
 
 export function Countdown({ to, testId, className }: { to: number; testId?: string; className?: string }) {
@@ -42,21 +43,44 @@ export function Countdown({ to, testId, className }: { to: number; testId?: stri
   )
 }
 
-const STATUS_COPY: Record<LaunchStatus, { label: string; tone: 'neutral' | 'accent' | 'success' | 'warning' | 'critical' }> = {
-  upcoming: { label: 'Starting soon', tone: 'neutral' },
-  active: { label: 'Live auction', tone: 'accent' },
-  ended: { label: 'Ended · awaiting settlement', tone: 'warning' },
-  launched: { label: 'Launched', tone: 'success' },
-  failed: { label: 'Failed · refunds open', tone: 'critical' },
+const STATUS_TONE: Record<LaunchStatus, 'neutral' | 'accent' | 'success' | 'warning' | 'critical'> = {
+  upcoming: 'neutral',
+  active: 'accent',
+  ended: 'warning',
+  launched: 'success',
+  failed: 'critical',
+}
+
+/** Status label in the current language (called at render time). */
+export function launchStatusLabel(status: LaunchStatus): string {
+  switch (status) {
+    case 'upcoming':
+      return t('Starting soon')
+    case 'active':
+      return t('Live auction')
+    case 'ended':
+      return t('Ended · awaiting settlement')
+    case 'launched':
+      return t('Launched')
+    case 'failed':
+      return t('Failed · refunds open')
+  }
+}
+
+/** Fills {placeholders} of an already translated string with React nodes, keeping the language's word order. */
+export function withNodes(text: string, nodes: Record<string, ReactNode>): ReactNode {
+  return text.split(/(\{\w+\})/).map((part, i) => {
+    const key = /^\{(\w+)\}$/.exec(part)?.[1]
+    return key !== undefined && key in nodes ? <Fragment key={i}>{nodes[key]}</Fragment> : part
+  })
 }
 
 export function LaunchStatusBadge({ status, testId }: { status: LaunchStatus; testId?: string }) {
-  const c = STATUS_COPY[status]
   return (
-    <Badge tone={c.tone}>
+    <Badge tone={STATUS_TONE[status]}>
       {status === 'active' && <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />}
       <span data-testid={testId} data-status={status}>
-        {c.label}
+        {launchStatusLabel(status)}
       </span>
     </Badge>
   )
@@ -79,7 +103,7 @@ export function LaunchTokenLogo({ row, size = 32 }: { row: Pick<LaunchRow, 'symb
 
 export function VerifiedMark({ verified }: { verified: boolean }) {
   if (!verified) return null
-  return <BadgeCheck size={16} className="shrink-0 text-accent" aria-label="Verified" />
+  return <BadgeCheck size={16} className="shrink-0 text-accent" aria-label={t('Verified')} />
 }
 
 

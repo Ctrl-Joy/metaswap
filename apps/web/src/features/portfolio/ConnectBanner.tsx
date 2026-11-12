@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui'
+import { t } from '@/i18n'
 
 /**
  * Decorative layer for the portfolio connect banner: a fine grid plus scattered accent shapes, in the
@@ -46,14 +47,15 @@ export function BannerPattern() {
 
 /** Signed-out banner (Uniswap: 1152×216, radius 24, accent-tinted fill with art; 164×46 Connect button). */
 export function ConnectBanner({ onConnect }: { onConnect: () => void }) {
+  const [before, after] = t('{connect} to view your portfolio').split('{connect}')
   return (
     <div className="relative mb-12 flex h-[216px] flex-col items-center justify-center gap-6 overflow-hidden rounded-3xl bg-accent-tint px-6 text-center" data-testid="portfolio-gate">
       <BannerPattern />
       <div className="relative text-body-2">
-        <span className="font-semibold text-text-1">Connect a wallet</span> <span className="text-text-2">to view your portfolio</span>
+        {before && <span className="text-text-2">{before}</span>}<span className="font-semibold text-text-1">{t('Connect a wallet')}</span>{after && <span className="text-text-2">{after}</span>}
       </div>
       <Button onClick={onConnect} className="relative h-[46px] w-[164px] rounded-2xl text-body-2" data-testid="portfolio-connect">
-        Connect
+        {t('Connect')}
       </Button>
     </div>
   )

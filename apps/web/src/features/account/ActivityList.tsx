@@ -7,6 +7,7 @@ import { useAccountTxs } from '@/state/transactions'
 import { useTokenList } from '@/features/tokens/useTokenList'
 import { formatAmount, formatRelativeTime, formatUsd } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 import { filterActivity, mergeActivity, type ActivityKind, type ActivityLeg, type ActivityRowModel, type TimeFilter, type TypeFilter } from './activityModel'
 
 export function iconFor(kind: ActivityKind) {
@@ -108,8 +109,8 @@ export function ActivityList({ address, limit, types, time }: { address: Address
     )
   if (rows.length === 0)
     return (
-      <EmptyState icon={<Clock size={20} />} title="No activity yet" className="py-8">
-        Your swaps, sends and orders will show up here.
+      <EmptyState icon={<Clock size={20} />} title={t('No activity yet')} className="py-8">
+        {t('Your swaps, sends and orders will show up here.')}
       </EmptyState>
     )
   return (
@@ -132,8 +133,8 @@ export function ActivityList({ address, limit, types, time }: { address: Address
             <span className="min-w-0 flex-1">
               <span className="block text-body-4 text-text-2">
                 {r.label}
-                {r.status === 'reverted' && <span className="ml-1 text-critical">· failed</span>}
-                {r.status === 'pending' && <span className="ml-1 text-accent">· pending</span>}
+                {r.status === 'reverted' && <span className="ml-1 text-critical">· {t('failed')}</span>}
+                {r.status === 'pending' && <span className="ml-1 text-accent">· {t('pending')}</span>}
               </span>
               <span className="block truncate text-body-3 text-text-1">{amountSummary(r)}</span>
             </span>

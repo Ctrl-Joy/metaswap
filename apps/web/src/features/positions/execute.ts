@@ -9,6 +9,7 @@ import { parseTxError, type FriendlyError } from '@/lib/errors'
 import type { StepView } from '@/features/swap/StepList'
 import type { Token } from './tokens'
 import type { TxRequest } from './encode'
+import { t } from '@/i18n'
 
 export type StepStatus = StepView['status']
 
@@ -31,18 +32,33 @@ export const GAS = {
   v2Remove: 600_000n,
 } as const
 
+/** Approval step texts as whole sentences per known spender (the label stays English in code). */
+function approvalText(spenderLabel: string, symbol: string): { description: string; summary: string } {
+  switch (spenderLabel) {
+    case 'position manager':
+      return { description: t('Allow the position manager to use your {symbol}', { symbol }), summary: t('Approved {symbol} for the position manager', { symbol }) }
+    case 'V2 router':
+      return { description: t('Allow the V2 router to use your {symbol}', { symbol }), summary: t('Approved {symbol} for the V2 router', { symbol }) }
+    case 'auction':
+      return { description: t('Allow the auction to use your {symbol}', { symbol }), summary: t('Approved {symbol} for the auction', { symbol }) }
+    default:
+      return { description: t('Allow the {spender} to use your {symbol}', { spender: spenderLabel, symbol }), summary: t('Approved {symbol} for the {spender}', { spender: spenderLabel, symbol }) }
+  }
+}
+
 /** Approve `spender` for `amount` of `token` if the on-chain allowance is too low (null when not needed). */
 export async function approvalStep(account: Address, token: Token, spender: Address, spenderLabel: string, amount: bigint): Promise<PlannedStep | null> {
   if (token.isNative || amount === 0n) return null
   const allowance = await readContract(wagmiConfig, { address: token.address, abi: erc20Abi, functionName: 'allowance', args: [account, spender] })
   if (allowance >= amount) return null
+  const text = approvalText(spenderLabel, token.symbol)
   return {
     id: `approve-${token.symbol}`,
-    title: `Approve ${token.symbol}`,
-    description: `Allow the ${spenderLabel} to use your ${token.symbol}`,
+    title: t('Approve {symbol}', { symbol: token.symbol }),
+    description: text.description,
     run: async () => {
       const hash = await writeContract(wagmiConfig, { address: token.address, abi: erc20Abi, functionName: 'approve', args: [spender, maxUint256] })
-      const r = await trackTx(account, { hash, type: 'approve', summary: `Approved ${token.symbol} for the ${spenderLabel}` }, { toast: false })
+      const r = await trackTx(account, { hash, type: 'approve', summary: text.summary }, { toast: false })
       if (!r || r.status !== 'success') throw new Error('Approval transaction reverted')
     },
   }

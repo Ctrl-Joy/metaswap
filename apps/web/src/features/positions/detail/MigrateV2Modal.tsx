@@ -14,16 +14,26 @@ import { planMigration, v2SqrtPrice } from '../migrate'
 import { PercentPicker } from '../components/PercentPicker'
 import { ReviewRow, TxFlowModal } from '../components/TxFlowModal'
 import { formatDisplayPrice } from '../components/RangeSelector'
+import { t } from '@/i18n'
 
 type RangeChoice = 'full' | RangeStrategy
 
-const RANGE_ITEMS: Array<{ value: RangeChoice; label: string }> = [
-  { value: 'full', label: 'Full range' },
-  { value: 'wide', label: 'Wide' },
-  { value: 'stable', label: 'Stable' },
-  { value: 'lower', label: 'Lower' },
-  { value: 'upper', label: 'Upper' },
-]
+const RANGE_CHOICES: RangeChoice[] = ['full', 'wide', 'stable', 'lower', 'upper']
+
+function rangeLabel(r: RangeChoice): string {
+  switch (r) {
+    case 'full':
+      return t('Full range')
+    case 'wide':
+      return t('Wide')
+    case 'stable':
+      return t('Stable')
+    case 'lower':
+      return t('Lower')
+    case 'upper':
+      return t('Upper')
+  }
+}
 
 /**
  * Migrate V2 liquidity to a V3 position (Uniswap's "Migrate" on v2 positions): remove the chosen share of
@@ -88,11 +98,11 @@ export function MigrateV2Modal({ open, onOpenChange, state, t0, t1, account }: {
         txStep(
           {
             id: 'migrate-remove',
-            title: 'Withdraw V2 liquidity',
-            description: 'Remove the LP tokens from the V2 pair',
+            title: t('Withdraw V2 liquidity'),
+            description: t('Remove the LP tokens from the V2 pair'),
             account,
             type: 'remove-liquidity',
-            summary: `Withdrew ${formatTokenAmount(plan.amount0, t0.decimals)} ${t0.symbol} and ${formatTokenAmount(plan.amount1, t1.decimals)} ${t1.symbol} to migrate`,
+            summary: t('Withdrew {amount0} {symbol0} and {amount1} {symbol1} to migrate', { amount0: formatTokenAmount(plan.amount0, t0.decimals), symbol0: t0.symbol, amount1: formatTokenAmount(plan.amount1, t1.decimals), symbol1: t1.symbol }),
             gas: GAS.v2Remove,
           },
           () => buildV2Remove({ router, tokenA: t0.address, tokenB: t1.address, liquidity, amountAMin: plan.removeMin0, amountBMin: plan.removeMin1, to: account, deadline }),
@@ -102,8 +112,8 @@ export function MigrateV2Modal({ open, onOpenChange, state, t0, t1, account }: {
       // Approvals for the mint are checked after the withdrawal so they never block it.
       steps.push({
         id: 'migrate-approve',
-        title: 'Approve tokens for V3',
-        description: `Allow the position manager to use ${t0.symbol} and ${t1.symbol}`,
+        title: t('Approve tokens for V3'),
+        description: t('Allow the position manager to use {symbol0} and {symbol1}', { symbol0: t0.symbol, symbol1: t1.symbol }),
         run: async () => {
           for (const [t, amt] of [
             [t0, plan.amount0Desired],
@@ -118,11 +128,11 @@ export function MigrateV2Modal({ open, onOpenChange, state, t0, t1, account }: {
         txStep(
           {
             id: 'migrate-mint',
-            title: exists ? 'Create V3 position' : 'Create V3 pool and position',
-            description: `${feeLabel(fee)} tier, ${range === 'full' ? 'full range' : 'custom range'}`,
+            title: exists ? t('Create V3 position') : t('Create V3 pool and position'),
+            description: range === 'full' ? t('{fee} tier, full range', { fee: feeLabel(fee) }) : t('{fee} tier, custom range', { fee: feeLabel(fee) }),
             account,
             type: 'add-liquidity',
-            summary: `Migrated ${t0.symbol}/${t1.symbol} liquidity to V3 (${feeLabel(fee)})`,
+            summary: t('Migrated {symbol0}/{symbol1} liquidity to V3 ({fee})', { symbol0: t0.symbol, symbol1: t1.symbol, fee: feeLabel(fee) }),
             gas: exists ? GAS.mint : GAS.createAndMint,
           },
           () =>
@@ -154,58 +164,58 @@ export function MigrateV2Modal({ open, onOpenChange, state, t0, t1, account }: {
     <TxFlowModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Migrate to V3"
+      title={t('Migrate to V3')}
       runner={runner}
-      confirmLabel={liquidity === 0n ? 'Nothing to migrate' : 'Migrate'}
+      confirmLabel={liquidity === 0n ? t('Nothing to migrate') : t('Migrate')}
       confirmDisabled={!plan || liquidity === 0n || pools.isLoading}
       onConfirm={confirm}
       testId="migrate-modal"
       success={
         <Link to="/positions?status=all" className="text-body-3 font-semibold text-accent hover:underline" data-testid="migrate-view-positions">
-          View your positions
+          {t('View your positions')}
         </Link>
       }
     >
       <PercentPicker value={pct} onChange={setPct} />
       <section className="flex flex-col gap-2">
-        <span className="text-body-3 font-semibold">Fee tier</span>
+        <span className="text-body-3 font-semibold">{t('Fee tier')}</span>
         <SegmentedTabs
           size="sm"
-          ariaLabel="V3 fee tier"
+          ariaLabel={t('V3 fee tier')}
           value={String(fee)}
           onChange={(v) => setFee(Number(v))}
-          items={FEE_TIER_LIST.map((t) => ({ value: String(t.fee), label: `${feeLabel(t.fee)}${pools.data?.[t.fee]?.initialized ? '' : ' · new'}`, testId: `migrate-fee-${t.fee}` }))}
+          items={FEE_TIER_LIST.map((tier) => ({ value: String(tier.fee), label: pools.data?.[tier.fee]?.initialized ? feeLabel(tier.fee) : t('{fee} · new', { fee: feeLabel(tier.fee) }), testId: `migrate-fee-${tier.fee}` }))}
         />
       </section>
       <section className="flex flex-col gap-2">
-        <span className="text-body-3 font-semibold">Price range</span>
-        <SegmentedTabs size="sm" ariaLabel="Price range" value={range} onChange={setRange} items={RANGE_ITEMS.map((r) => ({ ...r, testId: `migrate-range-${r.value}` }))} />
+        <span className="text-body-3 font-semibold">{t('Price range')}</span>
+        <SegmentedTabs size="sm" ariaLabel={t('Price range')} value={range} onChange={setRange} items={RANGE_CHOICES.map((r) => ({ value: r, label: rangeLabel(r), testId: `migrate-range-${r}` }))} />
         <div className="text-body-4 text-text-2 tabular" data-testid="migrate-range-prices">
-          {priceText(tickLower)} – {priceText(tickUpper)} {t1.symbol} per {t0.symbol}
+          {priceText(tickLower)} – {priceText(tickUpper)} {t('{quote} per {base}', { quote: t1.symbol, base: t0.symbol })}
         </div>
       </section>
       {!exists && !pools.isLoading && (
-        <Banner tone="info" title="New V3 pool">
-          No {feeLabel(fee)} V3 pool exists for this pair yet. It is created at the V2 price.
+        <Banner tone="info" title={t('New V3 pool')}>
+          {t('No {fee} V3 pool exists for this pair yet. It is created at the V2 price.', { fee: feeLabel(fee) })}
         </Banner>
       )}
       {gapPct > 2 && (
-        <Banner tone="warning" title="Price difference">
-          The V3 pool price is {gapPct.toFixed(1)}% away from the V2 price. Migrating moves value at the V3 price.
+        <Banner tone="warning" title={t('Price difference')}>
+          {t('The V3 pool price is {pct}% away from the V2 price. Migrating moves value at the V3 price.', { pct: gapPct.toFixed(1) })}
         </Banner>
       )}
       {plan && (
         <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4" data-testid="migrate-summary">
-          <ReviewRow label={`${t0.symbol} from V2`} testId="migrate-amount0">
+          <ReviewRow label={t('{symbol} from V2', { symbol: t0.symbol })} testId="migrate-amount0">
             {formatTokenAmount(plan.amount0, t0.decimals)}
           </ReviewRow>
-          <ReviewRow label={`${t1.symbol} from V2`} testId="migrate-amount1">
+          <ReviewRow label={t('{symbol} from V2', { symbol: t1.symbol })} testId="migrate-amount1">
             {formatTokenAmount(plan.amount1, t1.decimals)}
           </ReviewRow>
-          <ReviewRow label="Into V3 (est.)">
+          <ReviewRow label={t('Into V3 (est.)')}>
             {formatTokenAmount(plan.used0, t0.decimals)} {t0.symbol} · {formatTokenAmount(plan.used1, t1.decimals)} {t1.symbol}
           </ReviewRow>
-          <ReviewRow label="Stays in wallet (est.)" testId="migrate-left">
+          <ReviewRow label={t('Stays in wallet (est.)')} testId="migrate-left">
             {formatTokenAmount(plan.left0, t0.decimals)} {t0.symbol} · {formatTokenAmount(plan.left1, t1.decimals)} {t1.symbol}
           </ReviewRow>
         </div>

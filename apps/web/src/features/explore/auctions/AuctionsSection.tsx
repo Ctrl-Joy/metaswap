@@ -9,6 +9,7 @@ import { useNow, ApiErrorState } from '../ExploreStates'
 import { useAuctions } from '../discoveryApi'
 import { auctionSecondsLeft, auctionTimeProgress, filterAuctions, type AuctionChip, type AuctionRow, type AuctionStatus } from '../discovery'
 import { sortRows, type SortDir } from '../transforms'
+import { t } from '@/i18n'
 
 const CHIPS: Array<{ value: AuctionChip; label: string; icon: typeof BadgeCheck }> = [
   { value: 'all', label: 'All', icon: Sparkles },
@@ -41,13 +42,13 @@ function ProgressBar({ value, className }: { value: number | null; className?: s
 
 /** Status cell: progress bar and countdown while live, "Starting soon", "Launched" or "Failed". */
 function StatusCell({ a, now }: { a: AuctionRow; now: number }) {
-  if (a.status === 'launched') return <Badge tone="success">Launched</Badge>
-  if (a.status === 'failed') return <Badge tone="critical">Failed</Badge>
+  if (a.status === 'launched') return <Badge tone="success">{t('Launched')}</Badge>
+  if (a.status === 'failed') return <Badge tone="critical">{t('Failed')}</Badge>
   if (a.status === 'starting') {
     const left = a.startsAtMs === null ? null : Math.max(0, Math.floor((a.startsAtMs - now) / 1000))
     return (
       <div className="flex flex-col items-end gap-1">
-        <span className="text-body-2 font-semibold text-text-1">Starting soon</span>
+        <span className="text-body-2 font-semibold text-text-1">{t('Starting soon')}</span>
         {left !== null && <span className="text-body-4 tabular text-text-2">{formatDuration(left)}</span>}
       </div>
     )
@@ -56,14 +57,14 @@ function StatusCell({ a, now }: { a: AuctionRow; now: number }) {
   return (
     <div className="flex w-[140px] flex-col items-end gap-1">
       <ProgressBar value={progressOf(a, now)} />
-      <span className="text-body-4 tabular text-text-2">{left === null ? 'Live' : formatDuration(left)}</span>
+      <span className="text-body-4 tabular text-text-2">{left === null ? t('Live') : formatDuration(left)}</span>
     </div>
   )
 }
 
 function VerifiedMark({ verified }: { verified: boolean }) {
   if (!verified) return null
-  return <BadgeCheck size={15} className="shrink-0 text-accent" aria-label="Verified" />
+  return <BadgeCheck size={15} className="shrink-0 text-accent" aria-label={t('Verified')} />
 }
 
 /** Top verified auctions: four cards by bid volume. */
@@ -72,8 +73,8 @@ function TopAuctions({ rows, now }: { rows: AuctionRow[]; now: number }) {
   const top = rows.filter((r) => r.verified).sort((a, b) => (b.bidVolumeUsd ?? 0) - (a.bidVolumeUsd ?? 0)).slice(0, 4)
   if (top.length === 0) return null
   return (
-    <section aria-label="Top verified auctions" className="flex flex-col gap-4" data-testid="top-auctions">
-      <h2 className="flex items-center gap-2 text-heading-3 font-semibold">Top verified auctions</h2>
+    <section aria-label={t('Top verified auctions')} className="flex flex-col gap-4" data-testid="top-auctions">
+      <h2 className="flex items-center gap-2 text-heading-3 font-semibold">{t('Top verified auctions')}</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {top.map((a) => (
           <Card
@@ -101,18 +102,18 @@ function TopAuctions({ rows, now }: { rows: AuctionRow[]; now: number }) {
                 <Usd value={a.fdvAtFloorUsd} compact className="text-body-1 font-semibold" />
               </div>
               <div className="flex flex-col">
-                <span className="text-text-2">Bid volume</span>
+                <span className="text-text-2">{t('Bid volume')}</span>
                 <Usd value={a.bidVolumeUsd} compact className="text-body-1 font-semibold" />
               </div>
             </div>
             {a.status === 'launched' ? (
-              <span className="text-body-3 font-semibold text-success">Launched</span>
+              <span className="text-body-3 font-semibold text-success">{t('Launched')}</span>
             ) : a.status === 'failed' ? (
-              <span className="text-body-3 font-semibold text-critical">Failed</span>
+              <span className="text-body-3 font-semibold text-critical">{t('Failed')}</span>
             ) : (
               <div className="flex flex-col gap-1.5">
                 <ProgressBar value={progressOf(a, now)} />
-                <span className="text-body-4 tabular text-text-2">{a.status === 'starting' ? 'Starting soon' : auctionSecondsLeft(a, now) === null ? 'Live' : formatDuration(auctionSecondsLeft(a, now)!)}</span>
+                <span className="text-body-4 tabular text-text-2">{a.status === 'starting' ? t('Starting soon') : auctionSecondsLeft(a, now) === null ? t('Live') : formatDuration(auctionSecondsLeft(a, now)!)}</span>
               </div>
             )}
           </Card>
@@ -147,11 +148,11 @@ export function AuctionsSection() {
 
   const launchButton = (
     <Link to="/launches/create" className={buttonClass({ variant: 'primary', size: 'md' })} data-testid="launch-auction">
-      <Plus size={16} aria-hidden /> Launch auction
+      <Plus size={16} aria-hidden /> {t('Launch auction')}
     </Link>
   )
 
-  if (q.isError && !q.data) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} title="Could not load auctions" />
+  if (q.isError && !q.data) return <ApiErrorState error={q.error} onRetry={() => q.refetch()} title={t('Could not load auctions')} />
 
   return (
     <div className="flex flex-col gap-8" data-testid="auctions-section">
@@ -167,11 +168,11 @@ export function AuctionsSection() {
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-heading-3 font-semibold">Auctions</h2>
+          <h2 className="text-heading-3 font-semibold">{t('Auctions')}</h2>
           <div className="flex flex-wrap items-center gap-2">
             {launchButton}
             <label className="relative flex items-center">
-              <span className="sr-only">Status</span>
+              <span className="sr-only">{t('Status')}</span>
               <select
                 data-testid="auction-status"
                 value={status}
@@ -180,27 +181,27 @@ export function AuctionsSection() {
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.label)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="relative flex w-[180px] items-center sm:w-[220px]">
               <Search size={16} className="pointer-events-none absolute left-3 text-text-3" aria-hidden />
-              <span className="sr-only">Search auctions</span>
+              <span className="sr-only">{t('Search auctions')}</span>
               <input
                 data-testid="auction-search"
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search auctions"
+                placeholder={t('Search auctions')}
                 className="h-9 w-full rounded-full border border-border bg-surface-1 pr-3 pl-9 text-body-3 text-text-1 outline-none placeholder:text-text-3 focus-visible:ring-2 focus-visible:ring-focus"
               />
             </label>
           </div>
         </div>
 
-        <div role="tablist" aria-label="Auction filters" className="flex flex-wrap items-center gap-1">
+        <div role="tablist" aria-label={t('Auction filters')} className="flex flex-wrap items-center gap-1">
           {CHIPS.map((c) => {
             const Icon = c.icon
             const active = chip === c.value
@@ -218,7 +219,7 @@ export function AuctionsSection() {
                 )}
               >
                 <Icon size={14} aria-hidden />
-                {c.label}
+                {t(c.label)}
               </button>
             )
           })}
@@ -226,11 +227,11 @@ export function AuctionsSection() {
 
         <ExTable minWidth={820}>
           <ExTHead>
-            <ExTh>Token</ExTh>
-            <ExSortTh label="FDV at floor" active={sort.key === 'fdv'} direction={sort.dir} onClick={() => toggle('fdv')} />
-            <ExSortTh label="Bid volume" active={sort.key === 'bid'} direction={sort.dir} onClick={() => toggle('bid')} />
-            <ExSortTh label="Launch threshold" active={sort.key === 'threshold'} direction={sort.dir} onClick={() => toggle('threshold')} />
-            <ExTh align="right">Status</ExTh>
+            <ExTh>{t('Token')}</ExTh>
+            <ExSortTh label={t('FDV at floor')} active={sort.key === 'fdv'} direction={sort.dir} onClick={() => toggle('fdv')} />
+            <ExSortTh label={t('Bid volume')} active={sort.key === 'bid'} direction={sort.dir} onClick={() => toggle('bid')} />
+            <ExSortTh label={t('Launch threshold')} active={sort.key === 'threshold'} direction={sort.dir} onClick={() => toggle('threshold')} />
+            <ExTh align="right">{t('Status')}</ExTh>
           </ExTHead>
           {q.isLoading && !q.data ? (
             <ExTableSkeleton rows={6} cols={5} />
@@ -240,10 +241,10 @@ export function AuctionsSection() {
                 <td colSpan={5} className="px-4 py-12 text-center" data-testid="auctions-empty">
                   <div className="flex flex-col items-center gap-3">
                     <CheckCircle2 size={22} className="text-text-3" aria-hidden />
-                    <span className="text-body-1 font-semibold text-text-1">{rows.length ? 'No auctions match these filters' : 'No auctions yet'}</span>
-                    <span className="max-w-sm text-body-3 text-text-2">Launch a token with a fair-price auction. Bids decide the price, and the token launches once the threshold is met.</span>
+                    <span className="text-body-1 font-semibold text-text-1">{rows.length ? t('No auctions match these filters') : t('No auctions yet')}</span>
+                    <span className="max-w-sm text-body-3 text-text-2">{t('Launch a token with a fair-price auction. Bids decide the price, and the token launches once the threshold is met.')}</span>
                     <button type="button" onClick={() => navigate('/launches/create')} className={buttonClass({ variant: 'tint', size: 'sm' })}>
-                      Launch auction
+                      {t('Launch auction')}
                     </button>
                   </div>
                 </td>
@@ -273,7 +274,7 @@ export function AuctionsSection() {
                     ) : (
                       <div className="flex flex-col items-end">
                         <Usd value={a.thresholdUsd} compact className="font-semibold" />
-                        <span className="text-body-4 text-text-2">{a.thresholdMetPct === null ? '-' : `${formatPercent(a.thresholdMetPct, { digits: 2 })} met`}</span>
+                        <span className="text-body-4 text-text-2">{a.thresholdMetPct === null ? '-' : t('{percent} met', { percent: formatPercent(a.thresholdMetPct, { digits: 2 }) })}</span>
                       </div>
                     )}
                   </ExTd>

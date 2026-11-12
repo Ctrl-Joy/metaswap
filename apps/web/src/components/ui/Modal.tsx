@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { X, ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 
 export interface ModalProps {
   open: boolean
@@ -52,13 +53,13 @@ export function Modal({ open, onOpenChange, title, description, showDescription,
           <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-surface-3 md:hidden" aria-hidden />
           <div className="flex shrink-0 items-center gap-2 px-5 pt-4 pb-3">
             {onBack && (
-              <button onClick={onBack} aria-label="Back" className="-ml-1.5 inline-flex size-8 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
+              <button onClick={onBack} aria-label={t('Back')} className="-ml-1.5 inline-flex size-8 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1">
                 <ChevronLeft size={20} />
               </button>
             )}
             <Dialog.Title className="flex-1 truncate text-body-1 font-semibold">{title}</Dialog.Title>
             {!hideClose && (
-              <Dialog.Close aria-label="Close" className="-mr-1.5 inline-flex size-8 items-center justify-center rounded-full text-text-2 transition-colors hover:bg-surface-3 hover:text-text-1">
+              <Dialog.Close aria-label={t('Close')} className="-mr-1.5 inline-flex size-8 items-center justify-center rounded-full text-text-2 transition-colors hover:bg-surface-3 hover:text-text-1">
                 <X size={20} />
               </Dialog.Close>
             )}
@@ -66,7 +67,7 @@ export function Modal({ open, onOpenChange, title, description, showDescription,
           {description ? (
             <Dialog.Description className={showDescription ? 'px-5 pb-2 text-body-3 text-text-2' : 'sr-only'}>{description}</Dialog.Description>
           ) : (
-            <Dialog.Description className="sr-only">{typeof title === 'string' ? title : 'Dialog'}</Dialog.Description>
+            <Dialog.Description className="sr-only">{typeof title === 'string' ? title : t('Dialog')}</Dialog.Description>
           )}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 scrollbar-thin">{children}</div>
         </Dialog.Content>

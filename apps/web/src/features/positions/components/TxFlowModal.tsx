@@ -3,6 +3,7 @@ import { CircleCheck } from 'lucide-react'
 import { Banner, Button, Modal } from '@/components/ui'
 import { StepList } from '@/features/swap/StepList'
 import type { useStepRunner } from '../execute'
+import { t } from '@/i18n'
 
 type Runner = ReturnType<typeof useStepRunner>
 
@@ -45,10 +46,10 @@ export function TxFlowModal({
       {runner.state === 'success' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid={`${testId}-success`}>
           <CircleCheck size={48} className="text-success" />
-          <div className="text-body-1 font-medium">Transaction confirmed</div>
+          <div className="text-body-1 font-medium">{t('Transaction confirmed')}</div>
           {success}
           <Button variant="secondary" fullWidth onClick={() => close(false)} data-testid={`${testId}-close`}>
-            Close
+            {t('Close')}
           </Button>
         </div>
       ) : (
@@ -61,7 +62,7 @@ export function TxFlowModal({
             </Banner>
           )}
           <Button size="xl" fullWidth loading={busy} disabled={confirmDisabled || busy} onClick={onConfirm} data-testid={`${testId}-confirm`}>
-            {busy ? 'Confirm in wallet…' : runner.state === 'error' ? 'Try again' : confirmLabel}
+            {busy ? t('Confirm in wallet…') : runner.state === 'error' ? t('Try again') : confirmLabel}
           </Button>
         </div>
       )}

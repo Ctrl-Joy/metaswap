@@ -6,6 +6,7 @@ import { useAccountPositions } from '@/api/hooks'
 import type { PositionRow } from '@/api/types'
 import { useTokenList } from '@/features/tokens/useTokenList'
 import { formatUsd } from '@/lib/format'
+import { t } from '@/i18n'
 
 function addrOf(t: PositionRow['token0']): string {
   return typeof t === 'string' ? t : t.address
@@ -16,12 +17,12 @@ export function PositionsSummary({ address, onNavigate }: { address: Address; on
   const q = useAccountPositions(address)
   const { find } = useTokenList()
   if (q.isLoading) return <Skeleton width="100%" height={56} rounded="lg" />
-  if (q.isError) return <p className="py-6 text-center text-body-3 text-text-2">Positions unavailable — the MetaSwap API is not reachable.</p>
+  if (q.isError) return <p className="py-6 text-center text-body-3 text-text-2">{t('Positions unavailable — the MetaSwap API is not reachable.')}</p>
   const rows = (q.data ?? []).filter((p) => !p.closed)
   if (rows.length === 0)
     return (
-      <EmptyState icon={<Layers size={20} />} title="No open positions" className="py-8" action={<ButtonLink to="/positions/create" size="sm" onClick={onNavigate}>New position</ButtonLink>}>
-        Provide liquidity to earn fees on every trade through your range.
+      <EmptyState icon={<Layers size={20} />} title={t('No open positions')} className="py-8" action={<ButtonLink to="/positions/create" size="sm" onClick={onNavigate}>{t('New position')}</ButtonLink>}>
+        {t('Provide liquidity to earn fees on every trade through your range.')}
       </EmptyState>
     )
   return (
@@ -42,7 +43,7 @@ export function PositionsSummary({ address, onNavigate }: { address: Address; on
                     {p.fee ? ` ${p.fee / 10_000}%` : ''}
                   </Badge>
                 </span>
-                <span className={p.inRange ? 'text-body-4 text-success' : 'text-body-4 text-warning'}>{p.inRange ? 'In range' : 'Out of range'}</span>
+                <span className={p.inRange ? 'text-body-4 text-success' : 'text-body-4 text-warning'}>{p.inRange ? t('In range') : t('Out of range')}</span>
               </span>
               <span className="text-body-3 tabular">{formatUsd(p.valueUsd as number | null | undefined)}</span>
             </Link>

@@ -4,6 +4,7 @@ import type { ActivityItem } from '@/api/types'
 import type { TrackedTx } from '@/state/transactions'
 import { TX_TYPE_LABEL } from '@/state/transactions'
 import { shortenAddress } from '@/lib/format'
+import { t } from '@/i18n'
 
 export type ActivityKind =
   | 'swap'
@@ -81,8 +82,40 @@ export const KIND_LABEL: Record<ActivityKind, string> = {
   other: 'Transaction',
 }
 
-function apiKind(t: string): ActivityKind {
-  switch (t) {
+/** KIND_LABEL in the current language (the table above stays English). */
+export function kindLabel(kind: ActivityKind): string {
+  switch (kind) {
+    case 'swap': return t('Swapped')
+    case 'send': return t('Sent')
+    case 'receive': return t('Received')
+    case 'wrap': return t('Wrapped')
+    case 'unwrap': return t('Unwrapped')
+    case 'approve': return t('Approved')
+    case 'add': return t('Added liquidity')
+    case 'remove': return t('Removed liquidity')
+    case 'collect': return t('Claimed fees')
+    case 'mint': return t('Minted')
+    case 'order': return t('Limit order')
+    case 'earn-deposit': return t('Deposited')
+    case 'earn-withdraw': return t('Withdrew')
+    case 'bid': return t('Auction bid')
+    default: return t('Transaction')
+  }
+}
+
+function orderLabel(status: string): string {
+  switch (status) {
+    case 'open': return t('Limit order open')
+    case 'filled': return t('Limit order filled')
+    case 'expired': return t('Limit order expired')
+    case 'cancelled': return t('Limit order cancelled')
+    case 'error': return t('Limit order error')
+    default: return t('Limit order {status}', { status })
+  }
+}
+
+function apiKind(type: string): ActivityKind {
+  switch (type) {
     case 'swap':
       return 'swap'
     case 'send':
@@ -130,9 +163,9 @@ function apiKind(t: string): ActivityKind {
 
 type Tok = { symbol?: string; address?: string; amountFormatted?: number }
 function leg(x: unknown, usd?: number | null): ActivityLeg | null {
-  const t = x as Tok | undefined
-  if (!t || typeof t !== 'object' || !t.symbol) return null
-  return { symbol: t.symbol, address: t.address, amount: t.amountFormatted !== undefined ? Math.abs(t.amountFormatted) : null, usd }
+  const tok = x as Tok | undefined
+  if (!tok || typeof tok !== 'object' || !tok.symbol) return null
+  return { symbol: tok.symbol, address: tok.address, amount: tok.amountFormatted !== undefined ? Math.abs(tok.amountFormatted) : null, usd }
 }
 
 /** Structured row for one indexed API activity item. */
@@ -172,7 +205,7 @@ export function apiActivityRow(it: ActivityItem): ActivityRowModel {
     key: h ? `${h}:${String(it.logIndex ?? '')}:${k}` : `${it.type}-${it.blockNumber}-${String(it.logIndex)}`,
     hash: h,
     kind: k,
-    label: k === 'order' && o?.status ? `Limit order ${o.status}` : KIND_LABEL[k],
+    label: k === 'order' && o?.status ? orderLabel(o.status) : kindLabel(k),
     time: it.timestamp ? Number(it.timestamp) * 1000 : undefined,
     status: 'indexed',
     legs,
@@ -182,19 +215,19 @@ export function apiActivityRow(it: ActivityItem): ActivityRowModel {
   }
 }
 
-export function localActivityRow(t: TrackedTx): ActivityRowModel {
-  const kind = LOCAL_KIND[t.type] ?? 'other'
-  const to = typeof t.meta?.to === 'string' ? t.meta.to : undefined
+export function localActivityRow(tx: TrackedTx): ActivityRowModel {
+  const kind = LOCAL_KIND[tx.type] ?? 'other'
+  const to = typeof tx.meta?.to === 'string' ? tx.meta.to : undefined
   return {
-    key: t.hash,
-    hash: t.hash,
+    key: tx.hash,
+    hash: tx.hash,
     kind,
-    label: KIND_LABEL[kind] ?? TX_TYPE_LABEL[t.type],
-    time: t.addedAt,
-    status: t.status,
+    label: KIND_LABEL[kind] ? kindLabel(kind) : TX_TYPE_LABEL[tx.type],
+    time: tx.addedAt,
+    status: tx.status,
     legs: [],
-    detail: t.summary,
-    counterpart: kind === 'send' && to ? { label: 'To', value: shortenAddress(to), address: to } : { label: 'Transaction', value: shortenAddress(t.hash), address: t.hash },
+    detail: tx.summary,
+    counterpart: kind === 'send' && to ? { label: 'To', value: shortenAddress(to), address: to } : { label: 'Transaction', value: shortenAddress(tx.hash), address: tx.hash },
   }
 }
 
@@ -206,9 +239,9 @@ export function mergeActivity(local: readonly TrackedTx[], api: readonly Activit
   const apiRows = api.map(apiActivityRow)
   const indexed = new Set(apiRows.map((r) => r.hash?.toLowerCase()).filter(Boolean) as string[])
   const out: ActivityRowModel[] = []
-  for (const t of local) {
-    if (t.status === 'confirmed' && indexed.has((t.hash ?? '').toLowerCase())) continue
-    out.push(localActivityRow(t))
+  for (const tx of local) {
+    if (tx.status === 'confirmed' && indexed.has((tx.hash ?? '').toLowerCase())) continue
+    out.push(localActivityRow(tx))
   }
   const localHashes = new Set(out.map((r) => r.hash?.toLowerCase()))
   const seen = new Set<string>()

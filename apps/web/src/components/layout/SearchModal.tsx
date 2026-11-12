@@ -11,6 +11,7 @@ import { formatPrice, shortenAddress, formatUsd, formatPercent } from '@/lib/for
 import { safeStorage } from '@/lib/storage'
 import { cn } from '@/lib/cn'
 import { CHAIN_SLUG } from '@/config'
+import { t } from '@/i18n'
 
 type Filter = 'all' | 'tokens' | 'pools'
 const RECENT_KEY = 'metaswap.search.recent'
@@ -122,7 +123,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
         testId: 'search-recent',
         title: (
           <span className="flex items-center justify-between">
-            <span>Recent</span>
+            <span>{t('Recent')}</span>
             <button
               type="button"
               className="text-body-4 font-semibold text-text-2 hover:text-text-1"
@@ -132,7 +133,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
                 setRecent([])
               }}
             >
-              Clear
+              {t('Clear')}
             </button>
           </span>
         ),
@@ -159,7 +160,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
     if (filter !== 'pools') {
       sections.push({
         testId: 'search-tokens',
-        title: query.trim() ? 'Tokens' : 'Tokens by 24H volume',
+        title: query.trim() ? t('Tokens') : t('Tokens by 24H volume'),
         items: tokens.map((t) => ({
           key: `token-${t.address}`,
           path: tokenPath(t),
@@ -171,7 +172,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
     if (filter !== 'tokens') {
       sections.push({
         testId: 'search-pools',
-        title: query.trim() ? 'Pools' : 'Pools by 24H volume',
+        title: query.trim() ? t('Pools') : t('Pools by 24H volume'),
         items: poolRows.map(({ p, t0, t1, name }) => ({
           key: `pool-${p.address}`,
           path: poolPath(p.address),
@@ -183,7 +184,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
                 {name} <span className="ml-1 rounded-md bg-surface-3 px-1.5 py-0.5 text-body-4 text-text-2">{p.version} {p.fee ? `${p.fee / 10_000}%` : ''}</span>
               </span>
               <span className="flex flex-col items-end text-body-4 tabular">
-                <span className="text-text-1">{formatUsd(p.volume24hUsd, { compact: true })} vol</span>
+                <span className="text-text-1">{t('{amount} vol', { amount: formatUsd(p.volume24hUsd, { compact: true }) })}</span>
                 <span className="text-text-2">{p.apr !== null ? `${formatPercent(p.apr)} APR` : '-'}</span>
               </span>
             </>
@@ -239,7 +240,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
           aria-describedby={undefined}
           className="fixed inset-x-0 top-0 z-[1200] flex h-[100dvh] flex-col overflow-hidden bg-surface-1 outline-none animate-pop-in sm:top-1/2 sm:left-1/2 sm:h-[520px] sm:max-h-[calc(100dvh-32px)] sm:w-[640px] sm:max-w-[calc(100vw-32px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border sm:border-border"
         >
-          <Dialog.Title className="sr-only">Search</Dialog.Title>
+          <Dialog.Title className="sr-only">{t('Search')}</Dialog.Title>
           <label className="flex h-[68px] shrink-0 items-center gap-2 border-b border-border px-5">
             <Search size={20} className="shrink-0 text-text-2" aria-hidden />
             <input
@@ -247,8 +248,8 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Search by name, symbol, or address"
-              aria-label="Search tokens and pools"
+              placeholder={t('Search by name, symbol, or address')}
+              aria-label={t('Search tokens and pools')}
               role="combobox"
               aria-expanded
               aria-controls="search-results"
@@ -263,7 +264,7 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
               <ChevronDown size={18} aria-hidden />
             </span>
           </label>
-          <div className="flex shrink-0 items-center gap-4 px-5 pt-4 pb-2" role="tablist" aria-label="Result type">
+          <div className="flex shrink-0 items-center gap-4 px-5 pt-4 pb-2" role="tablist" aria-label={t('Result type')}>
             {FILTERS.map((f) => (
               <button
                 key={f.value}
@@ -274,22 +275,22 @@ export function SearchModal({ open, onOpenChange }: { open: boolean; onOpenChang
                 data-testid={`search-filter-${f.value}`}
                 className={cn('text-body-2 font-semibold transition-colors', filter === f.value ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
               >
-                {f.label}
+                {t(f.label)}
               </button>
             ))}
           </div>
-          <div id="search-results" role="listbox" aria-label="Search results" ref={listRef} className="min-h-0 flex-1 overflow-y-auto pb-2 scrollbar-thin">
+          <div id="search-results" role="listbox" aria-label={t('Search results')} ref={listRef} className="min-h-0 flex-1 overflow-y-auto pb-2 scrollbar-thin">
             {items.map((s) => (
               <section key={s.testId} className="mt-2" data-testid={s.testId}>
                 <h3 className="px-5 pt-2 pb-1 text-body-3 font-semibold text-text-2">{s.title}</h3>
-                {s.testId === 'search-tokens' && s.items.length === 0 && <p className="px-5 py-4 text-body-3 text-text-3">No tokens match “{query}”.</p>}
+                {s.testId === 'search-tokens' && s.items.length === 0 && <p className="px-5 py-4 text-body-3 text-text-3">{t('No tokens match “{query}”.', { query })}</p>}
                 {s.testId === 'search-pools' && pools.isLoading && (
                   <div className="px-5">
                     <Skeleton width="100%" height={44} rounded="lg" />
                   </div>
                 )}
-                {s.testId === 'search-pools' && pools.isError && <p className="px-5 py-2 text-body-3 text-text-3">Pool data unavailable (API offline).</p>}
-                {s.testId === 'search-pools' && !pools.isLoading && !pools.isError && s.items.length === 0 && query.trim() && <p className="px-5 py-4 text-body-3 text-text-3">No pools match “{query}”.</p>}
+                {s.testId === 'search-pools' && pools.isError && <p className="px-5 py-2 text-body-3 text-text-3">{t('Pool data unavailable (API offline).')}</p>}
+                {s.testId === 'search-pools' && !pools.isLoading && !pools.isError && s.items.length === 0 && query.trim() && <p className="px-5 py-4 text-body-3 text-text-3">{t('No pools match “{query}”.', { query })}</p>}
                 {s.items.map((item) => {
                   idx += 1
                   const i = idx

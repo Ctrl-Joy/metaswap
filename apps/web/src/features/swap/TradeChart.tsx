@@ -4,6 +4,7 @@ import { Card, Skeleton, TokenLogo } from '@/components/ui'
 import { safeStorage } from '@/lib/storage'
 import { useTokenDetail } from '@/features/explore/api'
 import { lazyRetry } from '@/lib/lazyRetry'
+import { t } from '@/i18n'
 
 // The chart (and the charting library behind it) is only needed once the trend icon is pressed, so
 // it loads on demand instead of riding in the first bundle every visitor downloads for /swap.
@@ -39,7 +40,7 @@ export function TradeChart({ token }: { token: Token | undefined }) {
   return (
     <Card className="w-full p-4 md:p-5" data-testid="trade-chart">
       {!token ? (
-        <p className="py-16 text-center text-body-2 text-text-2">Select a token to see its chart.</p>
+        <p className="py-16 text-center text-body-2 text-text-2">{t('Select a token to see its chart.')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2" data-testid="trade-chart-token">
@@ -53,7 +54,7 @@ export function TradeChart({ token }: { token: Token | undefined }) {
             </Suspense>
           ) : detail.isError ? (
             <p className="py-16 text-center text-body-2 text-text-2" data-testid="trade-chart-unavailable">
-              Chart unavailable
+              {t('Chart unavailable')}
             </p>
           ) : (
             <Skeleton width="100%" height={360} rounded="lg" />

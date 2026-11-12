@@ -13,6 +13,7 @@ import { PoolsTable } from '@/features/explore/PoolsTable'
 import { TransactionsTable } from '@/features/explore/TransactionsTable'
 import { poolHasToken, tokenOf } from '@/features/explore/transforms'
 import { CHAIN_SLUG } from '@/config'
+import { t } from '@/i18n'
 
 type Tab = 'transactions' | 'pools'
 
@@ -31,7 +32,7 @@ export default function TokenDetailPage() {
   const d = detail.data
   const symbol = d?.token.symbol ?? token?.symbol ?? ''
   const name = d?.token.name ?? token?.name ?? ''
-  useDocumentTitle(symbol ? `${symbol}` : 'Token')
+  useDocumentTitle(symbol ? `${symbol}` : t('Token'))
 
   const poolsForToken = useMemo(() => (pools.data ?? []).filter((p) => poolHasToken(p, apiAddr)), [pools.data, apiAddr])
 
@@ -43,9 +44,9 @@ export default function TokenDetailPage() {
     return { address: p.address, label: `${a}/${b} ${p.version}${p.fee ? ` ${p.fee / 10_000}%` : ''}` }
   }, [poolsForToken])
 
-  if (chain && chain !== CHAIN_SLUG) return <NotFoundState what="Network" backTo="/explore" backLabel="Back to explore" />
-  if (detail.isError && isNotFound(detail.error)) return <NotFoundState what="Token" backTo="/explore/tokens" backLabel="Back to tokens" />
-  if (detail.isError && !d) return <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} title="Could not load this token" className="mx-auto mt-10 max-w-[720px]" />
+  if (chain && chain !== CHAIN_SLUG) return <NotFoundState title={t('Network not found')} backTo="/explore" backLabel={t('Back to explore')} />
+  if (detail.isError && isNotFound(detail.error)) return <NotFoundState title={t('Token not found')} backTo="/explore/tokens" backLabel={t('Back to tokens')} />
+  if (detail.isError && !d) return <ApiErrorState error={detail.error} onRetry={() => detail.refetch()} title={t('Could not load this token')} className="mx-auto mt-10 max-w-[720px]" />
 
   const loading = detail.isLoading && !d
   return (
@@ -67,7 +68,7 @@ export default function TokenDetailPage() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-10 pt-[42px] [grid-area:bottom]">
-          <h2 className="-mb-6 text-[24px] leading-7 font-medium">Stats</h2>
+          <h2 className="-mb-6 text-[24px] leading-7 font-medium">{t('Stats')}</h2>
           <TokenStats
             tvl={d?.tvlUsd ?? null}
             marketCap={d?.marketCapUsd ?? null}
@@ -82,8 +83,8 @@ export default function TokenDetailPage() {
               value={tab}
               onSelect={setTab}
               items={[
-                { value: 'transactions', label: 'Transactions', testId: 'token-tab-transactions' },
-                { value: 'pools', label: 'Pools', testId: 'token-tab-pools' },
+                { value: 'transactions', label: t('Transactions'), testId: 'token-tab-transactions' },
+                { value: 'pools', label: t('Pools'), testId: 'token-tab-pools' },
               ]}
             />
             {tab === 'transactions' ? (
@@ -92,7 +93,7 @@ export default function TokenDetailPage() {
                 isLoading={txs.isLoading}
                 error={txs.error}
                 onRetry={() => txs.refetch()}
-                emptyText={`No ${symbol || 'token'} transactions yet.`}
+                emptyText={symbol ? t('No {symbol} transactions yet.', { symbol }) : t('No token transactions yet.')}
                 testId="token-transactions"
                 perspective={symbol}
               />
@@ -103,7 +104,7 @@ export default function TokenDetailPage() {
                 error={pools.error}
                 onRetry={() => pools.refetch()}
                 showNewPosition={false}
-                emptyText={`No pools for ${symbol || 'this token'} yet.`}
+                emptyText={symbol ? t('No pools for {symbol} yet.', { symbol }) : t('No pools for this token yet.')}
                 testId="token-pools"
               />
             )}

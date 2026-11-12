@@ -13,6 +13,7 @@ import { TransactionsTable } from '@/features/explore/TransactionsTable'
 import { balanceShares, feeLabel, tokenOf, volumeOverTvl } from '@/features/explore/transforms'
 import { poolFieldDelta } from '@/features/explore/poolFilters'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 const compactAmt = (v: number | null | undefined) => (v === null || v === undefined ? '-' : new Intl.NumberFormat(displayLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(v))
 
@@ -31,11 +32,11 @@ export default function PoolDetailPage() {
   const d = pool.data
   const t0 = tokenOf(d?.token0)
   const t1 = tokenOf(d?.token1)
-  useDocumentTitle(d ? `${t0.symbol} / ${t1.symbol}` : 'Pool')
+  useDocumentTitle(d ? `${t0.symbol} / ${t1.symbol}` : t('Pool'))
 
-  if (chain && chain !== CHAIN_SLUG) return <NotFoundState what="Network" backTo="/explore" backLabel="Back to explore" />
-  if (pool.isError && isNotFound(pool.error)) return <NotFoundState what="Pool" backTo="/explore/pools" backLabel="Back to pools" />
-  if (pool.isError && !d) return <ApiErrorState error={pool.error} onRetry={() => pool.refetch()} title="Could not load this pool" className="mx-auto mt-10 max-w-[720px]" />
+  if (chain && chain !== CHAIN_SLUG) return <NotFoundState title={t('Network not found')} backTo="/explore" backLabel={t('Back to explore')} />
+  if (pool.isError && isNotFound(pool.error)) return <NotFoundState title={t('Pool not found')} backTo="/explore/pools" backLabel={t('Back to pools')} />
+  if (pool.isError && !d) return <ApiErrorState error={pool.error} onRetry={() => pool.refetch()} title={t('Could not load this pool')} className="mx-auto mt-10 max-w-[720px]" />
 
   const loading = pool.isLoading && !d
   const fee = d ? feeLabel(d.fee) : null
@@ -52,9 +53,9 @@ export default function PoolDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-24 md:px-10 md:pt-12" data-testid="pool-page">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-body-2 leading-6 text-text-2">
+      <nav aria-label={t('Breadcrumb')} className="flex items-center gap-1 text-body-2 leading-6 text-text-2">
         <Link to="/explore/pools" className="hover:text-text-1">
-          Pools
+          {t('Pools')}
         </Link>
         <ChevronRight size={16} aria-hidden />
         <span className="text-text-1">{loading ? '...' : `${t0.symbol} / ${t1.symbol}`}</span>
@@ -70,7 +71,7 @@ export default function PoolDetailPage() {
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-[24px] leading-7 font-medium">{loading ? <Skeleton width={160} height={28} /> : `${sym0} / ${sym1}`}</h1>
-              <button type="button" aria-label="Invert pair" title="Invert pair" onClick={() => setInvert((v) => !v)} data-testid="invert-pair" className="text-text-2 hover:text-text-1">
+              <button type="button" aria-label={t('Invert pair')} title={t('Invert pair')} onClick={() => setInvert((v) => !v)} data-testid="invert-pair" className="text-text-2 hover:text-text-1">
                 <ArrowDownUp size={20} />
               </button>
             </div>
@@ -86,7 +87,7 @@ export default function PoolDetailPage() {
                   <span className="flex items-center bg-surface-3 px-1.5">{d.version}</span>
                   {fee && <span className="flex items-center bg-surface-3 px-1.5">{fee}</span>}
                 </span>
-                <CopyButton value={d.address} label="Copy pool address" className="text-body-2 text-text-2">
+                <CopyButton value={d.address} label={t('Copy pool address')} className="text-body-2 text-text-2">
                   {shortenAddress(d.address)}
                 </CopyButton>
               </div>
@@ -94,7 +95,7 @@ export default function PoolDetailPage() {
           </div>
         </div>
         {d && (
-          <CopyButton value={`${globalThis.location?.origin ?? ''}/explore/pools/${CHAIN_SLUG}/${d.address}`} label="Copy link" className="inline-flex size-10 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text-1">
+          <CopyButton value={`${globalThis.location?.origin ?? ''}/explore/pools/${CHAIN_SLUG}/${d.address}`} label={t('Copy link')} className="inline-flex size-10 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text-1">
             <Share2 size={20} />
           </CopyButton>
         )}
@@ -109,17 +110,17 @@ export default function PoolDetailPage() {
         <aside className="flex min-w-0 flex-col [grid-area:side] lg:self-start" data-testid="pool-side">
           <div className="grid grid-cols-2 gap-3">
             <Link to={swapHref} className="flex h-[46px] items-center justify-center gap-2 rounded-2xl bg-accent-tint px-4 text-body-2 font-semibold text-accent transition-colors hover:bg-accent-tint-hover" data-testid="pool-swap">
-              <ArrowLeftRight size={20} aria-hidden /> Swap
+              <ArrowLeftRight size={20} aria-hidden /> {t('Swap')}
             </Link>
             <Link to={addHref} className="flex h-[46px] items-center justify-center gap-2 rounded-2xl bg-accent-tint px-4 text-body-2 font-semibold text-accent transition-colors hover:bg-accent-tint-hover" data-testid="pool-add-liquidity">
-              <Plus size={20} aria-hidden /> Add liquidity
+              <Plus size={20} aria-hidden /> {t('Add liquidity')}
             </Link>
           </div>
 
           <section className="mt-6 flex flex-col gap-6 rounded-[20px] bg-surface-2 p-5" data-testid="pool-stats">
-            <h2 className="text-[24px] leading-9 font-medium">Stats</h2>
+            <h2 className="text-[24px] leading-9 font-medium">{t('Stats')}</h2>
             <div className="flex flex-col gap-2" data-testid="pool-balances">
-              <span className="text-body-1 text-text-2">Pool balances</span>
+              <span className="text-body-1 text-text-2">{t('Pool balances')}</span>
               {loading ? (
                 <Skeleton width="100%" height={40} />
               ) : (
@@ -139,16 +140,16 @@ export default function PoolDetailPage() {
                 </>
               )}
             </div>
-            <Stat label="Total APR" value={d && d.apr !== null ? formatPercent(d.apr, { digits: 2 }) : '-'} loading={loading} testId="pool-stat-apr" />
-            <Stat label="TVL" value={<Usd value={d?.tvlUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'tvlUsd')} testId="pool-stat-tvl" />
-            <Stat label="24H volume" value={<Usd value={d?.volume24hUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'volumeUsd')} testId="pool-stat-volume" />
-            <Stat label="24H fees" value={<Usd value={d?.fees24hUsd ?? null} compact />} loading={loading} testId="pool-stat-fees" />
-            {ratio !== null && <span className="sr-only">1D volume to TVL ratio {ratio.toFixed(2)}</span>}
+            <Stat label={t('Total APR')} value={d && d.apr !== null ? formatPercent(d.apr, { digits: 2 }) : '-'} loading={loading} testId="pool-stat-apr" />
+            <Stat label={t('TVL')} value={<Usd value={d?.tvlUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'tvlUsd')} testId="pool-stat-tvl" />
+            <Stat label={t('24H volume')} value={<Usd value={d?.volume24hUsd ?? null} compact />} loading={loading} delta={poolFieldDelta(dayHist.data, 'volumeUsd')} testId="pool-stat-volume" />
+            <Stat label={t('24H fees')} value={<Usd value={d?.fees24hUsd ?? null} compact />} loading={loading} testId="pool-stat-fees" />
+            {ratio !== null && <span className="sr-only">{t('1D volume to TVL ratio {ratio}', { ratio: ratio.toFixed(2) })}</span>}
           </section>
 
           {d && (
             <section className="mt-11 flex flex-col gap-4" data-testid="pool-links">
-              <h2 className="text-[24px] leading-8 font-medium">Links</h2>
+              <h2 className="text-[24px] leading-8 font-medium">{t('Links')}</h2>
               <LinkRow logo={<DoubleLogo token0={{ symbol: t0.symbol, address: t0.address }} token1={{ symbol: t1.symbol, address: t1.address }} size={20} />} label={`${t0.symbol} / ${t1.symbol}`} address={d.address} />
               <LinkRow logo={<TokenLogo token={{ symbol: t0.symbol, address: t0.address }} size={20} />} label={t0.symbol} address={t0.address} to={`/explore/tokens/${CHAIN_SLUG}/${t0.address}`} />
               <LinkRow logo={<TokenLogo token={{ symbol: t1.symbol, address: t1.address }} size={20} />} label={t1.symbol} address={t1.address} to={`/explore/tokens/${CHAIN_SLUG}/${t1.address}`} />
@@ -157,8 +158,8 @@ export default function PoolDetailPage() {
         </aside>
 
         <section className="flex min-w-0 flex-col gap-[22px] [grid-area:bottom]">
-          <h2 className="text-[24px] leading-7 font-medium">Transactions</h2>
-          <TransactionsTable rows={txs.data} isLoading={txs.isLoading} error={txs.error} onRetry={() => txs.refetch()} showFilter={false} emptyText="No swaps or liquidity changes in this pool yet." testId="pool-transactions" perspective={d ? sym0 : undefined} pair={d ? [sym0, sym1] : undefined} />
+          <h2 className="text-[24px] leading-7 font-medium">{t('Transactions')}</h2>
+          <TransactionsTable rows={txs.data} isLoading={txs.isLoading} error={txs.error} onRetry={() => txs.refetch()} showFilter={false} emptyText={t('No swaps or liquidity changes in this pool yet.')} testId="pool-transactions" perspective={d ? sym0 : undefined} pair={d ? [sym0, sym1] : undefined} />
         </section>
       </div>
     </div>
@@ -183,7 +184,7 @@ function LinkRow({ logo, label, address, to }: { logo: ReactNode; label: string;
       ) : (
         name
       )}
-      <CopyButton value={address} label={`Copy ${label} address`} className="inline-flex h-8 items-center gap-2 rounded-[20px] bg-surface-3 px-3 text-body-3 font-semibold text-text-1">
+      <CopyButton value={address} label={t('Copy {label} address', { label })} className="inline-flex h-8 items-center gap-2 rounded-[20px] bg-surface-3 px-3 text-body-3 font-semibold text-text-1">
         {shortenAddress(address)}
       </CopyButton>
     </div>

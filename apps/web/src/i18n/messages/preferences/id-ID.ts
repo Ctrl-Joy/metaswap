@@ -1,0 +1,22 @@
+// Global preferences menu (id-ID).
+export default {
+  "Global preferences": "Preferensi global",
+  "Theme": "Tema",
+  "Language": "Bahasa",
+  "Currency": "Mata uang",
+  "Hide small balances": "Sembunyikan saldo kecil",
+  "Back": "Kembali",
+  "Skip to content": "Langsung ke konten",
+  "English": "Inggris",
+  "Chinese, Simplified": "Tionghoa, Sederhana",
+  "French": "Prancis",
+  "Indonesian": "Indonesia",
+  "Japanese": "Jepang",
+  "Korean": "Korea",
+  "Portuguese": "Portugis",
+  "Russian": "Rusia",
+  "Spanish": "Spanyol",
+  "Auto (follow system)": "Otomatis (ikuti sistem)",
+  "Light": "Terang",
+  "Dark": "Gelap",
+} satisfies Record<string, string>

@@ -1,95 +1,79 @@
-// Display preferences: the currency fiat values are shown in, and the locale that numbers and dates
-// are formatted for. Formatting helpers read the current choice synchronously (they run during
-// render, outside React), so the settings store pushes every change here with setDisplayPrefs().
+// Display preferences: the currency fiat values are shown in, and the locale numbers and dates are
+// formatted for (it follows the interface language). Formatting helpers read the current choice
+// synchronously (they run during render, outside React), so the settings store pushes every change
+// here with setDisplayPrefs().
 //
-// Every price on MetaChain Devnet is quoted in USD. Other currencies are a display conversion at the
-// fixed indicative rates below; trades always settle in tokens.
+// Every price on MetaChain Devnet is quoted in USD. Other currencies are converted with the latest
+// daily exchange rates (open.er-api.com, cached for 12 hours), falling back to the built-in rates
+// below when the rates cannot be fetched. Trades always settle in tokens.
+import { create } from 'zustand'
+import { safeStorage } from './storage'
 
 export interface CurrencyOption {
   code: string
-  name: string
-  /** Units of this currency per 1 USD (fixed indicative rate, not a live feed). */
+  /** Built-in fallback: units of this currency per 1 USD. */
   rate: number
 }
 
+/** The currencies Uniswap offers, in its order: USD first, then alphabetical. */
 export const CURRENCIES: readonly CurrencyOption[] = [
-  { code: 'USD', name: 'US dollar', rate: 1 },
-  { code: 'EUR', name: 'Euro', rate: 0.92 },
-  { code: 'GBP', name: 'British pound', rate: 0.78 },
-  { code: 'INR', name: 'Indian rupee', rate: 84 },
-  { code: 'JPY', name: 'Japanese yen', rate: 150 },
-  { code: 'CNY', name: 'Chinese yuan', rate: 7.2 },
-  { code: 'KRW', name: 'South Korean won', rate: 1380 },
-  { code: 'AUD', name: 'Australian dollar', rate: 1.52 },
-  { code: 'CAD', name: 'Canadian dollar', rate: 1.37 },
-  { code: 'CHF', name: 'Swiss franc', rate: 0.88 },
-  { code: 'SGD', name: 'Singapore dollar', rate: 1.34 },
-  { code: 'HKD', name: 'Hong Kong dollar', rate: 7.8 },
-  { code: 'AED', name: 'UAE dirham', rate: 3.67 },
-  { code: 'IDR', name: 'Indonesian rupiah', rate: 16_000 },
-  { code: 'BRL', name: 'Brazilian real', rate: 5.5 },
-  { code: 'MXN', name: 'Mexican peso', rate: 18.5 },
-  { code: 'TRY', name: 'Turkish lira', rate: 34 },
-  { code: 'NGN', name: 'Nigerian naira', rate: 1_600 },
-  { code: 'PKR', name: 'Pakistani rupee', rate: 280 },
-  { code: 'NZD', name: 'New Zealand dollar', rate: 1.66 },
-  { code: 'SEK', name: 'Swedish krona', rate: 10.6 },
-  { code: 'ZAR', name: 'South African rand', rate: 18.2 },
-]
-
-export interface LanguageOption {
-  /** BCP 47 locale used for number and date formatting. */
-  code: string
-  /** Name in its own language. */
-  label: string
-  /** English name, shown as a hint. */
-  english: string
-}
-
-export const LANGUAGES: readonly LanguageOption[] = [
-  { code: 'en-US', label: 'English (US)', english: 'English, United States' },
-  { code: 'en-GB', label: 'English (UK)', english: 'English, United Kingdom' },
-  { code: 'zh-CN', label: '简体中文', english: 'Chinese, Simplified' },
-  { code: 'zh-TW', label: '繁體中文', english: 'Chinese, Traditional' },
-  { code: 'nl-NL', label: 'Nederlands', english: 'Dutch' },
-  { code: 'fr-FR', label: 'Français', english: 'French' },
-  { code: 'de-DE', label: 'Deutsch', english: 'German' },
-  { code: 'hi-IN', label: 'हिन्दी', english: 'Hindi' },
-  { code: 'id-ID', label: 'Bahasa Indonesia', english: 'Indonesian' },
-  { code: 'it-IT', label: 'Italiano', english: 'Italian' },
-  { code: 'ja-JP', label: '日本語', english: 'Japanese' },
-  { code: 'ko-KR', label: '한국어', english: 'Korean' },
-  { code: 'pt-BR', label: 'Português (Brasil)', english: 'Portuguese, Brazil' },
-  { code: 'ru-RU', label: 'Русский', english: 'Russian' },
-  { code: 'es-ES', label: 'Español (España)', english: 'Spanish, Spain' },
-  { code: 'es-419', label: 'Español (Latinoamérica)', english: 'Spanish, Latin America' },
-  { code: 'tr-TR', label: 'Türkçe', english: 'Turkish' },
-  { code: 'vi-VN', label: 'Tiếng Việt', english: 'Vietnamese' },
+  { code: 'USD', rate: 1 },
+  { code: 'ARS', rate: 1_000 },
+  { code: 'AUD', rate: 1.52 },
+  { code: 'BRL', rate: 5.5 },
+  { code: 'CAD', rate: 1.37 },
+  { code: 'CNY', rate: 7.2 },
+  { code: 'COP', rate: 4_000 },
+  { code: 'EUR', rate: 0.92 },
+  { code: 'GBP', rate: 0.78 },
+  { code: 'HKD', rate: 7.8 },
+  { code: 'IDR', rate: 16_000 },
+  { code: 'INR', rate: 84 },
+  { code: 'JPY', rate: 150 },
+  { code: 'KRW', rate: 1_380 },
+  { code: 'MXN', rate: 18.5 },
+  { code: 'NZD', rate: 1.66 },
+  { code: 'NGN', rate: 1_600 },
+  { code: 'PKR', rate: 280 },
+  { code: 'RUB', rate: 95 },
+  { code: 'SGD', rate: 1.34 },
+  { code: 'SEK', rate: 10.6 },
+  { code: 'TRY', rate: 34 },
+  { code: 'UAH', rate: 41 },
+  { code: 'VND', rate: 25_000 },
 ]
 
 export const DEFAULT_CURRENCY = 'USD'
 export const DEFAULT_LOCALE = 'en-US'
 
+const RATES_URL = 'https://open.er-api.com/v6/latest/USD'
+const RATES_KEY = 'metaswap.fx'
+const RATES_MAX_AGE_MS = 12 * 60 * 60 * 1000
+
+let liveRates: Record<string, number> = {}
 let currency: CurrencyOption = CURRENCIES[0]!
 let locale = DEFAULT_LOCALE
 
-export function currencyOption(code: string | undefined): CurrencyOption {
-  return CURRENCIES.find((c) => c.code === code) ?? CURRENCIES[0]!
+/** Bumps when live rates arrive, so the page can re-render its converted figures. */
+export const useFxRates = create<{ updatedAt: number }>(() => ({ updatedAt: 0 }))
+
+export function currencyOption(code: string | null | undefined): CurrencyOption {
+  return CURRENCIES.find((c) => c.code === code?.toUpperCase()) ?? CURRENCIES[0]!
 }
 
-export function languageOption(code: string | undefined): LanguageOption {
-  return LANGUAGES.find((l) => l.code === code) ?? LANGUAGES[0]!
+/** Units of the currency per 1 USD: the live rate when known, else the built-in one. */
+export function rateFor(code: string): number {
+  return liveRates[code] ?? currencyOption(code).rate
 }
 
 /** Called by the settings store whenever the choice changes (and once on load). */
 export function setDisplayPrefs(next: { currency?: string; locale?: string }): void {
   if (next.currency !== undefined) currency = currencyOption(next.currency)
-  if (next.locale !== undefined) locale = languageOption(next.locale).code
-  if (typeof document !== 'undefined') document.documentElement.lang = locale.split('-')[0] ?? 'en'
+  if (next.locale !== undefined) locale = next.locale || DEFAULT_LOCALE
 }
 
-export function displayCurrency(): CurrencyOption {
-  return currency
+export function displayCurrency(): { code: string; rate: number } {
+  return { code: currency.code, rate: rateFor(currency.code) }
 }
 
 export function displayLocale(): string {
@@ -107,5 +91,33 @@ export function currencySymbol(code: string = currency.code, loc: string = local
     return new Intl.NumberFormat(loc, { style: 'currency', currency: code }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? code
   } catch {
     return code
+  }
+}
+
+/** Fetch the day's exchange rates (cached for 12 hours). Failures keep the built-in rates. */
+export async function loadFxRates(): Promise<void> {
+  try {
+    const cached = JSON.parse(String(safeStorage.getItem(RATES_KEY) ?? 'null')) as { at: number; rates: Record<string, number> } | null
+    if (cached && Date.now() - cached.at < RATES_MAX_AGE_MS && cached.rates) {
+      liveRates = cached.rates
+      useFxRates.setState({ updatedAt: cached.at })
+      return
+    }
+  } catch {
+    /* unreadable cache: fetch again */
+  }
+  try {
+    const res = await fetch(RATES_URL, { headers: { accept: 'application/json' } })
+    if (!res.ok) return
+    const body = (await res.json()) as { result?: string; rates?: Record<string, number> }
+    if (body.result !== 'success' || !body.rates) return
+    const rates: Record<string, number> = {}
+    for (const c of CURRENCIES) if (Number.isFinite(body.rates[c.code]) && body.rates[c.code]! > 0) rates[c.code] = body.rates[c.code]!
+    liveRates = rates
+    const at = Date.now()
+    safeStorage.setItem(RATES_KEY, JSON.stringify({ at, rates }))
+    useFxRates.setState({ updatedAt: at })
+  } catch {
+    /* offline or blocked: the built-in rates stay in use */
   }
 }

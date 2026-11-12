@@ -1,0 +1,22 @@
+// Global preferences menu (zh-CN).
+export default {
+  "Global preferences": "全局偏好设置",
+  "Theme": "主题",
+  "Language": "语言",
+  "Currency": "货币",
+  "Hide small balances": "隐藏小额余额",
+  "Back": "返回",
+  "Skip to content": "跳到主要内容",
+  "English": "英语",
+  "Chinese, Simplified": "简体中文",
+  "French": "法语",
+  "Indonesian": "印度尼西亚语",
+  "Japanese": "日语",
+  "Korean": "韩语",
+  "Portuguese": "葡萄牙语",
+  "Russian": "俄语",
+  "Spanish": "西班牙语",
+  "Auto (follow system)": "自动（跟随系统）",
+  "Light": "浅色",
+  "Dark": "深色",
+} satisfies Record<string, string>

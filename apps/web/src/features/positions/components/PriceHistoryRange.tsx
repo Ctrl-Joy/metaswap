@@ -3,6 +3,7 @@ import { SegmentedTabs, Skeleton } from '@/components/ui'
 import { usePoolHistory } from '@/features/explore/api'
 import { formatSubscript, formatAmount } from '@/lib/format'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 const HEIGHT = 150
 const PAD = { l: 8, r: 64, t: 8, b: 20 }
@@ -86,10 +87,10 @@ export function PriceHistoryRange({ poolAddress, invert, current, minPrice, maxP
           <Skeleton width="100%" height={HEIGHT} rounded="lg" />
         ) : !domain || points.length < 2 ? (
           <div className="flex h-[150px] items-center justify-center rounded-xl bg-surface-2 text-body-3 text-text-2" data-testid="range-price-history-empty">
-            {poolAddress ? 'Not enough price history yet' : 'No price history for a new pool'}
+            {poolAddress ? t('Not enough price history yet') : t('No price history for a new pool')}
           </div>
         ) : (
-          <svg width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} className="block" role="img" aria-label="Pool price history with the selected range">
+          <svg width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} className="block" role="img" aria-label={t('Pool price history with the selected range')}>
             <defs>
               <clipPath id="range-band-clip">
                 <rect x={0} y={bandTop} width={width} height={Math.max(0, bandBottom - bandTop)} />
@@ -121,7 +122,7 @@ export function PriceHistoryRange({ poolAddress, invert, current, minPrice, maxP
           </svg>
         )}
       </div>
-      <SegmentedTabs size="sm" ariaLabel="Price history range" value={range} onChange={setRange} items={RANGES.map((r) => ({ value: r.value, label: r.label, testId: `range-history-${r.value}` }))} />
+      <SegmentedTabs size="sm" ariaLabel={t('Price history range')} value={range} onChange={setRange} items={RANGES.map((r) => ({ value: r.value, label: r.value === 'ALL' ? t('All time') : r.label, testId: `range-history-${r.value}` }))} />
     </div>
   )
 }

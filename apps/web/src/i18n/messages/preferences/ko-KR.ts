@@ -1,0 +1,22 @@
+// Global preferences menu (ko-KR).
+export default {
+  "Global preferences": "전체 환경설정",
+  "Theme": "테마",
+  "Language": "언어",
+  "Currency": "통화",
+  "Hide small balances": "소액 잔고 숨기기",
+  "Back": "뒤로",
+  "Skip to content": "본문으로 건너뛰기",
+  "English": "영어",
+  "Chinese, Simplified": "중국어(간체)",
+  "French": "프랑스어",
+  "Indonesian": "인도네시아어",
+  "Japanese": "일본어",
+  "Korean": "한국어",
+  "Portuguese": "포르투갈어",
+  "Russian": "러시아어",
+  "Spanish": "스페인어",
+  "Auto (follow system)": "자동(시스템 설정)",
+  "Light": "라이트",
+  "Dark": "다크",
+} satisfies Record<string, string>

@@ -15,6 +15,7 @@ import { SwapDetailRows } from './SwapDetails'
 import { StepList, type StepView } from './StepList'
 import { impactSeverity } from './ctaState'
 import type { WrapType } from './swapReducer'
+import { t } from '@/i18n'
 
 export interface ReviewModalProps {
   open: boolean
@@ -71,9 +72,9 @@ export function ReviewModal(p: ReviewModalProps) {
     () =>
       p.xQuote
         ? [
-            { id: 'approve' as const, title: `Approve ${p.inputToken.symbol} for Permit2`, description: 'One-time approval transaction' },
-            { id: 'permit' as const, title: 'Sign gasless order', description: 'Signature only — no gas' },
-            { id: 'swap' as const, title: 'Submit to MetaSwapX', description: 'Fillers compete to settle your order' },
+            { id: 'approve' as const, title: t('Approve {symbol} for Permit2', { symbol: p.inputToken.symbol }), description: t('One-time approval transaction') },
+            { id: 'permit' as const, title: t('Sign gasless order'), description: t('Signature only — no gas') },
+            { id: 'swap' as const, title: t('Submit to MetaSwapX'), description: t('Fillers compete to settle your order') },
           ]
         : buildSwapSteps({ wrapType: p.wrapType, needsApproval: p.needsApproval, needsPermit: !!p.quote?.permit2?.required, inputSymbol: p.inputToken.symbol }),
     [p.wrapType, p.needsApproval, p.quote, p.inputToken.symbol, p.xQuote],
@@ -84,7 +85,18 @@ export function ReviewModal(p: ReviewModalProps) {
   const priceChanged = !p.wrapType && !p.xQuote && !!p.liveQuote && !!p.quote && phase === 'review' && (p.exactOut ? p.liveQuote.amountIn !== p.quote.amountIn : p.liveQuote.amountOut !== p.quote.amountOut)
   const sev = impactSeverity(p.quote?.priceImpactBps)
   const slippagePct = `${(p.slippageBps / 100).toFixed(2).replace(/\.?0+$/, '')}%`
-  const summary = `${p.wrapType === 'wrap' ? 'Wrapped' : p.wrapType === 'unwrap' ? 'Unwrapped' : 'Swapped'} ${formatTokenAmount(p.amountIn, p.inputToken.decimals)} ${p.inputToken.symbol} for ${formatTokenAmount(p.amountOut, p.outputToken.decimals)} ${p.outputToken.symbol}`
+  const summaryVars = {
+    amountIn: formatTokenAmount(p.amountIn, p.inputToken.decimals),
+    symbolIn: p.inputToken.symbol,
+    amountOut: formatTokenAmount(p.amountOut, p.outputToken.decimals),
+    symbolOut: p.outputToken.symbol,
+  }
+  const summary =
+    p.wrapType === 'wrap'
+      ? t('Wrapped {amountIn} {symbolIn} for {amountOut} {symbolOut}', summaryVars)
+      : p.wrapType === 'unwrap'
+        ? t('Unwrapped {amountIn} {symbolIn} for {amountOut} {symbolOut}', summaryVars)
+        : t('Swapped {amountIn} {symbolIn} for {amountOut} {symbolOut}', summaryVars)
 
   async function run() {
     if (!address) return
@@ -113,44 +125,44 @@ export function ReviewModal(p: ReviewModalProps) {
   }
 
   const confirmLabel = p.xQuote
-    ? 'Sign gasless order'
+    ? t('Sign gasless order')
     : p.wrapType
     ? p.wrapType === 'wrap'
-      ? 'Confirm wrap'
-      : 'Confirm unwrap'
+      ? t('Confirm wrap')
+      : t('Confirm unwrap')
     : p.needsApproval
-      ? 'Approve and swap'
-      : 'Confirm swap'
+      ? t('Approve and swap')
+      : t('Confirm swap')
 
-  const title = phase === 'success' ? '' : p.wrapType ? (p.wrapType === 'wrap' ? 'Review wrap' : 'Review unwrap') : 'Review swap'
+  const title = phase === 'success' ? '' : p.wrapType ? (p.wrapType === 'wrap' ? t('Review wrap') : t('Review unwrap')) : t('Review swap')
 
   return (
-    <Modal open={p.open} onOpenChange={p.onOpenChange} title={title || 'Done'} width={440} dismissible={phase !== 'executing'} testId="review-modal">
+    <Modal open={p.open} onOpenChange={p.onOpenChange} title={title || t('Done')} width={440} dismissible={phase !== 'executing'} testId="review-modal">
       {phase === 'success' ? (
         <div className="flex flex-col items-center gap-3 py-4 text-center" data-testid="swap-success">
           <CircleCheck size={56} className="text-success" />
-          <div className="text-heading-3 font-medium">{p.xQuote ? 'Order submitted!' : p.wrapType ? (p.wrapType === 'wrap' ? 'Wrapped!' : 'Unwrapped!') : 'Swap success!'}</div>
-          <p className="text-body-3 text-text-2">{p.xQuote ? 'Fillers are competing to settle your MetaSwapX order. Track it under Orders in your account.' : summary}</p>
+          <div className="text-heading-3 font-medium">{p.xQuote ? t('Order submitted!') : p.wrapType ? (p.wrapType === 'wrap' ? t('Wrapped!') : t('Unwrapped!')) : t('Swap success!')}</div>
+          <p className="text-body-3 text-text-2">{p.xQuote ? t('Fillers are competing to settle your MetaSwapX order. Track it under Orders in your account.') : summary}</p>
           {hash && (
-            <CopyButton value={hash} label="Copy transaction hash" className="font-mono text-body-4">
-              Tx {shortenAddress(hash, 6)}
+            <CopyButton value={hash} label={t('Copy transaction hash')} className="font-mono text-body-4">
+              {t('Tx {hash}', { hash: shortenAddress(hash, 6) })}
             </CopyButton>
           )}
           <Button fullWidth size="lg" className="mt-2" onClick={() => p.onOpenChange(false)} data-testid="review-close">
-            Close
+            {t('Close')}
           </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <AmountBlock label="You pay" token={p.inputToken} amount={p.amountIn} price={p.priceOf(p.inputToken)} estimated={p.exactOut && !p.wrapType} />
+          <AmountBlock label={t('You pay')} token={p.inputToken} amount={p.amountIn} price={p.priceOf(p.inputToken)} estimated={p.exactOut && !p.wrapType} />
           <div className="-my-2 flex justify-center text-text-3">
             <ArrowDown size={18} />
           </div>
-          <AmountBlock label="You receive" token={p.outputToken} amount={p.amountOut} price={p.priceOf(p.outputToken)} estimated={!p.exactOut && !p.wrapType} />
+          <AmountBlock label={t('You receive')} token={p.outputToken} amount={p.amountOut} price={p.priceOf(p.outputToken)} estimated={!p.exactOut && !p.wrapType} />
 
           {phase === 'review' && p.xQuote && (
-            <Banner tone="info" title="Gasless via MetaSwapX">
-              You sign an intent; a filler pays the gas. You receive between the shown amount and your minimum, depending on when it fills.
+            <Banner tone="info" title={t('Gasless via MetaSwapX')}>
+              {t('You sign an intent; a filler pays the gas. You receive between the shown amount and your minimum, depending on when it fills.')}
             </Banner>
           )}
           {phase === 'review' && !p.wrapType && p.quote && (
@@ -161,7 +173,7 @@ export function ReviewModal(p: ReviewModalProps) {
 
           {phase !== 'review' && <StepList steps={stepViews} />}
 
-          {phase === 'review' && error?.kind === 'rejected' && <p className="text-center text-body-4 text-text-2">Request rejected in wallet. You can try again.</p>}
+          {phase === 'review' && error?.kind === 'rejected' && <p className="text-center text-body-4 text-text-2">{t('Request rejected in wallet. You can try again.')}</p>}
 
           {phase === 'error' && error && (
             <Banner tone="critical" title={error.title} className="mt-1" data-testid="swap-error">
@@ -170,18 +182,19 @@ export function ReviewModal(p: ReviewModalProps) {
           )}
 
           {phase === 'review' && expired && (
-            <Banner tone="warning" title="Quote expired" action={<Button size="sm" variant="secondary" onClick={p.onRefresh} leftIcon={<RefreshCw size={14} />} data-testid="refresh-quote">Refresh</Button>}>
-              Prices are only valid for 30 seconds.
+            <Banner tone="warning" title={t('Quote expired')} action={<Button size="sm" variant="secondary" onClick={p.onRefresh} leftIcon={<RefreshCw size={14} />} data-testid="refresh-quote">{t('Refresh')}</Button>}>
+              {t('Prices are only valid for 30 seconds.')}
             </Banner>
           )}
           {phase === 'review' && !expired && priceChanged && (
-            <Banner tone="info" title="Price updated" action={<Button size="sm" onClick={p.onAcceptLive} data-testid="accept-price">Accept</Button>} />
+            <Banner tone="info" title={t('Price updated')} action={<Button size="sm" onClick={p.onAcceptLive} data-testid="accept-price">{t('Accept')}</Button>} />
           )}
           {phase === 'review' && (sev === 'blocked' || sev === 'high') && (
             <label className="flex items-start gap-2 rounded-xl bg-critical-tint p-3 text-body-3">
               <input type="checkbox" checked={ackImpact} onChange={(e) => setAckImpact(e.target.checked)} className="mt-0.5 size-4" data-testid="ack-impact" />
               <span>
-                <span className="font-semibold text-critical">Price impact is {(p.quote!.priceImpactBps / 100).toFixed(2)}%.</span> I understand I may receive much less than the market price.
+                <span className="font-semibold text-critical">{t('Price impact is {pct}%.', { pct: (p.quote!.priceImpactBps / 100).toFixed(2) })}</span>{' '}
+                {t('I understand I may receive much less than the market price.')}
               </span>
             </label>
           )}
@@ -198,7 +211,7 @@ export function ReviewModal(p: ReviewModalProps) {
               {confirmLabel}
             </Button>
           )}
-          {phase === 'executing' && <p className="text-center text-body-4 text-text-2">Confirm each step in your wallet. You can close this window after the swap is submitted.</p>}
+          {phase === 'executing' && <p className="text-center text-body-4 text-text-2">{t('Confirm each step in your wallet. You can close this window after the swap is submitted.')}</p>}
           {phase === 'error' && (
             <div className="flex gap-2">
               {error?.kind === 'quote-expired' || error?.kind === 'slippage' || error?.kind === 'deadline' ? (
@@ -214,11 +227,11 @@ export function ReviewModal(p: ReviewModalProps) {
                     setError(null)
                   }}
                 >
-                  Refresh quote
+                  {t('Refresh quote')}
                 </Button>
               ) : (
                 <Button fullWidth size="lg" onClick={run} data-testid="retry-swap">
-                  Try again
+                  {t('Try again')}
                 </Button>
               )}
             </div>
@@ -235,7 +248,7 @@ function AmountBlock({ label, token, amount, price, estimated }: { label: string
       <div className="min-w-0">
         <div className="text-body-3 text-text-2">
           {label}
-          {estimated && <span className="text-text-3"> (estimated)</span>}
+          {estimated && <span className="text-text-3"> {t('(estimated)')}</span>}
         </div>
         <div className="truncate text-heading-3 font-medium tabular">
           {formatTokenAmount(amount, token.decimals)} {token.symbol}

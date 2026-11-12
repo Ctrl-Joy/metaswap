@@ -15,6 +15,7 @@ import { DEVNET_CHAIN_ID } from '@/config'
 import { useTokenBalances } from '@/hooks/useTokenBalances'
 import { useTokenList, useTokenPrices } from './useTokenList'
 import { isUnknownAddress, searchTokens, sortByBalance } from './tokenSearch'
+import { t } from '@/i18n'
 
 export interface TokenSelectorProps {
   open: boolean
@@ -27,7 +28,7 @@ export interface TokenSelectorProps {
 }
 
 /** Token selector modal (ui-ux.md §3): search, common bases, balances, import unknown tokens. */
-export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, title = 'Select a token' }: TokenSelectorProps) {
+export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, title }: TokenSelectorProps) {
   const { all, isListed } = useTokenList()
   const { prices } = useTokenPrices()
   const { address } = useWallet()
@@ -78,37 +79,37 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
     listRef.current?.querySelector(`[data-index="${cursor}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [cursor])
 
-  const row = (t: Token, i: number) => {
-    const bal = balances[t.address.toLowerCase()]
-    const price = prices[t.address.toLowerCase()]
-    const isSelected = selected?.address.toLowerCase() === t.address.toLowerCase()
+  const row = (token: Token, i: number) => {
+    const bal = balances[token.address.toLowerCase()]
+    const price = prices[token.address.toLowerCase()]
+    const isSelected = selected?.address.toLowerCase() === token.address.toLowerCase()
     return (
       <button
-        key={t.address}
+        key={token.address}
         type="button"
         data-index={i}
-        data-testid={`token-option-${t.symbol}`}
+        data-testid={`token-option-${token.symbol}`}
         aria-selected={isSelected}
         onMouseEnter={() => setCursor(i)}
-        onClick={() => choose(t)}
+        onClick={() => choose(token)}
         className={cn(
           'flex h-16 w-full items-center gap-2 rounded-2xl p-2 text-left transition-colors',
           i === cursor ? 'bg-surface-2-hover' : 'hover:bg-surface-2-hover',
           isSelected && 'opacity-60',
         )}
       >
-        <TokenLogo token={t} size={40} chainBadge />
+        <TokenLogo token={token} size={40} chainBadge />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-body-1 font-medium">{t.name}</span>
+          <span className="block truncate text-body-1 font-medium">{token.name}</span>
           <span className="flex items-center gap-1.5 text-body-3 leading-[18px] text-text-2">
-            {t.symbol}
-            {!t.isNative && <span className="text-text-3">{shortenAddress(t.address)}</span>}
-            {!isListed(t.address) && <Badge tone="warning">Imported</Badge>}
+            {token.symbol}
+            {!token.isNative && <span className="text-text-3">{shortenAddress(token.address)}</span>}
+            {!isListed(token.address) && <Badge tone="warning">{t('Imported')}</Badge>}
             
           </span>
         </span>
-        {t.tags?.includes('stablecoin') && (!address || !(bal && bal > 0n)) && (
-          <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-body-4 text-text-2">Stablecoins</span>
+        {token.tags?.includes('stablecoin') && (!address || !(bal && bal > 0n)) && (
+          <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-body-4 text-text-2">{t('Stablecoins')}</span>
         )}
         {address && (
           <span className="shrink-0 text-right">
@@ -116,8 +117,8 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
               <Skeleton width={56} height={14} />
             ) : bal && bal > 0n ? (
               <>
-                <span className="block text-body-3 tabular">{formatTokenAmount(bal, t.decimals)}</span>
-                {price !== undefined && <span className="block text-body-4 text-text-2 tabular">{formatUsd(toNumber(bal, t.decimals) * price)}</span>}
+                <span className="block text-body-3 tabular">{formatTokenAmount(bal, token.decimals)}</span>
+                {price !== undefined && <span className="block text-body-4 text-text-2 tabular">{formatUsd(toNumber(bal, token.decimals) * price)}</span>}
               </>
             ) : null}
           </span>
@@ -128,7 +129,7 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
   }
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title={title} width={400} tall testId="token-selector" className="md:h-[min(700px,calc(100dvh-64px))] [&_h2]:font-medium">
+    <Modal open={open} onOpenChange={onOpenChange} title={title ?? t('Select a token')} width={400} tall testId="token-selector" className="md:h-[min(700px,calc(100dvh-64px))] [&_h2]:font-medium">
       <div className="flex h-full flex-col">
         <label className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-transparent bg-surface-2 px-4">
           <Search size={20} className="text-text-2" />
@@ -140,22 +141,22 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
               setCursor(0)
             }}
             onKeyDown={onKeyDown}
-            placeholder="Search tokens"
-            aria-label="Search tokens"
+            placeholder={t('Search tokens')}
+            aria-label={t('Search tokens')}
             data-testid="token-search"
             className="w-full bg-transparent text-body-1 leading-[18px] outline-none placeholder:text-text-3"
             spellCheck={false}
             autoComplete="off"
           />
           {query && (
-            <button aria-label="Clear search" onClick={() => setQuery('')} className="text-text-3 hover:text-text-1">
+            <button aria-label={t('Clear search')} onClick={() => setQuery('')} className="text-text-3 hover:text-text-1">
               <X size={16} />
             </button>
           )}
         </label>
 
         {!query && commonBases.length > 0 && (
-          <div className="mt-3 grid shrink-0 grid-cols-5 gap-1" aria-label="Common tokens">
+          <div className="mt-3 grid shrink-0 grid-cols-5 gap-1" aria-label={t('Common tokens')}>
             {commonBases.map((t) => {
               const isSel = selected?.address === t.address
               return (
@@ -175,16 +176,16 @@ export function TokenSelector({ open, onOpenChange, onSelect, selected, filter, 
           </div>
         )}
 
-        <div ref={listRef} className="-mx-2 mt-1 min-h-[240px] flex-1 overflow-y-auto px-2 scrollbar-thin" role="listbox" aria-label="Tokens">
+        <div ref={listRef} className="-mx-2 mt-1 min-h-[240px] flex-1 overflow-y-auto px-2 scrollbar-thin" role="listbox" aria-label={t('Tokens')}>
           {unknown ? (
             <ImportToken address={unknown} onImported={choose} />
           ) : flat.length === 0 ? (
-            <p className="py-10 text-center text-body-3 text-text-2">No results for “{query}”.</p>
+            <p className="py-10 text-center text-body-3 text-text-2">{t('No results for “{query}”.', { query })}</p>
           ) : (
             <>
-              {owned.length > 0 && <SectionTitle icon={<Wallet size={16} />}>Your tokens</SectionTitle>}
+              {owned.length > 0 && <SectionTitle icon={<Wallet size={16} />}>{t('Your tokens')}</SectionTitle>}
               {owned.map((t, i) => row(t, i))}
-              <SectionTitle icon={query ? <Star size={16} /> : <TrendingUp size={16} />}>{query ? 'Search results' : 'Tokens by 24H volume'}</SectionTitle>
+              <SectionTitle icon={query ? <Star size={16} /> : <TrendingUp size={16} />}>{query ? t('Search results') : t('Tokens by 24H volume')}</SectionTitle>
               {rest.map((t, i) => row(t, i + owned.length))}
             </>
           )}
@@ -233,7 +234,7 @@ function ImportToken({ address, onImported }: { address: Address; onImported: (t
       </div>
     )
   if (q.isError || !q.data)
-    return <p className="py-10 text-center text-body-3 text-text-2" data-testid="import-not-token">Not a token on MetaChain Devnet.</p>
+    return <p className="py-10 text-center text-body-3 text-text-2" data-testid="import-not-token">{t('Not a token on MetaChain Devnet.')}</p>
   const meta = q.data
   const token: Token = { chainId: DEVNET_CHAIN_ID, address: meta.address, symbol: meta.symbol, name: meta.name, decimals: meta.decimals, logoURI: `/tokens/${meta.symbol}.svg` }
   return (
@@ -243,20 +244,20 @@ function ImportToken({ address, onImported }: { address: Address; onImported: (t
         <div>
           <div className="font-semibold">{meta.name}</div>
           <div className="text-body-3 text-text-2">
-            {meta.symbol} · {meta.decimals} decimals · <span className="font-mono">{shortenAddress(meta.address)}</span>
+            {meta.symbol} · {t('{count} decimals', { count: meta.decimals })} · <span className="font-mono">{shortenAddress(meta.address)}</span>
           </div>
         </div>
       </div>
       <div className="mt-4 flex gap-3 rounded-xl bg-critical-tint p-3 text-body-3">
         <AlertTriangle size={18} className="mt-0.5 shrink-0 text-critical" />
         <div>
-          <div className="font-semibold text-critical">Unknown token</div>
-          <p className="mt-0.5 text-text-2">This token is not on the MetaSwap list. Anyone can create a token with any name, including fake versions of real tokens. Check the address before trading.</p>
+          <div className="font-semibold text-critical">{t('Unknown token')}</div>
+          <p className="mt-0.5 text-text-2">{t('This token is not on the MetaSwap list. Anyone can create a token with any name, including fake versions of real tokens. Check the address before trading.')}</p>
         </div>
       </div>
       <label className="mt-3 flex cursor-pointer items-center gap-2 text-body-3">
         <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="size-4 accent-[var(--ms-accent-fill)]" data-testid="import-ack" />
-        I understand the risk
+        {t('I understand the risk')}
       </label>
       <Button
         className="mt-3"
@@ -269,7 +270,7 @@ function ImportToken({ address, onImported }: { address: Address; onImported: (t
           onImported(token)
         }}
       >
-        Import {meta.symbol}
+        {t('Import {symbol}', { symbol: meta.symbol })}
       </Button>
     </div>
   )

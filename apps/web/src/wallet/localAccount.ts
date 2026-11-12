@@ -7,6 +7,7 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { DEVNET_TOKENS } from '@metaswap/sdk'
 import { DEVNET_CHAIN_ID, RPC_URL } from '@/config'
 import { safeStorage } from '@/lib/storage'
+import { t } from '@/i18n'
 import { testErc20Abi } from '@/lib/abis'
 
 export const LOCAL_ACCOUNT_ID = 'metaswap-local'
@@ -63,7 +64,7 @@ export const LOCAL_FUND_ETH = 100n * 10n ** 18n
  */
 export async function fundLocalAccount(stored: StoredLocalAccount): Promise<{ eth: bigint; tokens: string[] }> {
   const chainId = Number(await rpc('eth_chainId', []))
-  if (chainId !== DEVNET_CHAIN_ID) throw new Error('Local accounts only work on MetaChain Devnet (chain 31337)')
+  if (chainId !== DEVNET_CHAIN_ID) throw new Error(t('Local accounts only work on MetaChain Devnet (chain {id})', { id: DEVNET_CHAIN_ID }))
   await rpc('anvil_setBalance', [stored.address, numberToHex(LOCAL_FUND_ETH)])
   const client = createWalletClient({ account: privateKeyToAccount(stored.privateKey), transport: http(RPC_URL), chain: devnetChain() })
   const funded: string[] = []
@@ -101,20 +102,20 @@ function makeProvider(getStored: () => StoredLocalAccount | null) {
         case 'wallet_addEthereumChain':
           return null
         case 'eth_sendTransaction': {
-          if (!account) throw new Error('No local account')
+          if (!account) throw new Error(t('No local account'))
           const tx = params[0] as { to?: Address; data?: Hex; value?: Hex; gas?: Hex }
           const client = createWalletClient({ account, transport: http(RPC_URL), chain: devnetChain() })
           return client.sendTransaction({ to: tx.to, data: tx.data, value: tx.value ? BigInt(tx.value) : undefined, gas: tx.gas ? BigInt(tx.gas) : undefined })
         }
         case 'eth_signTypedData_v4': {
-          if (!account) throw new Error('No local account')
+          if (!account) throw new Error(t('No local account'))
           const td = JSON.parse(params[1] as string) as Parameters<typeof account.signTypedData>[0]
           // EIP712Domain is implied by viem; drop it from the explicit types.
           const { EIP712Domain: _d, ...types } = (td.types ?? {}) as Record<string, unknown>
           return account.signTypedData({ ...td, types } as Parameters<typeof account.signTypedData>[0])
         }
         case 'personal_sign': {
-          if (!account) throw new Error('No local account')
+          if (!account) throw new Error(t('No local account'))
           return account.signMessage({ message: { raw: params[0] as Hex } })
         }
         default:
@@ -137,7 +138,7 @@ export function localAccountConnector() {
       async setup() {},
       async connect() {
         const s = loadLocalAccount()
-        if (!s) throw new Error('No devnet account in this browser yet. Create one first.')
+        if (!s) throw new Error(t('No devnet account in this browser yet. Create one first.'))
         safeStorage.setItem(CONNECTED_KEY, '1')
         return { accounts: [s.address], chainId: DEVNET_CHAIN_ID } as never
       },

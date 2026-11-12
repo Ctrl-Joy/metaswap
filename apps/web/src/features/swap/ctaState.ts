@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import type { WrapType } from './swapReducer'
 
 // Primary swap button state machine (docs/analysis/ui-ux.md §2.7, flows.md §4.2).
@@ -61,34 +62,36 @@ export const IMPACT_TEXT_CLASS: Record<ImpactSeverity, string> = {
 
 const disabled = (label: string, tone: CtaTone = 'disabled', loading = false): CtaState => ({ label, action: 'none', disabled: true, tone, loading })
 
+const insufficient = (symbol: string | undefined) => (symbol ? t('Insufficient {symbol} balance', { symbol }) : t('Insufficient balance'))
+
 export function deriveSwapCta(i: CtaInput): CtaState {
-  if (!i.isConnected) return { label: 'Connect wallet', action: 'connect', disabled: false, tone: 'tint' }
-  if (i.wrongNetwork) return { label: 'Switch to MetaChain Devnet', action: 'switch-network', disabled: false, tone: 'warning' }
-  if (i.submitting) return disabled('Submitting…', 'disabled', true)
-  if (!i.hasInputToken || !i.hasOutputToken) return disabled('Select a token')
-  if (i.sameToken) return disabled('Select different tokens')
-  if (i.amount === null || i.amount === 0n) return disabled('Enter an amount')
+  if (!i.isConnected) return { label: t('Connect wallet'), action: 'connect', disabled: false, tone: 'tint' }
+  if (i.wrongNetwork) return { label: t('Switch to MetaChain Devnet'), action: 'switch-network', disabled: false, tone: 'warning' }
+  if (i.submitting) return disabled(t('Submitting…'), 'disabled', true)
+  if (!i.hasInputToken || !i.hasOutputToken) return disabled(t('Select a token'))
+  if (i.sameToken) return disabled(t('Select different tokens'))
+  if (i.amount === null || i.amount === 0n) return disabled(t('Enter an amount'))
 
   if (i.wrapType) {
     if (i.inputBalance !== undefined && i.requiredInput !== undefined && i.inputBalance < i.requiredInput)
-      return disabled(`Insufficient ${i.inputSymbol ?? ''} balance`.replace('  ', ' '), 'critical')
-    return { label: i.wrapType === 'wrap' ? 'Wrap' : 'Unwrap', action: i.wrapType, disabled: false, tone: 'primary' }
+      return disabled(insufficient(i.inputSymbol), 'critical')
+    return { label: i.wrapType === 'wrap' ? t('Wrap') : t('Unwrap'), action: i.wrapType, disabled: false, tone: 'primary' }
   }
 
   if (i.quoteStatus === 'error') {
     return i.apiDown
-      ? { label: 'Quote service unavailable · Retry', action: 'retry', disabled: false, tone: 'warning' }
-      : { label: 'Could not get a quote · Retry', action: 'retry', disabled: false, tone: 'warning' }
+      ? { label: t('Quote service unavailable · Retry'), action: 'retry', disabled: false, tone: 'warning' }
+      : { label: t('Could not get a quote · Retry'), action: 'retry', disabled: false, tone: 'warning' }
   }
-  if (i.quoteStatus === 'no-route') return disabled('Insufficient liquidity for this trade', 'critical')
-  if (i.quoteStatus === 'loading' || i.quoteStatus === 'idle' || i.quoteStale) return disabled('Finding best price…', 'disabled', true)
+  if (i.quoteStatus === 'no-route') return disabled(t('Insufficient liquidity for this trade'), 'critical')
+  if (i.quoteStatus === 'loading' || i.quoteStatus === 'idle' || i.quoteStale) return disabled(t('Finding best price…'), 'disabled', true)
 
   if (i.inputBalance !== undefined && i.requiredInput !== undefined && i.inputBalance < i.requiredInput)
-    return disabled(`Insufficient ${i.inputSymbol ?? ''} balance`.replace('  ', ' '), 'critical')
+    return disabled(insufficient(i.inputSymbol), 'critical')
 
   const sev = impactSeverity(i.priceImpactBps)
-  if (sev === 'blocked') return { label: 'Swap anyway (very high price impact)', action: 'review', disabled: false, tone: 'critical' }
-  if (i.needsApproval) return { label: `Approve ${i.inputSymbol ?? 'token'} and swap`, action: 'review', disabled: false, tone: 'primary' }
-  if (sev === 'high') return { label: 'Review (high price impact)', action: 'review', disabled: false, tone: 'critical' }
-  return { label: 'Review', action: 'review', disabled: false, tone: 'primary' }
+  if (sev === 'blocked') return { label: t('Swap anyway (very high price impact)'), action: 'review', disabled: false, tone: 'critical' }
+  if (i.needsApproval) return { label: t('Approve {symbol} and swap', { symbol: i.inputSymbol ?? t('token') }), action: 'review', disabled: false, tone: 'primary' }
+  if (sev === 'high') return { label: t('Review (high price impact)'), action: 'review', disabled: false, tone: 'critical' }
+  return { label: t('Review'), action: 'review', disabled: false, tone: 'primary' }
 }

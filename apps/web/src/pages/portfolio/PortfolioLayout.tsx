@@ -12,6 +12,7 @@ import { LogoMark } from '@/components/layout/Logo'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { usePortfolioAccount, usePortfolioData, type PortfolioAccount, type PortfolioData } from '@/features/portfolio/usePortfolioData'
 import { HoldingsTicker } from '@/features/portfolio/TokenStrip'
+import { t } from '@/i18n'
 
 export interface PortfolioContext {
   account: PortfolioAccount
@@ -31,7 +32,7 @@ const TABS = [
 
 /** /portfolio shell: demo banner when signed out, wallet header with hide-balances eye, sub-route tabs. */
 export default function PortfolioLayout() {
-  useDocumentTitle('Portfolio')
+  useDocumentTitle(t('Portfolio'))
   const account = usePortfolioAccount()
   const data = usePortfolioData(account.address)
   const openConnect = useUi((s) => s.openConnect)
@@ -58,17 +59,17 @@ export default function PortfolioLayout() {
         <div className="flex min-w-0 items-center gap-1">
           {account.isDemo ? (
             <span className="ml-1 text-body-1 font-medium whitespace-nowrap" data-testid="demo-label">
-              Demo wallet
+              {t('Demo wallet')}
             </span>
           ) : account.address ? (
-            <CopyButton value={account.address} label="Copy address" className="ml-1 text-body-1 font-medium text-text-1">
+            <CopyButton value={account.address} label={t('Copy address')} className="ml-1 text-body-1 font-medium text-text-1">
               <span className="font-mono">{shortenAddress(account.address)}</span>
             </CopyButton>
           ) : null}
           <button
             type="button"
             onClick={() => setHidden(!hidden)}
-            aria-label={hidden ? 'Show balances' : 'Hide balances'}
+            aria-label={hidden ? t('Show balances') : t('Hide balances')}
             aria-pressed={hidden}
             data-testid="hide-balances"
             className="inline-flex size-7 items-center justify-center rounded-full text-text-2 hover:bg-surface-3 hover:text-text-1"
@@ -93,18 +94,18 @@ export default function PortfolioLayout() {
         </div>
       </div>
 
-      <nav aria-label="Portfolio" className="mt-9 flex items-center gap-6 overflow-x-auto border-b border-border [scrollbar-width:none]">
-        {TABS.map((t) => (
+      <nav aria-label={t('Portfolio')} className="mt-9 flex items-center gap-6 overflow-x-auto border-b border-border [scrollbar-width:none]">
+        {TABS.map((tab) => (
           <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            data-testid={`portfolio-tab-${t.label.toLowerCase()}`}
+            key={tab.to}
+            to={tab.to}
+            end={tab.end}
+            data-testid={`portfolio-tab-${tab.label.toLowerCase()}`}
             className={({ isActive }) =>
               cn('-mb-px shrink-0 border-b-2 pb-3 text-body-2 transition-colors', isActive ? 'border-text-1 text-text-1' : 'border-transparent text-text-2 hover:text-text-1')
             }
           >
-            {t.label}
+            {t(tab.label)}
           </NavLink>
         ))}
       </nav>

@@ -34,6 +34,7 @@ import { formatDisplayPrice } from '../components/RangeSelector'
 import { DepositInputs, useLinkedAmounts, type LinkFn } from '../components/DepositInputs'
 import { ReviewRow, TxFlowModal } from '../components/TxFlowModal'
 import { PercentPicker } from '../components/PercentPicker'
+import { t } from '@/i18n'
 
 function useResolvedToken(address: Address | undefined): Token | undefined {
   const { find } = useTokenList()
@@ -47,7 +48,7 @@ export function V3PositionDetail({ tokenIdParam }: { tokenIdParam: string | unde
   const t0 = useResolvedToken(pos?.token0)
   const t1 = useResolvedToken(pos?.token1)
 
-  if (tokenId === undefined) return <NotFound text="That position id is not valid." />
+  if (tokenId === undefined) return <NotFound text={t('That position id is not valid.')} />
   if (q.isLoading || (pos && (!t0 || !t1)))
     return (
       <Shell>
@@ -58,8 +59,8 @@ export function V3PositionDetail({ tokenIdParam }: { tokenIdParam: string | unde
         </div>
       </Shell>
     )
-  if (q.isError) return <NotFound text="Could not read this position from MetaChain Devnet." />
-  if (!pos || !t0 || !t1) return <NotFound text={`Position #${tokenIdParam} does not exist or was closed and burned.`} />
+  if (q.isError) return <NotFound text={t('Could not read this position from MetaChain Devnet.')} />
+  if (!pos || !t0 || !t1) return <NotFound text={t('Position #{id} does not exist or was closed and burned.', { id: tokenIdParam })} />
   return <Loaded pos={pos} t0={t0} t1={t1} />
 }
 
@@ -67,7 +68,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-24 md:px-8" data-testid="position-detail">
       <Link to="/positions" className="mb-3 inline-flex items-center gap-1 text-body-3 text-text-2 hover:text-text-1">
-        <ChevronLeft size={16} /> Your positions
+        <ChevronLeft size={16} /> {t('Your positions')}
       </Link>
       {children}
     </div>
@@ -78,7 +79,7 @@ function NotFound({ text }: { text: string }) {
   return (
     <Shell>
       <Card>
-        <EmptyState title="Position not found" action={<ButtonLink to="/positions">Back to positions</ButtonLink>}>
+        <EmptyState title={t('Position not found')} action={<ButtonLink to="/positions">{t('Back to positions')}</ButtonLink>}>
           {text}
         </EmptyState>
       </Card>
@@ -111,7 +112,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
 
   const base = invert ? t1 : t0
   const quote = invert ? t0 : t1
-  const unit = `${quote.symbol} per ${base.symbol}`
+  const unit = t('{quote} per {base}', { quote: quote.symbol, base: base.symbol })
   const lo = pos.tickLower <= minUsableTick(spacing) ? (invert ? Infinity : 0) : tickToDisplayPrice(pos.tickLower, t0.decimals, t1.decimals, invert)
   const hi = pos.tickUpper >= maxUsableTick(spacing) ? (invert ? 0 : Infinity) : tickToDisplayPrice(pos.tickUpper, t0.decimals, t1.decimals, invert)
   const minP = Math.min(lo, hi)
@@ -138,24 +139,24 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" leftIcon={<Plus size={16} />} onClick={() => setModal('add')} data-testid="action-add">
-              Add liquidity
+              {t('Add liquidity')}
             </Button>
             <Button variant="secondary" leftIcon={<Minus size={16} />} onClick={() => setModal('remove')} disabled={closed} data-testid="action-remove">
-              Remove liquidity
+              {t('Remove liquidity')}
             </Button>
           </div>
         ) : !address ? (
-          <Button onClick={openConnect}>Connect wallet</Button>
+          <Button onClick={openConnect}>{t('Connect wallet')}</Button>
         ) : null}
       </div>
       {address && !isOwner && (
-        <Banner tone="info" className="mt-4" title="View only">
-          This position is owned by {shortenAddress(pos.owner)}. Only the owner can manage it.
+        <Banner tone="info" className="mt-4" title={t('View only')}>
+          {t('This position is owned by {owner}. Only the owner can manage it.', { owner: shortenAddress(pos.owner) })}
         </Banner>
       )}
       {status === 'out-of-range' && (
-        <Banner tone="warning" className="mt-4" title="Out of range">
-          The current price is outside this position's range, so it is not earning fees. Remove liquidity and open a new range to rebalance.
+        <Banner tone="warning" className="mt-4" title={t('Out of range')}>
+          {t("The current price is outside this position's range, so it is not earning fees. Remove liquidity and open a new range to rebalance.")}
         </Banner>
       )}
 
@@ -163,11 +164,11 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
         <div className="flex flex-col gap-4">
           {image && (
             <Card className="flex justify-center overflow-hidden p-4">
-              <img src={image} alt={`MetaSwap V3 position NFT #${pos.tokenId}`} className="max-h-[360px] w-auto rounded-xl" data-testid="position-nft" />
+              <img src={image} alt={t('MetaSwap V3 position NFT #{id}', { id: pos.tokenId.toString() })} className="max-h-[360px] w-auto rounded-xl" data-testid="position-nft" />
             </Card>
           )}
           <Card className="p-5">
-            <div className="text-body-3 text-text-2">Liquidity</div>
+            <div className="text-body-3 text-text-2">{t('Liquidity')}</div>
             <div className="mt-1 text-heading-2 font-medium tabular" data-testid="position-value">
               {formatUsd(usd0 + usd1)}
             </div>
@@ -179,14 +180,14 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-body-3 text-text-2">Unclaimed fees</div>
+                <div className="text-body-3 text-text-2">{t('Unclaimed fees')}</div>
                 <div className="mt-1 text-heading-3 font-medium tabular" data-testid="fees-value">
                   {formatUsd(fees0Usd + fees1Usd)}
                 </div>
               </div>
               {isOwner && (
                 <Button onClick={() => setModal('collect')} disabled={pos.fees0 === 0n && pos.fees1 === 0n} data-testid="action-collect">
-                  Collect fees
+                  {t('Collect fees')}
                 </Button>
               )}
             </div>
@@ -198,7 +199,7 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
         </div>
         <Card className="flex h-fit flex-col gap-4 p-5">
           <div className="flex items-center justify-between">
-            <div className="text-body-1 font-medium">Price range</div>
+            <div className="text-body-1 font-medium">{t('Price range')}</div>
             <button type="button" onClick={() => setInvert((v) => !v)} data-testid="detail-invert" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-2 px-3 text-body-4 font-semibold text-text-2 hover:text-text-1">
               <ArrowLeftRight size={14} /> {base.symbol} / {quote.symbol}
             </button>
@@ -207,13 +208,13 @@ function Loaded({ pos, t0, t1 }: { pos: V3PositionState; t0: Token; t1: Token })
             <LiquidityChart ticks={ticksQ.data?.ticks} loading={ticksQ.isLoading} currentTick={pos.tick} decimals0={t0.decimals} decimals1={t1.decimals} invert={invert} minPrice={minP} maxPrice={maxP} testId="detail-chart" />
           )}
           <div className="grid grid-cols-2 gap-3">
-            <PriceBox label="Min price" value={minP} unit={unit} testId="detail-min" />
-            <PriceBox label="Max price" value={maxP} unit={unit} testId="detail-max" />
+            <PriceBox label={t('Min price')} value={minP} unit={unit} testId="detail-min" />
+            <PriceBox label={t('Max price')} value={maxP} unit={unit} testId="detail-max" />
           </div>
-          <PriceBox label="Current price" value={current} unit={unit} testId="detail-current" />
-          {full && <p className="text-body-4 text-text-2">This is a full range position.</p>}
+          <PriceBox label={t('Current price')} value={current} unit={unit} testId="detail-current" />
+          {full && <p className="text-body-4 text-text-2">{t('This is a full range position.')}</p>}
           <Link to={`/explore/pools/${CHAIN_SLUG}/${pos.pool}`} className="text-body-3 font-semibold text-accent hover:underline">
-            View pool
+            {t('View pool')}
           </Link>
         </Card>
       </div>
@@ -282,11 +283,11 @@ function CollectModal({ open, onOpenChange, pos, t0, t1, account, usd }: { open:
       txStep(
         {
           id: 'collect',
-          title: 'Collect fees',
-          description: 'Confirm in your wallet',
+          title: t('Collect fees'),
+          description: t('Confirm in your wallet'),
           account,
           type: 'collect-fees',
-          summary: `Collected ${formatTokenAmount(pos.fees0, t0.decimals)} ${sym(t0, 0)} and ${formatTokenAmount(pos.fees1, t1.decimals)} ${sym(t1, 1)} in fees`,
+          summary: t('Collected {amount0} {symbol0} and {amount1} {symbol1} in fees', { amount0: formatTokenAmount(pos.fees0, t0.decimals), symbol0: sym(t0, 0), amount1: formatTokenAmount(pos.fees1, t1.decimals), symbol1: sym(t1, 1) }),
           gas: GAS.collect,
         },
         () =>
@@ -304,13 +305,13 @@ function CollectModal({ open, onOpenChange, pos, t0, t1, account, usd }: { open:
     ])
   }
   return (
-    <TxFlowModal open={open} onOpenChange={onOpenChange} title="Collect fees" runner={runner} confirmLabel="Collect" onConfirm={confirm} testId="collect-modal">
+    <TxFlowModal open={open} onOpenChange={onOpenChange} title={t('Collect fees')} runner={runner} confirmLabel={t('Collect')} onConfirm={confirm} testId="collect-modal">
       <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 0)}>{formatTokenAmount(pos.fees0, t0.decimals)}</ReviewRow>
         <ReviewRow label={sym(t1, 1)}>{formatTokenAmount(pos.fees1, t1.decimals)}</ReviewRow>
-        <ReviewRow label="Value">{formatUsd(usd)}</ReviewRow>
+        <ReviewRow label={t('Value')}>{formatUsd(usd)}</ReviewRow>
       </div>
-      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label="Collect as ETH (unwrap WETH)" />}
+      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label={t('Collect as ETH (unwrap WETH)')} />}
     </TxFlowModal>
   )
 }
@@ -342,11 +343,11 @@ function IncreaseModal({ open, onOpenChange, pos, t0, t1, account }: { open: boo
           txStep(
             {
               id: 'increase',
-              title: 'Add liquidity',
-              description: 'Confirm in your wallet',
+              title: t('Add liquidity'),
+              description: t('Confirm in your wallet'),
               account,
               type: 'add-liquidity',
-              summary: `Added ${formatTokenAmount(amounts.amountA, t0.decimals)} ${tokenA.symbol} and ${formatTokenAmount(amounts.amountB, t1.decimals)} ${tokenB.symbol} to position #${pos.tokenId}`,
+              summary: t('Added {amountA} {symbolA} and {amountB} {symbolB} to position #{id}', { amountA: formatTokenAmount(amounts.amountA, t0.decimals), symbolA: tokenA.symbol, amountB: formatTokenAmount(amounts.amountB, t1.decimals), symbolB: tokenB.symbol, id: pos.tokenId.toString() }),
               gas: GAS.increase,
             },
             () =>
@@ -369,8 +370,8 @@ function IncreaseModal({ open, onOpenChange, pos, t0, t1, account }: { open: boo
   }
   const empty = amounts.amountA === 0n && amounts.amountB === 0n
   return (
-    <TxFlowModal open={open} onOpenChange={onOpenChange} title="Add liquidity" runner={runner} confirmLabel={empty ? 'Enter an amount' : 'Add liquidity'} confirmDisabled={empty} onConfirm={confirm} testId="increase-modal">
-      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label="Deposit ETH instead of WETH" />}
+    <TxFlowModal open={open} onOpenChange={onOpenChange} title={t('Add liquidity')} runner={runner} confirmLabel={empty ? t('Enter an amount') : t('Add liquidity')} confirmDisabled={empty} onConfirm={confirm} testId="increase-modal">
+      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label={t('Deposit ETH instead of WETH')} />}
       <DepositInputs tokenA={tokenA} tokenB={tokenB} amounts={amounts} account={account} disabled={disabled} testIdPrefix="increase" />
     </TxFlowModal>
   )
@@ -394,11 +395,11 @@ function RemoveModal({ open, onOpenChange, pos, t0, t1, account }: { open: boole
       txStep(
         {
           id: 'decrease',
-          title: willBurn ? 'Remove liquidity and close position' : 'Remove liquidity',
-          description: 'Confirm in your wallet',
+          title: willBurn ? t('Remove liquidity and close position') : t('Remove liquidity'),
+          description: t('Confirm in your wallet'),
           account,
           type: 'remove-liquidity',
-          summary: `Removed ${formatTokenAmount(amount0, t0.decimals)} ${sym(t0, 0)} and ${formatTokenAmount(amount1, t1.decimals)} ${sym(t1, 1)} from position #${pos.tokenId}`,
+          summary: t('Removed {amount0} {symbol0} and {amount1} {symbol1} from position #{id}', { amount0: formatTokenAmount(amount0, t0.decimals), symbol0: sym(t0, 0), amount1: formatTokenAmount(amount1, t1.decimals), symbol1: sym(t1, 1), id: pos.tokenId.toString() }),
           gas: GAS.decrease,
         },
         () =>
@@ -421,26 +422,26 @@ function RemoveModal({ open, onOpenChange, pos, t0, t1, account }: { open: boole
     ])
   }
   return (
-    <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
+    <TxFlowModal open={open} onOpenChange={onOpenChange} title={t('Remove liquidity')} runner={runner} confirmLabel={t('Remove')} confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
       <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
-        <ReviewRow label={`Pooled ${sym(t0, 0)}`} testId="remove-amount0">
+        <ReviewRow label={t('Pooled {symbol}', { symbol: sym(t0, 0) })} testId="remove-amount0">
           {formatTokenAmount(amount0, t0.decimals)}
         </ReviewRow>
-        <ReviewRow label={`Pooled ${sym(t1, 1)}`} testId="remove-amount1">
+        <ReviewRow label={t('Pooled {symbol}', { symbol: sym(t1, 1) })} testId="remove-amount1">
           {formatTokenAmount(amount1, t1.decimals)}
         </ReviewRow>
-        <ReviewRow label={`${sym(t0, 0)} fees`}>{formatTokenAmount(pos.fees0, t0.decimals)}</ReviewRow>
-        <ReviewRow label={`${sym(t1, 1)} fees`}>{formatTokenAmount(pos.fees1, t1.decimals)}</ReviewRow>
+        <ReviewRow label={t('{symbol} fees', { symbol: sym(t0, 0) })}>{formatTokenAmount(pos.fees0, t0.decimals)}</ReviewRow>
+        <ReviewRow label={t('{symbol} fees', { symbol: sym(t1, 1) })}>{formatTokenAmount(pos.fees1, t1.decimals)}</ReviewRow>
       </div>
-      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label="Receive ETH (unwrap WETH)" />}
+      {eth.wethSide >= 0 && <EthToggle checked={eth.useEth} onChange={eth.setUseEth} label={t('Receive ETH (unwrap WETH)')} />}
       {pct === 100 && (
         <label className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-body-3">
-          <span>Close position and burn the NFT</span>
-          <Switch checked={burn} onChange={setBurn} label="Burn position NFT" testId="burn-toggle" />
+          <span>{t('Close position and burn the NFT')}</span>
+          <Switch checked={burn} onChange={setBurn} label={t('Burn position NFT')} testId="burn-toggle" />
         </label>
       )}
-      <p className="text-body-4 text-text-2">Uncollected fees are collected in the same transaction.</p>
+      <p className="text-body-4 text-text-2">{t('Uncollected fees are collected in the same transaction.')}</p>
     </TxFlowModal>
   )
 }

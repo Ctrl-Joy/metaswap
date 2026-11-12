@@ -4,6 +4,7 @@ import { IconButton, Skeleton } from '@/components/ui'
 import { formatAmount } from '@/lib/format'
 import type { TickRow } from '../api'
 import { tickToDisplayPrice } from '../math'
+import { t } from '@/i18n'
 
 const HEIGHT = 200
 const PAD_X = 12
@@ -125,7 +126,7 @@ export function LiquidityChart({ ticks, loading, currentTick, decimals0, decimal
           onPointerUp={() => setDragging(null)}
           onPointerLeave={() => setDragging(null)}
           role="img"
-          aria-label="Liquidity distribution and selected price range"
+          aria-label={t('Liquidity distribution and selected price range')}
         >
           {hasBand && <rect x={Math.min(bx0, bx1)} y={0} width={Math.abs(bx1 - bx0)} height={plotH} className="fill-accent-tint" />}
           {bins.map((b, i) => {
@@ -184,13 +185,13 @@ export function LiquidityChart({ ticks, loading, currentTick, decimals0, decimal
         </svg>
       )}
       <div className="absolute top-1 right-1 flex gap-1">
-        <IconButton label="Zoom in" size={32} className="bg-surface-2" onClick={() => setZoom((z) => Math.min(64, z * 2))} data-testid={`${testId}-zoom-in`}>
+        <IconButton label={t('Zoom in')} size={32} className="bg-surface-2" onClick={() => setZoom((z) => Math.min(64, z * 2))} data-testid={`${testId}-zoom-in`}>
           <Plus size={14} />
         </IconButton>
-        <IconButton label="Zoom out" size={32} className="bg-surface-2" onClick={() => setZoom((z) => Math.max(0.25, z / 2))}>
+        <IconButton label={t('Zoom out')} size={32} className="bg-surface-2" onClick={() => setZoom((z) => Math.max(0.25, z / 2))}>
           <Minus size={14} />
         </IconButton>
-        <IconButton label="Reset zoom" size={32} className="bg-surface-2" onClick={() => setZoom(1)}>
+        <IconButton label={t('Reset zoom')} size={32} className="bg-surface-2" onClick={() => setZoom(1)}>
           <RotateCcw size={14} />
         </IconButton>
       </div>

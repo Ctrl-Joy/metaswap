@@ -4,6 +4,23 @@ import { Skeleton } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { FEE_TIER_LIST } from '../tokens'
 import type { V3PoolState } from '../chain'
+import { t } from '@/i18n'
+
+/** Fee tier blurbs (the tier list comes from the SDK in English). */
+function tierDescription(fee: number, fallback: string): string {
+  switch (fee) {
+    case 100:
+      return t('Best for very stable pairs.')
+    case 500:
+      return t('Best for stable pairs.')
+    case 3000:
+      return t('Best for most pairs.')
+    case 10000:
+      return t('Best for exotic pairs.')
+    default:
+      return fallback
+  }
+}
 
 /**
  * Fee tier picker laid out like Uniswap's create-position step 1: a summary row (selected tier,
@@ -30,9 +47,9 @@ export function FeeTierSelector({
       <div className="flex min-h-[68px] items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
         <div>
           <div className="text-body-2 leading-5" data-testid="fee-tier-current">
-            {current ? `${current.label} fee tier` : '-- fee tier'}
+            {t('{fee} fee tier', { fee: current ? current.label : '--' })}
           </div>
-          <div className="text-body-3 text-text-2">The % you will earn in fees</div>
+          <div className="text-body-3 text-text-2">{t('The % you will earn in fees')}</div>
         </div>
         <button
           type="button"
@@ -40,40 +57,40 @@ export function FeeTierSelector({
           aria-expanded={expanded}
           className="inline-flex h-[38px] items-center gap-1 rounded-xl bg-surface-3 px-3 text-body-4 font-semibold transition-colors hover:bg-surface-3-hover"
         >
-          {expanded ? 'Less' : 'More'}
+          {expanded ? t('Less') : t('More')}
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
       </div>
       {expanded && (
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" role="radiogroup" aria-label="Fee tier">
-          {FEE_TIER_LIST.map((t) => {
-            const selected = t.fee === value
-            const pool = pools?.[t.fee]
-            const share = tvlShare[t.fee]
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" role="radiogroup" aria-label={t('Fee tier')}>
+          {FEE_TIER_LIST.map((tier) => {
+            const selected = tier.fee === value
+            const pool = pools?.[tier.fee]
+            const share = tvlShare[tier.fee]
             return (
               <button
-                key={t.fee}
+                key={tier.fee}
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => onChange(t.fee)}
-                data-testid={`fee-tier-${t.fee}`}
+                onClick={() => onChange(tier.fee)}
+                data-testid={`fee-tier-${tier.fee}`}
                 className={cn(
                   'flex min-h-[122px] flex-col items-start gap-2 rounded-xl border p-3 text-left transition-colors',
                   selected ? 'border-accent bg-accent-tint' : 'border-border bg-surface-1 hover:bg-surface-1-hover',
                 )}
               >
-                <span className="text-body-3 leading-4 font-semibold">{t.label}</span>
-                <span className="text-body-4">{t.description}</span>
-                <span className="mt-auto text-body-4 whitespace-nowrap text-text-2" data-testid={`fee-tier-${t.fee}-tvl`}>
+                <span className="text-body-3 leading-4 font-semibold">{tier.label}</span>
+                <span className="text-body-4">{tierDescription(tier.fee, tier.description)}</span>
+                <span className="mt-auto text-body-4 whitespace-nowrap text-text-2" data-testid={`fee-tier-${tier.fee}-tvl`}>
                   {loading || !pools ? (
                     <Skeleton width={60} />
                   ) : !pool?.initialized ? (
-                    'Not created'
+                    t('Not created')
                   ) : share !== undefined ? (
-                    `${(share * 100).toFixed(share > 0 && share < 0.01 ? 2 : 0)}% TVL`
+                    t('{pct}% TVL', { pct: (share * 100).toFixed(share > 0 && share < 0.01 ? 2 : 0) })
                   ) : (
-                    'Created'
+                    t('Created')
                   )}
                 </span>
               </button>

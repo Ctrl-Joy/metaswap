@@ -9,6 +9,7 @@ import { Sparkline } from '@/features/explore/charts/SvgCharts'
 import { formatPrice, formatTokenAmount, formatUsd } from '@/lib/format'
 import { CHAIN_SLUG } from '@/config'
 import { useMask, type HoldingRow } from './usePortfolioData'
+import { t } from '@/i18n'
 
 const WETH = deployment.tokens?.find((t) => t.symbol === 'WETH')?.address
 const priceAddress = (h: HoldingRow): Address | undefined => (h.token.isNative ? (WETH as Address | undefined) : h.token.address)
@@ -66,11 +67,11 @@ export function HoldingsStrip({ rows, range }: { rows: HoldingRow[]; range: Port
     <section aria-labelledby="your-tokens-strip">
       <div className="mb-3 flex items-end justify-between px-1">
         <h2 id="your-tokens-strip" className="text-body-1 font-semibold">
-          Your tokens
+          {t('Your tokens')}
         </h2>
-        <span className="text-body-4 text-text-3">Live · {range === 'ALL' ? '1Y' : range} charts</span>
+        <span className="text-body-4 text-text-3">{t('Live · {range} charts', { range: range === 'ALL' ? '1Y' : range })}</span>
       </div>
-      <Marquee ariaLabel="Your tokens" testId="holdings-strip" speed={32} gap={12} arrows fade>
+      <Marquee ariaLabel={t('Your tokens')} testId="holdings-strip" speed={32} gap={12} arrows fade>
         {held.map((h) => (
           <HoldingCard key={h.token.address} h={h} range={range} change={changeOf(h, changes)} />
         ))}
@@ -85,7 +86,7 @@ export function HoldingsTicker({ rows }: { rows: HoldingRow[] }) {
   const held = rows.filter((r) => r.balance > 0n)
   if (held.length < 2) return null
   return (
-    <Marquee ariaLabel="Live prices of your tokens" testId="holdings-ticker" speed={40} gap={8} fade>
+    <Marquee ariaLabel={t('Live prices of your tokens')} testId="holdings-ticker" speed={40} gap={8} fade>
       {held.map((h) => (
         <TickerPill key={h.token.address} to={tokenHref(h)} token={h.token} label={`${h.token.symbol} ${formatPrice(h.priceUsd)}`} changePct={changeOf(h, changes)} />
       ))}

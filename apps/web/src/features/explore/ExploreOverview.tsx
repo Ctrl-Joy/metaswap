@@ -8,6 +8,7 @@ import { useExploreStatsData } from './api'
 import { exploreStatTiles, toSeries } from './transforms'
 import type { ExploreStatsRaw } from './types'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 /** Date label for a chart readout: "Oct 20, 9:10 PM". */
 function dateLabel(sec: number): string {
@@ -20,21 +21,21 @@ export function ExploreStats() {
   const tiles = exploreStatTiles(q.data as ExploreStatsRaw | undefined)
   const loading = q.isLoading && !q.data
   return (
-    <section aria-label="Explore statistics" className="grid grid-cols-2 gap-y-5 md:grid-cols-4" data-testid="explore-stats">
-      {tiles.map((t, i) => (
-        <div key={t.key} className={cn("flex min-w-0 flex-col gap-1", i > 0 && "border-l border-border pl-4 md:pl-6")} data-testid={`stat-${t.key}`}>
-          <span className="text-[12px] leading-4 text-text-2">{t.label}</span>
+    <section aria-label={t('Explore statistics')} className="grid grid-cols-2 gap-y-5 md:grid-cols-4" data-testid="explore-stats">
+      {tiles.map((tile, i) => (
+        <div key={tile.key} className={cn("flex min-w-0 flex-col gap-1", i > 0 && "border-l border-border pl-4 md:pl-6")} data-testid={`stat-${tile.key}`}>
+          <span className="text-[12px] leading-4 text-text-2">{t(tile.label)}</span>
           {loading ? (
             <Skeleton width={120} height={22} />
           ) : (
-            <span className="text-[20px] leading-6 font-medium tabular">{formatUsd(t.value, { compact: true })}</span>
+            <span className="text-[20px] leading-6 font-medium tabular">{formatUsd(tile.value, { compact: true })}</span>
           )}
           {/* The change line keeps its height while loading so the page below does not jump. */}
           <span className="min-h-4 text-[12px] leading-4">
-            {t.delta !== null && !loading && (
+            {tile.delta !== null && !loading && (
               <>
-                <PercentChange value={t.delta} className="text-[12px]" />
-                <span className="ml-1 text-text-1">today</span>
+                <PercentChange value={tile.delta} className="text-[12px]" />
+                <span className="ml-1 text-text-1">{t('today')}</span>
               </>
             )}
           </span>
@@ -59,45 +60,48 @@ export function ExploreCharts() {
   const latestVol = vol.at(-1)
   const shownTvl = hoverTvl?.value ?? latestTvl?.value ?? null
   const shownVol = hoverVol?.value ?? latestVol?.value ?? null
-  const note = (n: number) => `History starts at seeding (${n} point${n === 1 ? '' : 's'} so far). The chart fills in as trades happen.`
+  const note = (n: number) =>
+    n === 1
+      ? t('History starts at seeding (1 point so far). The chart fills in as trades happen.')
+      : t('History starts at seeding ({n} points so far). The chart fills in as trades happen.', { n })
 
   return (
-    <section aria-label="Explore charts" className="grid gap-6 rounded-2xl border border-border bg-surface-1 p-4 md:grid-cols-2 md:p-6" data-testid="explore-charts">
+    <section aria-label={t('Explore charts')} className="grid gap-6 rounded-2xl border border-border bg-surface-1 p-4 md:grid-cols-2 md:p-6" data-testid="explore-charts">
       <ChartFrame
         testId="tvl-chart-frame"
         status={tvlStatus}
         onRetry={() => q.refetch()}
-        emptyTitle="TVL history is still building"
+        emptyTitle={t('TVL history is still building')}
         emptyText={note(tvl.length)}
         header={
           <div className="flex flex-col gap-0.5">
-            <span className="text-body-3 text-text-2">Total TVL</span>
+            <span className="text-body-3 text-text-2">{t('Total TVL')}</span>
             <span className="text-heading-3 font-semibold tabular" data-testid="tvl-readout">
               {shownTvl === null ? '-' : <Usd value={shownTvl} compact />}
             </span>
-            <span className="text-body-3 text-text-2">{hoverTvl ? dateLabel(hoverTvl.time) : latestTvl ? dateLabel(latestTvl.time) : 'No history yet'}</span>
+            <span className="text-body-3 text-text-2">{hoverTvl ? dateLabel(hoverTvl.time) : latestTvl ? dateLabel(latestTvl.time) : t('No history yet')}</span>
           </div>
         }
       >
-        {tvlStatus === 'ready' && <TimeChart kind="area" data={tvl} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHoverTvl} testId="tvl-chart" ariaLabel="Total value locked over time" className="size-full" />}
+        {tvlStatus === 'ready' && <TimeChart kind="area" data={tvl} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHoverTvl} testId="tvl-chart" ariaLabel={t('Total value locked over time')} className="size-full" />}
       </ChartFrame>
       <ChartFrame
         testId="volume-chart-frame"
         status={volStatus}
         onRetry={() => q.refetch()}
-        emptyTitle="Volume history is still building"
+        emptyTitle={t('Volume history is still building')}
         emptyText={note(vol.length)}
         header={
           <div className="flex flex-col gap-0.5">
-            <span className="text-body-3 text-text-2">Volume (daily)</span>
+            <span className="text-body-3 text-text-2">{t('Volume (daily)')}</span>
             <span className="text-heading-3 font-semibold tabular" data-testid="volume-readout">
               {shownVol === null ? '-' : <Usd value={shownVol} compact />}
             </span>
-            <span className="text-body-3 text-text-2">{hoverVol ? dateLabel(hoverVol.time) : latestVol ? dateLabel(latestVol.time) : 'No history yet'}</span>
+            <span className="text-body-3 text-text-2">{hoverVol ? dateLabel(hoverVol.time) : latestVol ? dateLabel(latestVol.time) : t('No history yet')}</span>
           </div>
         }
       >
-        {volStatus === 'ready' && <TimeChart kind="bar" data={vol} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHoverVol} testId="volume-chart" ariaLabel="Trading volume per day" className="size-full" />}
+        {volStatus === 'ready' && <TimeChart kind="bar" data={vol} formatValue={(v) => formatUsd(v, { compact: true })} onHover={setHoverVol} testId="volume-chart" ariaLabel={t('Trading volume per day')} className="size-full" />}
       </ChartFrame>
     </section>
   )

@@ -3,16 +3,20 @@ import { maxUint256, type Address } from 'viem'
 import { wagmiConfig } from '@/wallet/wagmi'
 import { erc20Abi, savingsVaultAbi } from '@/lib/abis'
 import { trackTx } from '@/state/transactions'
+import { t } from '@/i18n'
 
 export type EarnStep = 'approve' | 'deposit' | 'withdraw'
 
 async function track(account: Address, hash: `0x${string}`, type: 'approve' | 'earn-deposit' | 'earn-withdraw', summary: string, toast = true) {
   const r = await trackTx(account, { hash, type, summary }, { toast })
-  if (!r || r.status !== 'success') throw new Error(`${summary} reverted`)
+  if (!r || r.status !== 'success') throw new Error(t('{summary} reverted', { summary }))
   return r
 }
 
-/** ERC20 approve(vault) if needed → deposit(assets, me); or depositETH(me) with value for the ETH vault. */
+/**
+ * ERC20 approve(vault) if needed → deposit(assets, me); or depositETH(me) with value for the ETH vault.
+ * `label` is the full, already translated transaction summary ("Deposited 1 ETH into meETH").
+ */
 export async function depositToVault(
   a: { account: Address; vault: Address; asset: Address; amount: bigint; native: boolean; label: string },
   onStep: (s: EarnStep, st: 'active' | 'done' | 'skipped') => void,
@@ -21,7 +25,7 @@ export async function depositToVault(
     onStep('approve', 'skipped')
     onStep('deposit', 'active')
     const hash = await writeContract(wagmiConfig, { address: a.vault, abi: savingsVaultAbi, functionName: 'depositETH', args: [a.account], value: a.amount })
-    await track(a.account, hash, 'earn-deposit', `Deposited ${a.label}`)
+    await track(a.account, hash, 'earn-deposit', a.label)
     onStep('deposit', 'done')
     return hash
   }
@@ -29,12 +33,12 @@ export async function depositToVault(
   if (allowance < a.amount) {
     onStep('approve', 'active')
     const h = await writeContract(wagmiConfig, { address: a.asset, abi: erc20Abi, functionName: 'approve', args: [a.vault, maxUint256] })
-    await track(a.account, h, 'approve', 'Approved vault deposit', false)
+    await track(a.account, h, 'approve', t('Approved vault deposit'), false)
     onStep('approve', 'done')
   } else onStep('approve', 'skipped')
   onStep('deposit', 'active')
   const hash = await writeContract(wagmiConfig, { address: a.vault, abi: savingsVaultAbi, functionName: 'deposit', args: [a.amount, a.account] })
-  await track(a.account, hash, 'earn-deposit', `Deposited ${a.label}`)
+  await track(a.account, hash, 'earn-deposit', a.label)
   onStep('deposit', 'done')
   return hash
 }
@@ -57,7 +61,7 @@ export async function withdrawFromVault(
   } else {
     hash = await writeContract(wagmiConfig, { address: a.vault, abi: savingsVaultAbi, functionName: 'withdraw', args: [a.amount, a.account, a.account] })
   }
-  await track(a.account, hash, 'earn-withdraw', `Withdrew ${a.label}`)
+  await track(a.account, hash, 'earn-withdraw', a.label)
   onStep('withdraw', 'done')
   return hash
 }

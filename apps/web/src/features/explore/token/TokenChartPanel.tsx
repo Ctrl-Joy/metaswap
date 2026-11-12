@@ -9,6 +9,7 @@ import { useTokenCandles, useTokenPriceLine, useTokenTvlHistory } from '../api'
 import { RANGE_KEYS, RANGES, bucketSum, changeOver, filterRange } from '../transforms'
 import type { CandlePoint, RangeKey, SeriesPoint } from '../types'
 import { displayLocale } from '@/lib/displayPrefs'
+import { t } from '@/i18n'
 
 export type TokenChartMode = 'price' | 'volume' | 'tvl'
 type ChartType = 'line' | 'candles'
@@ -20,7 +21,7 @@ const MODES: Array<{ value: TokenChartMode; label: string }> = [
 ]
 
 function rangeWindowLabel(range: RangeKey): string {
-  return ({ '1H': 'Past hour', '1D': 'Past day', '1W': 'Past week', '1M': 'Past month', '1Y': 'Past year', ALL: 'All time' } as const)[range]
+  return ({ '1H': t('Past hour'), '1D': t('Past day'), '1W': t('Past week'), '1M': t('Past month'), '1Y': t('Past year'), ALL: t('All time') } as const)[range]
 }
 
 function timeLabel(sec: number, range: RangeKey): string {
@@ -113,48 +114,48 @@ export function TokenChartPanel({ address, symbol, latestPriceUsd, apiChange24h 
         status={status}
         fetching={mode === 'price' ? priceLine.isFetching : candles.isFetching}
         onRetry={retry}
-        emptyTitle={mode === 'tvl' ? 'TVL history unavailable' : 'Not enough history yet'}
+        emptyTitle={mode === 'tvl' ? t('TVL history unavailable') : t('Not enough history yet')}
         emptyText={
           mode === 'tvl'
-            ? 'TVL is recorded from pool balances. It appears here once the indexer has history for this token.'
-            : `Only a few trades so far for ${symbol} in this range. The chart fills in as trading continues.`
+            ? t('TVL is recorded from pool balances. It appears here once the indexer has history for this token.')
+            : t('Only a few trades so far for {symbol} in this range. The chart fills in as trading continues.', { symbol })
         }
-        errorText={mode === 'tvl' ? 'TVL history is not available yet.' : 'Chart unavailable right now.'}
+        errorText={mode === 'tvl' ? t('TVL history is not available yet.') : t('Chart unavailable right now.')}
         heightClass="h-[300px] md:h-[372px]"
         footer={
           <ChartControls
-            left={<PillGroup ariaLabel="Chart range" value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: RANGES[r].label, testId: `range-${r}` }))} />}
+            left={<PillGroup ariaLabel={t('Chart range')} value={range} onChange={setRange} items={RANGE_KEYS.map((r) => ({ value: r, label: t(RANGES[r].label), testId: `range-${r}` }))} />}
             right={
               <>
                 {mode === 'price' && (
                   <PillGroup
-                    ariaLabel="Chart type"
+                    ariaLabel={t('Chart type')}
                     value={type}
                     onChange={setType}
                     className="[&>button]:w-[34px]"
                     items={[
-                      { value: 'line', label: <LineChart size={16} />, title: 'Line', testId: 'chart-type-line' },
-                      { value: 'candles', label: <CandlestickChart size={16} />, title: 'Candlesticks', testId: 'chart-type-candles' },
+                      { value: 'line', label: <LineChart size={16} />, title: t('Line'), testId: 'chart-type-line' },
+                      { value: 'candles', label: <CandlestickChart size={16} />, title: t('Candlesticks'), testId: 'chart-type-candles' },
                     ]}
                   />
                 )}
-                <PillGroup ariaLabel="Chart mode" value={mode} onChange={(m) => { setMode(m); setHover(null) }} items={MODES.map((m) => ({ value: m.value, label: m.label, testId: `mode-${m.value}` }))} />
+                <PillGroup ariaLabel={t('Chart mode')} value={mode} onChange={(m) => { setMode(m); setHover(null) }} items={MODES.map((m) => ({ value: m.value, label: t(m.label), testId: `mode-${m.value}` }))} />
               </>
             }
           />
         }
       >
         {status === 'ready' && mode === 'price' && effectiveType === 'line' && (
-          <TimeChart kind="area" data={priceSeries} formatValue={fmt} onHover={setHover} testId="token-price-chart" ariaLabel={`${symbol} price chart`} className="size-full" />
+          <TimeChart kind="area" data={priceSeries} formatValue={fmt} onHover={setHover} testId="token-price-chart" ariaLabel={t('{symbol} price chart', { symbol })} className="size-full" />
         )}
         {status === 'ready' && mode === 'price' && effectiveType === 'candles' && (
-          <TimeChart kind="candles" data={candleData} formatValue={fmt} onHover={setHover} testId="token-candle-chart" ariaLabel={`${symbol} candlestick chart`} className="size-full" />
+          <TimeChart kind="candles" data={candleData} formatValue={fmt} onHover={setHover} testId="token-candle-chart" ariaLabel={t('{symbol} candlestick chart', { symbol })} className="size-full" />
         )}
         {status === 'ready' && mode === 'volume' && (
-          <TimeChart kind="bar" data={volumeSeries} formatValue={fmt} onHover={setHover} testId="token-volume-chart" ariaLabel={`${symbol} volume chart`} className="size-full" />
+          <TimeChart kind="bar" data={volumeSeries} formatValue={fmt} onHover={setHover} testId="token-volume-chart" ariaLabel={t('{symbol} volume chart', { symbol })} className="size-full" />
         )}
         {status === 'ready' && mode === 'tvl' && (
-          <TimeChart kind="area" data={tvlSeries} formatValue={fmt} onHover={setHover} testId="token-tvl-chart" ariaLabel={`${symbol} TVL chart`} className="size-full" />
+          <TimeChart kind="area" data={tvlSeries} formatValue={fmt} onHover={setHover} testId="token-tvl-chart" ariaLabel={t('{symbol} TVL chart', { symbol })} className="size-full" />
         )}
       </ChartFrame>
     </section>

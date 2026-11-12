@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { addDevnetToWallet, useDevnetReachable } from '@/wallet/hooks'
 import { RPC_URL } from '@/config'
+import { t } from '@/i18n'
 
 const ROADMAP = [
   {
@@ -47,102 +48,102 @@ export default function MetaChainPage() {
         <div className="pointer-events-none absolute -top-24 -right-24 size-[360px] rounded-full opacity-50 blur-3xl" style={{ background: 'radial-gradient(circle, var(--ms-accent-fill), transparent 70%)' }} aria-hidden />
         <div className="relative max-w-[620px]">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="success">Devnet live</Badge>
-            <Badge>Testnet and mainnet planned</Badge>
+            <Badge tone="success">{t('Devnet live')}</Badge>
+            <Badge>{t('Testnet and mainnet planned')}</Badge>
           </div>
           <h1 className="mt-4 text-[40px] leading-[44px] font-semibold tracking-[-0.02em] md:text-heading-1">MetaChain</h1>
           <p className="mt-4 text-body-1 text-text-2">
-            A planned Ethereum layer 2 built around trading: fast blocks, deep MetaSwap liquidity from the first block, and intent settlement as a first-class feature. Today it runs as a local developer network.
+            {t('A planned Ethereum layer 2 built around trading: fast blocks, deep MetaSwap liquidity from the first block, and intent settlement as a first-class feature. Today it runs as a local developer network.')}
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button size="lg" leftIcon={<Plus size={18} />} onClick={() => void addDevnetToWallet()} data-testid="add-network">
-              <span className="sm:hidden">Add to wallet</span>
-              <span className="hidden sm:inline">Add MetaChain Devnet to wallet</span>
+              <span className="sm:hidden">{t('Add to wallet')}</span>
+              <span className="hidden sm:inline">{t('Add MetaChain Devnet to wallet')}</span>
             </Button>
             <ButtonLink to="/swap" size="lg" variant="secondary">
-              Trade on devnet
+              {t('Trade on devnet')}
             </ButtonLink>
           </div>
         </div>
       </section>
 
       <section className="mt-12 grid gap-4 md:grid-cols-3">
-        <Pillar icon={<Zap size={20} />} title="Built for speed">
-          One-second blocks today, with a target of sub-second preconfirmations so swaps feel instant.
+        <Pillar icon={<Zap size={20} />} title={t('Built for speed')}>
+          {t('One-second blocks today, with a target of sub-second preconfirmations so swaps feel instant.')}
         </Pillar>
-        <Pillar icon={<Layers size={20} />} title="Liquidity native">
-          MetaSwap pools, Permit2 and the Universal Router ship with the chain, so trading works from genesis.
+        <Pillar icon={<Layers size={20} />} title={t('Liquidity native')}>
+          {t('MetaSwap pools, Permit2 and the Universal Router ship with the chain, so trading works from genesis.')}
         </Pillar>
-        <Pillar icon={<Boxes size={20} />} title="Intents first">
-          MetaSwapX orders settle on the same chain they are filled on, with fillers competing for every trade.
+        <Pillar icon={<Boxes size={20} />} title={t('Intents first')}>
+          {t('MetaSwapX orders settle on the same chain they are filled on, with fillers competing for every trade.')}
         </Pillar>
       </section>
 
       <section className="mt-12 grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="text-heading-3 font-semibold">Devnet specs</h2>
+          <h2 className="text-heading-3 font-semibold">{t('Devnet specs')}</h2>
           <dl className="mt-4 overflow-hidden rounded-2xl border border-border" data-testid="devnet-specs">
-            <Spec label="Network name" value={devnet.name} />
-            <Spec label="Chain ID" value={String(devnet.chainId)} />
-            <Spec label="Native currency" value="ETH (18 decimals)" />
-            <Spec label="RPC URL" value={<span className="inline-flex items-center gap-2 font-mono">{RPC_URL}<CopyButton value={RPC_URL} label="Copy RPC URL" /></span>} />
-            <Spec label="Block time" value={`${devnet.blockTimeMs / 1000}s`} />
-            <Spec label="Explorer" value="None (local devnet)" />
-            <Spec label="Contracts deployed" value={contracts ? String(contracts) : 'Not yet synced'} />
+            <Spec label={t('Network name')} value={devnet.name} />
+            <Spec label={t('Chain ID')} value={String(devnet.chainId)} />
+            <Spec label={t('Native currency')} value={t('ETH (18 decimals)')} />
+            <Spec label="RPC URL" value={<span className="inline-flex items-center gap-2 font-mono">{RPC_URL}<CopyButton value={RPC_URL} label={t('Copy RPC URL')} /></span>} />
+            <Spec label={t('Block time')} value={`${devnet.blockTimeMs / 1000}s`} />
+            <Spec label={t('Explorer')} value={t('None (local devnet)')} />
+            <Spec label={t('Contracts deployed')} value={contracts ? String(contracts) : t('Not yet synced')} />
             <Spec
-              label="Status"
+              label={t('Status')}
               value={
                 <span className="inline-flex items-center gap-2">
                   <span className={cn('size-2 rounded-full', reachable ? 'bg-success' : 'bg-critical')} />
-                  {reachable ? `Online · block ${blockNumber?.toString() ?? ''}` : 'Not reachable'}
+                  {reachable ? t('Online · block {block}', { block: blockNumber?.toString() ?? '' }) : t('Not reachable')}
                 </span>
               }
             />
           </dl>
         </div>
         <div>
-          <h2 className="text-heading-3 font-semibold">MetaChain targets</h2>
+          <h2 className="text-heading-3 font-semibold">{t('MetaChain targets')}</h2>
           <dl className="mt-4 overflow-hidden rounded-2xl border border-border">
             {PLANNED_SPECS.map(([k, v]) => (
-              <Spec key={k} label={k} value={v} />
+              <Spec key={k} label={t(k)} value={t(v)} />
             ))}
           </dl>
-          <p className="mt-3 text-body-4 text-text-3">Planned features are targets, not commitments. No token, validator set or launch date has been announced.</p>
+          <p className="mt-3 text-body-4 text-text-3">{t('Planned features are targets, not commitments. No token, validator set or launch date has been announced.')}</p>
         </div>
       </section>
 
       <section className="mt-12">
-        <h2 className="text-heading-3 font-semibold">Networks</h2>
+        <h2 className="text-heading-3 font-semibold">{t('Networks')}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3" data-testid="networks">
           {METACHAIN_NETWORKS.map((n) => (
             <div key={n.key} className="rounded-2xl border border-border bg-surface-1 p-5">
               <div className="flex items-center justify-between">
                 <Network size={20} className="text-accent" />
-                <Badge tone={n.status === 'live' ? 'success' : 'neutral'}>{n.status === 'live' ? 'Live' : 'Planned'}</Badge>
+                <Badge tone={n.status === 'live' ? 'success' : 'neutral'}>{n.status === 'live' ? t('Live') : t('Planned')}</Badge>
               </div>
               <h3 className="mt-3 font-semibold">{n.name}</h3>
               <p className="mt-1 text-body-3 text-text-2">{n.description}</p>
-              <p className="mt-3 text-body-4 text-text-3">Chain ID {n.chainId ?? 'TBD'}</p>
+              <p className="mt-3 text-body-4 text-text-3">{t('Chain ID {id}', { id: n.chainId ?? t('TBD') })}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section className="mt-12">
-        <h2 className="text-heading-3 font-semibold">Roadmap</h2>
+        <h2 className="text-heading-3 font-semibold">{t('Roadmap')}</h2>
         <ol className="mt-6 grid gap-4 md:grid-cols-3">
           {ROADMAP.map((r) => (
             <li key={r.phase} className={cn('rounded-2xl border p-5', r.status === 'live' ? 'border-accent bg-accent-solid' : 'border-border bg-surface-1')}>
               <div className="flex items-center gap-2 text-body-4 font-semibold text-text-2">
                 {r.status === 'live' ? <CheckCircle2 size={16} className="text-success" /> : r.phase === 'Next' ? <Clock3 size={16} /> : <CircleDashed size={16} />}
-                {r.phase.toUpperCase()}
+                {t(r.phase).toUpperCase()}
               </div>
-              <h3 className="mt-2 text-body-1 font-semibold">{r.title}</h3>
+              <h3 className="mt-2 text-body-1 font-semibold">{t(r.title)}</h3>
               <ul className="mt-3 flex flex-col gap-1.5 text-body-3 text-text-2">
                 {r.items.map((i) => (
                   <li key={i} className="flex gap-2">
                     <span className="mt-2 size-1 shrink-0 rounded-full bg-text-3" />
-                    {i}
+                    {t(i)}
                   </li>
                 ))}
               </ul>

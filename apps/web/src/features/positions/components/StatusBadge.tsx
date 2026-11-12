@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui'
+import { t } from '@/i18n'
 
 export type PositionStatus = 'in-range' | 'out-of-range' | 'closed'
 
@@ -11,14 +12,14 @@ export function StatusBadge({ status, testId }: { status: PositionStatus; testId
   if (status === 'closed')
     return (
       <Badge tone="neutral">
-        <span data-testid={testId} data-status={status}>Closed</span>
+        <span data-testid={testId} data-status={status}>{t('Closed')}</span>
       </Badge>
     )
   const inRange = status === 'in-range'
   return (
     <Badge tone={inRange ? 'success' : 'warning'}>
       <span className={inRange ? 'size-1.5 rounded-full bg-success' : 'size-1.5 rounded-full bg-warning'} aria-hidden />
-      <span data-testid={testId} data-status={status}>{inRange ? 'In range' : 'Out of range'}</span>
+      <span data-testid={testId} data-status={status}>{inRange ? t('In range') : t('Out of range')}</span>
     </Badge>
   )
 }

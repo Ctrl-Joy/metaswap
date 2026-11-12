@@ -5,6 +5,7 @@ import { ButtonLink, Card } from '@/components/ui'
 import { SwapForm } from '@/features/swap/SwapForm'
 import { SettingsPopover } from '@/features/settings/SettingsPopover'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 
 const TABS = [
   { to: '/swap', label: 'Swap' },
@@ -22,14 +23,14 @@ export function TokenSwapWidget({ address, symbol, token }: { address: string; s
     return (
       <Card className="flex flex-col gap-4 p-5" data-testid="token-swap-link">
         <div className="flex items-center gap-2 text-body-1 font-semibold">
-          <ArrowLeftRight size={18} aria-hidden /> Trade {symbol}
+          <ArrowLeftRight size={18} aria-hidden /> {t('Trade {symbol}', { symbol })}
         </div>
-        <p className="text-body-3 text-text-2">Swap {symbol} on the full swap page, with the pair pre-filled.</p>
+        <p className="text-body-3 text-text-2">{t('Swap {symbol} on the full swap page, with the pair pre-filled.', { symbol })}</p>
         <ButtonLink to={`/swap?outputCurrency=${symbol === 'ETH' ? 'ETH' : address}`} size="lg" fullWidth>
-          Swap {symbol}
+          {t('Swap {symbol}', { symbol })}
         </ButtonLink>
         <Link to="/swap" className="text-center text-body-3 text-accent hover:underline">
-          Open swap
+          {t('Open swap')}
         </Link>
       </Card>
     )
@@ -38,15 +39,15 @@ export function TokenSwapWidget({ address, symbol, token }: { address: string; s
   return (
     <div className="flex flex-col gap-1" data-testid="token-swap-widget">
       <div className="mb-1 flex items-center justify-between">
-        <nav aria-label="Trade" className="flex items-center gap-3 p-1">
-          {TABS.map((t) => (
+        <nav aria-label={t('Trade')} className="flex items-center gap-3 p-1">
+          {TABS.map((tab) => (
             <Link
-              key={t.to}
-              to={t.to === '/swap' ? `/swap?outputCurrency=${address}` : t.to}
-              aria-current={t.to === '/swap' ? 'page' : undefined}
-              className={cn('rounded-full px-3 py-2 text-body-3 font-semibold transition-colors', t.to === '/swap' ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
+              key={tab.to}
+              to={tab.to === '/swap' ? `/swap?outputCurrency=${address}` : tab.to}
+              aria-current={tab.to === '/swap' ? 'page' : undefined}
+              className={cn('rounded-full px-3 py-2 text-body-3 font-semibold transition-colors', tab.to === '/swap' ? 'bg-surface-3 text-text-1' : 'text-text-2 hover:text-text-1')}
             >
-              {t.label}
+              {t(tab.label)}
             </Link>
           ))}
         </nav>

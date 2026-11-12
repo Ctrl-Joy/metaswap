@@ -1,0 +1,22 @@
+// Global preferences menu (ru-RU).
+export default {
+  "Global preferences": "Общие настройки",
+  "Theme": "Тема",
+  "Language": "Язык",
+  "Currency": "Валюта",
+  "Hide small balances": "Скрывать мелкие балансы",
+  "Back": "Назад",
+  "Skip to content": "Перейти к содержимому",
+  "English": "Английский",
+  "Chinese, Simplified": "Китайский (упрощённый)",
+  "French": "Французский",
+  "Indonesian": "Индонезийский",
+  "Japanese": "Японский",
+  "Korean": "Корейский",
+  "Portuguese": "Португальский",
+  "Russian": "Русский",
+  "Spanish": "Испанский",
+  "Auto (follow system)": "Авто (как в системе)",
+  "Light": "Светлая",
+  "Dark": "Тёмная",
+} satisfies Record<string, string>

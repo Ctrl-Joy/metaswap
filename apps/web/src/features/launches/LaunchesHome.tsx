@@ -4,9 +4,10 @@ import { ArrowDown, ArrowRight, ChartNoAxesColumnIncreasing, ChevronDown, Info, 
 import { ButtonLink, Marquee, Skeleton, Tooltip } from '@/components/ui'
 import { LogoMark } from '@/components/layout/Logo'
 import { cn } from '@/lib/cn'
+import { t } from '@/i18n'
 import { useLaunches, useTrendingLaunches, type LaunchStatusFilter } from './api'
 import { launchpadName, type LaunchRow } from './types'
-import { Countdown, formatAge, LaunchStatusBadge, ProgressBar, VerifiedMark, useNow } from './components/LaunchBits'
+import { Countdown, formatAge, LaunchStatusBadge, ProgressBar, VerifiedMark, useNow, withNodes } from './components/LaunchBits'
 import { usdCompact, Delta, LaunchCard, LaunchCardSkeleton, LaunchLogo, LaunchPill, LaunchPillSkeleton, LaunchpadIcon } from './components/LaunchVisuals'
 
 const auctionHref = (r: LaunchRow) => `/launches/${r.auction}`
@@ -31,7 +32,7 @@ function SectionTitle({ children, info, right }: { children: ReactNode; info?: s
         {children}
         {info && (
           <Tooltip content={info}>
-            <button type="button" aria-label="More info" className="inline-flex text-text-3 hover:text-text-2">
+            <button type="button" aria-label={t('More info')} className="inline-flex text-text-3 hover:text-text-2">
               <Info size={16} />
             </button>
           </Tooltip>
@@ -64,16 +65,19 @@ function LaunchBanner({ rows, loading }: { rows: LaunchRow[]; loading: boolean }
           </span>
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-body-1 font-medium">Launch and trade</div>
+          <div className="text-body-1 font-medium">{t('Launch and trade')}</div>
           <div className="text-body-3 text-text-2 md:text-body-2">
-            Trade new MetaChain tokens on{' '}
-            <a href="#all-launches" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
-              <Rocket size={14} />
-              Launchpads
-            </a>
+            {withNodes(t('Trade new MetaChain tokens on {launchpads}'), {
+              launchpads: (
+                <a href="#all-launches" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
+                  <Rocket size={14} />
+                  {t('Launchpads')}
+                </a>
+              ),
+            })}
           </div>
         </div>
-        <Link to="/launches/create" aria-label="Launch a token" data-testid="banner-create" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-3 text-text-1 transition-colors hover:bg-surface-3-hover">
+        <Link to="/launches/create" aria-label={t('Launch a token')} data-testid="banner-create" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-3 text-text-1 transition-colors hover:bg-surface-3-hover">
           <ArrowRight size={24} />
         </Link>
       </div>
@@ -85,7 +89,7 @@ function LaunchBanner({ rows, loading }: { rows: LaunchRow[]; loading: boolean }
             ))}
           </div>
         ) : (
-          <Marquee fade itemGap={8} speed={35} ariaLabel="Launched tokens ticker">
+          <Marquee fade itemGap={8} speed={35} ariaLabel={t('Launched tokens ticker')}>
             {items.map((r) => (
               <LaunchPill key={r.auction} row={r} to={auctionHref(r)} />
             ))}
@@ -104,14 +108,14 @@ function TrendingLaunches() {
   return (
     <section data-testid="trending-launches">
       <SectionTitle
-        info="Launched tokens ranked by 24h trading volume."
+        info={t('Launched tokens ranked by 24h trading volume.')}
         right={
           <a href="#all-launches" className="text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="trending-view-all">
-            View all
+            {t('View all')}
           </a>
         }
       >
-        Trending launches
+        {t('Trending launches')}
       </SectionTitle>
       {q.isLoading || rows.length === 0 ? (
         <div className="relative">
@@ -123,14 +127,14 @@ function TrendingLaunches() {
           {!q.isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="rounded-full border-[0.8px] border-border bg-surface-1 px-4 py-2 text-body-3 text-text-2 shadow-short">
-                {q.isError ? 'Launches are unavailable right now.' : 'No launched tokens yet.'}
+                {q.isError ? t('Launches are unavailable right now.') : t('No launched tokens yet.')}
               </span>
             </div>
           )}
         </div>
       ) : (
         <div className="[&_button[aria-label^=Scroll]]:opacity-0 [&_button[aria-label^=Scroll]]:transition-opacity hover:[&_button[aria-label^=Scroll]]:opacity-100 focus-within:[&_button[aria-label^=Scroll]]:opacity-100">
-        <Marquee fade arrows itemGap={12} speed={30} ariaLabel="Trending launches" testId="trending-strip">
+        <Marquee fade arrows itemGap={12} speed={30} ariaLabel={t('Trending launches')} testId="trending-strip">
           {rows.map((r) => (
             <LaunchCard key={r.auction} row={r} to={auctionHref(r)} />
           ))}
@@ -217,29 +221,29 @@ function AllLaunches() {
 
   return (
     <section id="all-launches" className="scroll-mt-24" data-testid="all-launches">
-      <SectionTitle>All launches</SectionTitle>
+      <SectionTitle>{t('All launches')}</SectionTitle>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 md:mb-6">
-        <div role="tablist" aria-label="Launch list" className="-mx-1 flex max-w-full items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
+        <div role="tablist" aria-label={t('Launch list')} className="-mx-1 flex max-w-full items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
           <FilterChip active={mode === 'all'} onClick={() => setMode('all')} icon={<ChartNoAxesColumnIncreasing size={16} strokeWidth={2.5} />} testId="launches-mode-all">
-            All
+            {t('All')}
           </FilterChip>
           <FilterChip active={mode === 'recent'} onClick={() => setMode('recent')} icon={<Sparkles size={16} />} testId="launches-mode-recent">
-            Recently launched
+            {t('Recently launched')}
           </FilterChip>
           <FilterChip active={mode === 'trending'} onClick={() => setMode('trending')} icon={<TrendingUp size={16} />} testId="launches-mode-trending">
-            Trending
+            {t('Trending')}
           </FilterChip>
         </div>
         <div className="flex items-center gap-2">
-          <Dropdown value={launchpad} onChange={setLaunchpad} ariaLabel="Launchpad" testId="launchpad-filter">
-            <option value="">All launchpads</option>
+          <Dropdown value={launchpad} onChange={setLaunchpad} ariaLabel={t('Launchpad')} testId="launchpad-filter">
+            <option value="">{t('All launchpads')}</option>
             {pads.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
             ))}
           </Dropdown>
-          <Dropdown value="devnet" onChange={() => undefined} ariaLabel="Network" leading={<LaunchpadIcon name={launchpad || 'MetaSwap'} size={24} />} className="pl-3">
+          <Dropdown value="devnet" onChange={() => undefined} ariaLabel={t('Network')} leading={<LaunchpadIcon name={launchpad || 'MetaSwap'} size={24} />} className="pl-3">
             <option value="devnet">MetaChain Devnet</option>
           </Dropdown>
         </div>
@@ -249,18 +253,18 @@ function AllLaunches() {
           <thead>
             <tr className="bg-surface-2">
               <th className={cn(TH, 'w-14 text-center')}>#</th>
-              <th className={TH}>Token</th>
-              <th className={TH}>Launchpad</th>
+              <th className={TH}>{t('Token')}</th>
+              <th className={TH}>{t('Launchpad')}</th>
               <th className={cn(TH, 'text-right')}>FDV</th>
               <th className={cn(TH, 'text-right', mode !== 'recent' && 'text-text-1')}>
                 <span className="inline-flex items-center gap-1">
-                  {mode !== 'recent' && <ArrowDown size={14} />}24H volume
+                  {mode !== 'recent' && <ArrowDown size={14} />}{t('24H volume')}
                 </span>
               </th>
-              <th className={cn(TH, 'text-right')}>Liquidity</th>
-              <th className={cn(TH, 'text-right')}>1H</th>
-              <th className={cn(TH, 'text-right')}>1D</th>
-              <th className={cn(TH, 'text-right', mode === 'recent' && 'text-text-1')}>Age</th>
+              <th className={cn(TH, 'text-right')}>{t('Liquidity')}</th>
+              <th className={cn(TH, 'text-right')}>{t('1H')}</th>
+              <th className={cn(TH, 'text-right')}>{t('1D')}</th>
+              <th className={cn(TH, 'text-right', mode === 'recent' && 'text-text-1')}>{t('Age')}</th>
             </tr>
           </thead>
           <tbody>
@@ -314,10 +318,10 @@ function AllLaunches() {
           <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-2 text-text-2">
             <Rocket size={22} />
           </span>
-          <div className="text-body-1 font-medium">{q.isError ? 'Launches unavailable' : 'No launches yet'}</div>
-          <p className="max-w-sm text-body-3 text-text-2">{q.isError ? 'The MetaSwap API is not reachable.' : 'Tokens that graduate from an auction show up here with their pool stats.'}</p>
+          <div className="text-body-1 font-medium">{q.isError ? t('Launches unavailable') : t('No launches yet')}</div>
+          <p className="max-w-sm text-body-3 text-text-2">{q.isError ? t('The MetaSwap API is not reachable.') : t('Tokens that graduate from an auction show up here with their pool stats.')}</p>
           <ButtonLink to="/launches/create" size="md">
-            Launch a token
+            {t('Launch a token')}
           </ButtonLink>
         </div>
       )}
@@ -339,22 +343,22 @@ function Auctions() {
         right={
           <span className="flex items-center gap-3">
             <Link to="/launches/create" className="inline-flex items-center gap-1 text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="launch-auction">
-              <Plus size={16} /> Launch auction
+              <Plus size={16} /> {t('Launch auction')}
             </Link>
             <Link to="/explore/auctions" className="text-body-3 font-semibold text-text-2 hover:text-text-1" data-testid="auctions-view-all">
-              View all auctions
+              {t('View all auctions')}
             </Link>
           </span>
         }
       >
-        Auctions
+        {t('Auctions')}
       </SectionTitle>
-      <div role="tablist" aria-label="Auction status" className="mb-4 flex flex-wrap items-center gap-1">
+      <div role="tablist" aria-label={t('Auction status')} className="mb-4 flex flex-wrap items-center gap-1">
         {(
           [
-            ['active', 'Live'],
-            ['upcoming', 'Starting soon'],
-            ['failed', 'Failed'],
+            ['active', t('Live')],
+            ['upcoming', t('Starting soon')],
+            ['failed', t('Failed')],
           ] as const
         ).map(([v, label]) => (
           <FilterChip key={v} active={status === v} onClick={() => setStatus(v)} icon={null} testId={`auctions-${v}`}>
@@ -366,11 +370,11 @@ function Auctions() {
         <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-body-2">
           <thead>
             <tr className="bg-surface-2">
-              <th className={TH}>Token</th>
-              <th className={cn(TH, 'text-right')}>FDV at floor</th>
-              <th className={cn(TH, 'text-right')}>Bid volume</th>
-              <th className={cn(TH, 'text-right')}>Launch threshold</th>
-              <th className={cn(TH, 'text-right')}>Status</th>
+              <th className={TH}>{t('Token')}</th>
+              <th className={cn(TH, 'text-right')}>{t('FDV at floor')}</th>
+              <th className={cn(TH, 'text-right')}>{t('Bid volume')}</th>
+              <th className={cn(TH, 'text-right')}>{t('Launch threshold')}</th>
+              <th className={cn(TH, 'text-right')}>{t('Status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -397,7 +401,7 @@ function Auctions() {
                     <td className={cn(TD, 'text-right tabular')}>{r.bidVolumeUsd ? usdCompact(r.bidVolumeUsd) : '-'}</td>
                     <td className={cn(TD, 'text-right')}>
                       <span className="block tabular">{usdCompact(r.thresholdUsd)}</span>
-                      <span className="block text-body-4 text-text-2 tabular">{(r.thresholdPct ?? 0).toFixed(2)}% met</span>
+                      <span className="block text-body-4 text-text-2 tabular">{t('{pct}% met', { pct: (r.thresholdPct ?? 0).toFixed(2) })}</span>
                     </td>
                     <td className={cn(TD, 'w-48 text-right')}>
                       <StatusCell row={r} now={now} />
@@ -409,7 +413,7 @@ function Auctions() {
       </div>
       {!q.isLoading && rows.length === 0 && (
         <p className="py-8 text-center text-body-3 text-text-2" data-testid="auctions-empty">
-          {q.isError ? 'Auctions are unavailable right now.' : status === 'active' ? 'No live auctions right now.' : status === 'upcoming' ? 'No auctions starting soon.' : 'No failed auctions.'}
+          {q.isError ? t('Auctions are unavailable right now.') : status === 'active' ? t('No live auctions right now.') : status === 'upcoming' ? t('No auctions starting soon.') : t('No failed auctions.')}
         </p>
       )}
     </section>
@@ -429,7 +433,7 @@ function StatusCell({ row, now }: { row: LaunchRow; now: number }) {
   if (row.status === 'upcoming')
     return (
       <span className="flex flex-col items-end">
-        <span className="font-medium">Starting soon</span>
+        <span className="font-medium">{t('Starting soon')}</span>
         <Countdown to={row.startTime} className="text-body-4 text-text-2" />
       </span>
     )

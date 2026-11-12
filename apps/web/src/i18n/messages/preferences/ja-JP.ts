@@ -1,0 +1,22 @@
+// Global preferences menu (ja-JP).
+export default {
+  "Global preferences": "全般設定",
+  "Theme": "テーマ",
+  "Language": "言語",
+  "Currency": "通貨",
+  "Hide small balances": "少額の残高を非表示",
+  "Back": "戻る",
+  "Skip to content": "コンテンツへスキップ",
+  "English": "英語",
+  "Chinese, Simplified": "中国語（簡体字）",
+  "French": "フランス語",
+  "Indonesian": "インドネシア語",
+  "Japanese": "日本語",
+  "Korean": "韓国語",
+  "Portuguese": "ポルトガル語",
+  "Russian": "ロシア語",
+  "Spanish": "スペイン語",
+  "Auto (follow system)": "自動（システムに合わせる）",
+  "Light": "ライト",
+  "Dark": "ダーク",
+} satisfies Record<string, string>
