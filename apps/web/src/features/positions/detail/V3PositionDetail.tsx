@@ -247,7 +247,7 @@ function TokenRow({ token, amount, usd, pct, testId }: { token: Token; amount: b
 
 function PriceBox({ label, value, unit, testId }: { label: string; value: number; unit: string; testId: string }) {
   return (
-    <div className="rounded-2xl bg-surface-2 p-4 text-center" data-testid={testId}>
+    <div className="rounded-[20px] bg-surface-2 p-4 text-center" data-testid={testId}>
       <div className="text-body-4 text-text-2">{label}</div>
       <div className="mt-1 text-heading-3 font-medium tabular">{formatDisplayPrice(value)}</div>
       <div className="text-body-4 text-text-3">{unit}</div>
@@ -305,7 +305,7 @@ function CollectModal({ open, onOpenChange, pos, t0, t1, account, usd }: { open:
   }
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Collect fees" runner={runner} confirmLabel="Collect" onConfirm={confirm} testId="collect-modal">
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={sym(t0, 0)}>{formatTokenAmount(pos.fees0, t0.decimals)}</ReviewRow>
         <ReviewRow label={sym(t1, 1)}>{formatTokenAmount(pos.fees1, t1.decimals)}</ReviewRow>
         <ReviewRow label="Value">{formatUsd(usd)}</ReviewRow>
@@ -423,7 +423,7 @@ function RemoveModal({ open, onOpenChange, pos, t0, t1, account }: { open: boole
   return (
     <TxFlowModal open={open} onOpenChange={onOpenChange} title="Remove liquidity" runner={runner} confirmLabel="Remove" confirmDisabled={liquidity === 0n} onConfirm={confirm} testId="remove-modal">
       <PercentPicker value={pct} onChange={setPct} />
-      <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-4">
+      <div className="flex flex-col gap-2 rounded-[20px] bg-surface-2 p-4">
         <ReviewRow label={`Pooled ${sym(t0, 0)}`} testId="remove-amount0">
           {formatTokenAmount(amount0, t0.decimals)}
         </ReviewRow>

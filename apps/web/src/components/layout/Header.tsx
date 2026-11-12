@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Compass, Menu, MoreHorizontal, Search, Moon, Sun, Wallet, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
+import { Menu, MoreHorizontal, Search, Moon, Sun, X, Zap, Layers, ArrowLeftRight, PiggyBank, Rocket, ChartNoAxesColumn, Send, CreditCard, Coins, Droplets, ListOrdered, Gavel, Plus, LayoutGrid, Clock } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/cn'
 import { Button, IconButton, Identicon, Popover, Spinner } from '@/components/ui'
@@ -11,19 +11,7 @@ import { useWallet } from '@/wallet/hooks'
 import { shortenAddress } from '@/lib/format'
 import { LogoMark, Wordmark } from './Logo'
 import { SearchModal } from './SearchModal'
-import { GlassNav } from './GlassNav'
 import { GlobalPreferences } from './PreferencesMenu'
-
-/** Icon shown in each main-nav tab, keyed by the tab's route. */
-const TAB_ICONS: Record<string, React.ReactNode> = {
-  '/swap': <ArrowLeftRight size={15} />,
-  '/explore': <Compass size={15} />,
-  '/launches': <Rocket size={15} />,
-  '/positions': <Droplets size={15} />,
-  '/portfolio': <Wallet size={15} />,
-  '/metaswapx': <Zap size={15} />,
-  '/metachain': <Layers size={15} />,
-}
 
 export const NAV_ITEMS = [
   { to: '/swap', label: 'Trade', match: ['/swap', '/limit', '/send', '/buy'] },
@@ -83,17 +71,17 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   return (
-    <header className="sticky top-0 z-[980] h-[72px] border-b border-border bg-bg lg:bg-bg/85 lg:backdrop-blur-md">
+    <header className="sticky top-0 z-[980] h-[72px] bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1920px] items-center gap-2 px-4 tablet:px-3 lg:px-4">
         <IconButton label="Open menu" className="lg:hidden" onClick={() => setMobileOpen(true)} data-testid="mobile-menu-button">
           <Menu size={22} />
         </IconButton>
         <ProductMenu />
-        <GlassNav activeTo={NAV_ITEMS.find((item) => isActive(item.match))?.to ?? null}>
+        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 lg:flex">
           {NAV_ITEMS.map((item) => (
             <NavItem key={item.to} item={item} active={isActive(item.match)} />
           ))}
-        </GlassNav>
+        </nav>
         <div className="ml-auto flex items-center gap-1">
           <IconButton label="Search tokens and pools" onClick={() => setSearchOpen(true)} data-testid="search-button">
             <Search size={20} />
@@ -170,24 +158,16 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
           }
         } else if (e.key === 'Escape') setOpen(false)
       }}
-      className={cn('gn-tab flex h-11 items-center gap-1 rounded-full px-2.5 text-body-1 font-medium', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
+      className={cn('block rounded-xl px-3 py-2 text-body-1 font-medium transition-colors', active ? 'text-text-1' : 'text-text-2 hover:text-text-1')}
     >
-      <span className="gn-icon flex shrink-0" aria-hidden>{TAB_ICONS[item.to]}</span>
-      <span className="gn-label">{item.label}</span>
+      {item.label}
       {'beta' in item && item.beta && <BetaBadge />}
     </NavLink>
   )
-  if (!menu)
-    return (
-      <div data-glass-tab={item.to} data-active={active || undefined} className={cn(wide && 'hidden xl:block')}>
-        {link}
-      </div>
-    )
+  if (!menu) return <div className={cn(wide && 'hidden xl:block')}>{link}</div>
   return (
     <div
       ref={hostRef}
-      data-glass-tab={item.to}
-      data-active={active || undefined}
       className={cn('relative', wide && 'hidden xl:block')}
       onPointerEnter={(e) => e.pointerType === 'mouse' && show()}
       onPointerLeave={(e) => e.pointerType === 'mouse' && hide()}
@@ -234,9 +214,9 @@ function NavItem({ item, active }: { item: NavItemDef; active: boolean }) {
 function ProductMenu() {
   return (
     <div className="flex items-center">
-      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1 touch:min-h-11" aria-label="MetaSwap home">
+      <Link to="/swap" className="flex items-center gap-2 rounded-xl py-1 pr-1" aria-label="MetaSwap home">
         <LogoMark size={28} />
-        <Wordmark className="hidden md:inline" />
+        <Wordmark className="hidden sm:inline" />
       </Link>
     </div>
   )
@@ -252,7 +232,7 @@ export function ThemeToggle() {
   const choice = useSettings((s) => s.themeChoice)
   const setChoice = useSettings((s) => s.setThemeChoice)
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex h-[34px] items-center gap-2 rounded-2xl border border-border p-1">
+    <div role="radiogroup" aria-label="Theme" className="inline-flex h-[34px] items-center gap-2 rounded-[20px] border border-border p-1">
       {THEME_OPTIONS.map((t) => (
         <button
           key={t.value}
@@ -270,7 +250,6 @@ export function ThemeToggle() {
     </div>
   )
 }
-
 
 /** "⋯" Global preferences (Uniswap: 325px, radius 16, 12/4/12/16 padding; Theme · Language · Currency). */
 function MoreMenu() {
@@ -322,7 +301,7 @@ function AccountButton() {
         loading={isConnecting}
         data-testid="connect-button"
         data-panel-trigger
-        className="h-[34px] rounded-xl px-3 text-body-3 touch:h-10"
+        className="h-[34px] rounded-xl px-3 text-body-3"
       >
         Get started
       </Button>

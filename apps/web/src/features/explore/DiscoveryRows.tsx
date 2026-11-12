@@ -28,16 +28,16 @@ export function TrendingRow() {
           View all
         </Link>
       </div>
-      <div className="relative grid grid-flow-col auto-cols-[min(280px,80vw)] gap-3 overflow-x-auto pb-1 scrollbar-thin md:grid-flow-row md:auto-cols-auto md:grid-cols-2 md:overflow-visible lg:grid-cols-4">
+      <div className="relative grid grid-flow-col auto-cols-[min(280px,80vw)] gap-3 overflow-x-auto pb-1 scrollbar-thin md:grid-flow-row md:auto-cols-auto md:grid-cols-4 md:overflow-visible">
         {q.isLoading && !q.data
-          ? Array.from({ length: 4 }, (_, i) => <Skeleton key={i} width="100%" height={66} rounded="lg" className="!rounded-2xl" />)
+          ? Array.from({ length: 4 }, (_, i) => <Skeleton key={i} width="100%" height={82} rounded="lg" className="!rounded-2xl" />)
           : rows.map((t) => (
               <Link
                 key={t.address}
                 to={tokenHref(t.address)}
                 data-testid="trending-card"
                 data-symbol={t.symbol}
-                className="flex h-[66px] min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface-1 px-3 transition-colors hover:bg-surface-1-hover"
+                className="flex h-[66px] min-w-0 items-center gap-3 rounded-[16px] border border-border bg-surface-1 px-3 transition-colors hover:bg-surface-1-hover"
               >
                 <TokenLogo token={{ symbol: t.symbol, address: t.address }} size={36} />
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -62,21 +62,21 @@ export function EarnRow() {
   const vaults = (q.data ?? []).slice(0, 3)
   if (!q.isLoading && vaults.length === 0) return null
   return (
-    <section aria-label="Earn" className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-10" data-testid="earn-row">
-      <div className="flex flex-col gap-1 lg:w-[376px] lg:shrink-0">
+    <section aria-label="Earn" className="flex flex-col gap-4 md:flex-row md:items-center md:gap-10" data-testid="earn-row">
+      <div className="flex flex-col gap-1 md:w-[376px] md:shrink-0">
         <h2 className="text-[24px] leading-7 font-medium">Earn</h2>
         <p className="text-[14px] leading-[18px] text-text-2">Deposit for yield with no lockup</p>
       </div>
       <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
         {q.isLoading && !q.data
-          ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} width="100%" height={66} rounded="lg" className="!rounded-2xl" />)
+          ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} width="100%" height={72} rounded="lg" className="!rounded-2xl" />)
           : vaults.map((v) => (
               <Link
                 key={v.id}
                 to={`/earn/${encodeURIComponent(v.id)}`}
                 data-testid="earn-card"
                 data-vault={v.id}
-                className={cn('flex h-[66px] items-center gap-3 rounded-2xl border border-border bg-surface-1 px-4 transition-colors hover:bg-surface-1-hover')}
+                className={cn('flex h-[66px] items-center gap-3 rounded-[16px] border border-border bg-surface-1 px-4 transition-colors hover:bg-surface-1-hover')}
               >
                 <TokenLogo token={{ symbol: v.logoSymbol }} size={36} />
                 <div className="flex min-w-0 flex-col">

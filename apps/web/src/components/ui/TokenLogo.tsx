@@ -54,7 +54,7 @@ function GeneratedLogo({ seed, symbol }: { seed: string; symbol: string }) {
 /**
  * Logo URLs that already failed to load in this tab. Freshly launched tokens have no artwork, and
  * the same token is drawn in many rows and cards; remembering the miss means one failed request
- * per token instead of one per place it appears, and no flash of a broken image.
+ * per token instead of one per place it appears.
  */
 const missingLogos = new Set<string>()
 

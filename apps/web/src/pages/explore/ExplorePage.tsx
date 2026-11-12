@@ -33,7 +33,7 @@ export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
   const txs = useExploreTransactions({}, 50)
 
   return (
-    <div className="mx-auto flex w-full max-w-[1168px] flex-col gap-8 xl:max-w-[1120px] px-4 pt-6 pb-24 md:px-6 md:pt-8 xl:px-0" data-testid="explore-page">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-4 pt-6 pb-24 md:px-0 md:pt-6" data-testid="explore-page">
       <ExploreStats />
       {(tab === 'tokens' || tab === 'pools' || tab === 'transactions') && <TrendingRow />}
       {tab === 'tokens' && <EarnRow />}

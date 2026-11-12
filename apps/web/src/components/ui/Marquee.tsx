@@ -211,6 +211,7 @@ export function ChartCard({ to, token, title, subtitle, chart, primary, changePc
       to={to}
       data-testid={testId}
       className="relative flex h-[108px] w-[280px] shrink-0 flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface-1 p-3.5 transition-colors hover:bg-surface-1-hover md:w-[300px]"
+      style={{ backgroundImage: 'radial-gradient(120% 90% at 100% 0%, var(--ms-surface-2) 0%, transparent 60%)' }}
     >
       <div className="flex items-start gap-2.5">
         <TokenLogo token={token} size={36} chainBadge />

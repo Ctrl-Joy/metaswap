@@ -76,7 +76,7 @@ export function AuctionDetail({ auctionParam }: { auctionParam: string | undefin
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[1248px] px-4 pt-4 pb-24 md:px-6 xl:max-w-[1200px] xl:px-0" data-testid="auction-page">
+    <div className="mx-auto w-full max-w-[1200px] px-4 pt-4 pb-24 md:px-0" data-testid="auction-page">
       {children}
     </div>
   )
@@ -171,7 +171,7 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
       </nav>
 
       <header className="mt-6 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
-        <div className="flex min-w-0 items-start gap-3 md:items-center">
+        <div className="flex min-w-0 items-center gap-3">
           <LaunchLogo row={row as never} size={56} badge={18} />
           <div className="min-w-0">
             <h1 className="flex flex-wrap items-center gap-2" data-testid="auction-title">
@@ -206,7 +206,7 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
       </header>
 
       {/* headline stats: label 16 text-2, value 24/28, sub 14 text-2, divided columns */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-6 py-6 md:grid-cols-4 md:gap-x-0" data-testid="auction-stats">
+      <div className="grid grid-cols-2 gap-y-6 py-6 md:grid-cols-4" data-testid="auction-stats">
         <HeadStat label={s.status === 'launched' ? 'Clearing price' : 'Current clearing price'} testId="stat-clearing" first>
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span>
@@ -313,8 +313,8 @@ function Loaded({ s, detail, account }: { s: AuctionState; detail?: LaunchDetail
 function HeadStat({ label, children, testId, first }: { label: string; children: ReactNode; testId?: string; first?: boolean }) {
   return (
     <div className={cn('flex min-w-0 flex-col px-0 md:px-6', !first && 'md:border-l md:border-border', first && 'md:pl-0')} data-testid={testId}>
-      <span className="text-body-3 text-text-2 md:text-body-2">{label}</span>
-      <span className="mt-0.5 text-body-1 font-medium tabular md:text-heading-3">{children}</span>
+      <span className="text-body-2 text-text-2">{label}</span>
+      <span className="mt-0.5 text-heading-3 font-medium tabular">{children}</span>
     </div>
   )
 }
@@ -361,7 +361,7 @@ function ActionsCard({ s, account, quoteToken, quoteUsd }: { s: AuctionState; ac
 
   if (s.status === 'upcoming')
     return (
-      <div className="rounded-2xl bg-surface-2 p-4 text-center">
+      <div className="rounded-[20px] bg-surface-2 p-4 text-center">
         <div className="text-body-1 font-medium">Bidding opens soon</div>
         <div className="mt-1 text-body-3 text-text-2">
           Starts in <Countdown to={s.startTime} />
@@ -371,7 +371,7 @@ function ActionsCard({ s, account, quoteToken, quoteUsd }: { s: AuctionState; ac
   if (s.status === 'active' && !ended) return <BidForm s={s} account={account} quoteToken={quoteToken} quoteUsd={quoteUsd} />
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4" data-testid="auction-actions">
+    <div className="flex flex-col gap-3 rounded-[20px] bg-surface-2 p-4" data-testid="auction-actions">
       {(s.status === 'ended' || (s.status === 'active' && ended)) && (
         <>
           <div className="text-body-1 font-medium">Auction ended</div>
@@ -548,7 +548,7 @@ function BidForm({ s, account, quoteToken, quoteUsd }: { s: AuctionState; accoun
         )}
       </div>
 
-      <div className={cn('rounded-2xl bg-surface-2 p-4', insufficient && 'ring-1 ring-critical')} data-testid="bid-amount">
+      <div className={cn('rounded-[20px] bg-surface-2 p-4', insufficient && 'ring-1 ring-critical')} data-testid="bid-amount">
         <div className="flex items-center justify-between text-body-2 text-text-2">
           <span>Max budget</span>
           {balance !== undefined && payToken && (
@@ -578,7 +578,7 @@ function BidForm({ s, account, quoteToken, quoteUsd }: { s: AuctionState; accoun
         <div className="mt-1 text-body-4 text-text-2 tabular">{usdCompact(toNumber(amountRaw, s.quoteDecimals) * quoteUsd)}</div>
       </div>
 
-      <div className="rounded-2xl bg-surface-2 p-4">
+      <div className="rounded-[20px] bg-surface-2 p-4">
         <div className="flex items-center justify-between text-body-2 text-text-2">
           <span>{mode === 'price' ? `Max price (${q} per ${s.symbol})` : 'Max FDV'}</span>
           <span className="flex gap-1">
@@ -711,7 +711,7 @@ function bidOutcome(s: AuctionState, b: AuctionState['myBids'][number]): { label
 function MyBids({ s, account }: { s: AuctionState; account?: Address }) {
   if (!account) return null
   return (
-    <section className="rounded-2xl bg-surface-2 p-4" data-testid="my-bids">
+    <section className="rounded-[20px] bg-surface-2 p-4" data-testid="my-bids">
       <h2 className="mb-3 text-body-2 text-text-2">Your bids</h2>
       {s.myBids.length === 0 ? (
         <p className="text-body-3 text-text-2">You have not bid in this auction.</p>
@@ -822,11 +822,11 @@ function ActivitySection({ detail, s, quoteUsd }: { detail?: LaunchDetail; s: Au
         <div className="overflow-x-auto [scrollbar-width:thin]">
           <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-body-2">
             <thead>
-              <tr className="h-10 text-[13px] leading-4 text-text-2 [&>th]:border-b [&>th]:border-border [&>th]:font-medium">
-                <th className="px-3 md:px-5">Wallet</th>
-                <th className="px-3">Bid</th>
-                <th className="px-3">Max price</th>
-                <th className="px-3 text-right md:px-5">Time</th>
+              <tr className="h-[46px] bg-surface-2 text-text-2">
+                <th className="rounded-l-xl px-5 font-normal">Wallet</th>
+                <th className="px-3 font-normal">Bid</th>
+                <th className="px-3 font-normal">Max price</th>
+                <th className="rounded-r-xl px-5 text-right text-body-3 font-medium">Time</th>
               </tr>
             </thead>
             <tbody>
@@ -835,8 +835,8 @@ function ActivitySection({ detail, s, quoteUsd }: { detail?: LaunchDetail; s: Au
                 const amount = toNumber(BigInt(b.amount), s.quoteDecimals)
                 const price = priceToHuman(BigInt(b.maxPrice))
                 return (
-                  <tr key={String(b.bidId)} className="h-12 whitespace-nowrap [&>td]:border-b [&>td]:border-border last:[&>td]:border-b-0" data-testid="auction-bid-row">
-                    <td className="px-3 md:px-5">
+                  <tr key={String(b.bidId)} className="h-12 whitespace-nowrap" data-testid="auction-bid-row">
+                    <td className="px-5">
                       <span className="inline-flex items-center gap-2">
                         <Identicon address={b.bidder} size={16} />
                         {shortenAddress(b.bidder)}
@@ -848,7 +848,7 @@ function ActivitySection({ detail, s, quoteUsd }: { detail?: LaunchDetail; s: Au
                     <td className="px-3 tabular">
                       {usdPrice(price * quoteUsd)} <span className="text-text-2">{formatAmount(price)} {s.quoteSymbol}</span>
                     </td>
-                    <td className="px-3 text-right text-text-2 md:px-5">{t ? formatRelativeTime(t * 1000) : '-'}</td>
+                    <td className="px-5 text-right text-text-2">{t ? formatRelativeTime(t * 1000) : '-'}</td>
                   </tr>
                 )
               })}
@@ -890,9 +890,9 @@ function Timeline({ s }: { s: AuctionState }) {
 
 function InfoItem({ label, children, first }: { label: string; children: ReactNode; first?: boolean }) {
   return (
-    <div className={cn('flex min-w-0 flex-col gap-1 md:pr-4', !first && 'md:border-l md:border-border md:pl-4')}>
+    <div className={cn('flex flex-col gap-1 pr-4', !first && 'border-l border-border pl-4')}>
       <span className="text-body-3 text-text-2">{label}</span>
-      <span className="text-body-2 break-words tabular md:text-body-1">{children}</span>
+      <span className="text-body-1 tabular">{children}</span>
     </div>
   )
 }
@@ -905,7 +905,7 @@ function InfoSection({ s }: { s: AuctionState }) {
       </div>
       {s.description && <p className="mb-4 text-body-2 text-text-2">{s.description}</p>}
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 md:flex md:flex-wrap md:gap-x-0">
+        <div className="flex flex-wrap gap-y-4">
           <InfoItem label="Launched on" first>
             {s.status === 'launched' ? new Date(s.endTime * 1000).toLocaleDateString() : '--'}
           </InfoItem>
@@ -920,7 +920,7 @@ function InfoSection({ s }: { s: AuctionState }) {
             </CopyButton>
           </InfoItem>
         </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 md:flex md:flex-wrap md:gap-x-0">
+        <div className="flex flex-wrap gap-y-4">
           <InfoItem label="% Committed to LP" first>
             {(Number(s.liquidityBps) / 100).toFixed(1)}%
           </InfoItem>

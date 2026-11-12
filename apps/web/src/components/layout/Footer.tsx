@@ -14,17 +14,17 @@ export function Footer() {
   const status: 'up' | 'down' | 'checking' = apiUp ? 'up' : health.isError ? 'down' : 'checking'
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-6 touch:gap-y-0 text-body-4 text-text-2 md:px-8">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-6 text-body-4 text-text-2 md:px-8">
         <span className="flex items-center gap-2 font-semibold text-text-1">
           <LogoMark size={18} /> MetaSwap
         </span>
-        <Link to="/metaswapx" className="inline-flex items-center hover:text-text-1 touch:min-h-11">
+        <Link to="/metaswapx" className="hover:text-text-1">
           MetaSwapX
         </Link>
-        <Link to="/metachain" className="inline-flex items-center hover:text-text-1 touch:min-h-11">
+        <Link to="/metachain" className="hover:text-text-1">
           MetaChain
         </Link>
-        <Link to="/buy" className="inline-flex items-center hover:text-text-1 touch:min-h-11">
+        <Link to="/buy" className="hover:text-text-1">
           Devnet faucet
         </Link>
         <span className="flex items-center gap-1.5" data-testid="footer-api-status" data-status={status}>

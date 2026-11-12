@@ -44,6 +44,7 @@ export default function MetaChainPage() {
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 pt-8 pb-24 md:px-8">
       <section className="relative overflow-hidden rounded-3xl border border-border bg-surface-1 px-6 py-12 md:px-12 md:py-16">
+        <div className="pointer-events-none absolute -top-24 -right-24 size-[360px] rounded-full opacity-50 blur-3xl" style={{ background: 'radial-gradient(circle, var(--ms-accent-fill), transparent 70%)' }} aria-hidden />
         <div className="relative max-w-[620px]">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="success">Devnet live</Badge>

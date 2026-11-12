@@ -222,7 +222,7 @@ export function CreateLaunch() {
           <Field label="Duration" hint={formatCountdown(form.durationSec)}>
             <div className="flex flex-wrap gap-1.5">
               {DURATIONS.map((d) => (
-                <button key={d.sec} type="button" onClick={() => set('durationSec', d.sec)} data-testid={`launch-duration-${d.label}`} className={cn('h-8 rounded-full px-3 text-body-4 font-semibold touch:h-10 touch:px-3.5', form.durationSec === d.sec ? 'bg-accent-fill text-white' : 'bg-surface-2 text-text-2 hover:text-text-1')}>
+                <button key={d.sec} type="button" onClick={() => set('durationSec', d.sec)} data-testid={`launch-duration-${d.label}`} className={cn('h-8 rounded-full px-3 text-body-4 font-semibold', form.durationSec === d.sec ? 'bg-accent-fill text-white' : 'bg-surface-2 text-text-2 hover:text-text-1')}>
                   {d.label}
                 </button>
               ))}

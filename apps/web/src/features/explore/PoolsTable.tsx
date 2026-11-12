@@ -103,8 +103,8 @@ export function PoolsTable({
       )}
       <ExTable minWidth={860}>
         <ExTHead>
-          <ExTh className="sticky left-0 z-[2] hidden w-12 bg-bg md:table-cell">#</ExTh>
-          <ExTh className="sticky left-0 z-[2] bg-bg md:left-12">Pool</ExTh>
+          <ExTh className="sticky left-0 z-[2] w-12 bg-surface-2">#</ExTh>
+          <ExTh className="sticky left-12 z-[2] bg-surface-2">Pool</ExTh>
           <ExSortTh label="TVL" active={sort.key === 'tvl'} direction={sort.dir} onClick={() => toggle('tvl')} />
           <ExSortTh label="1D vol" active={sort.key === 'volume'} direction={sort.dir} onClick={() => toggle('volume')} />
           <ExSortTh label="30D vol" active={sort.key === 'volume30d'} direction={sort.dir} onClick={() => toggle('volume30d')} />
@@ -131,9 +131,9 @@ export function PoolsTable({
               const href = poolHref(p.address)
               return (
                 <ExTr key={p.address} className="group" onClick={() => navigate(href)} data-testid="pool-row" data-pool={p.address} data-version={p.version} data-index={i}>
-                  <ExTd className="sticky left-0 z-[1] hidden w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2 md:table-cell">{rank}</ExTd>
-                  <ExTd className="sticky left-0 z-[1] bg-surface-1 group-hover:bg-surface-2 md:left-12">
-                    <Link to={href} className="flex items-center gap-3 rounded-lg" onClick={(e) => e.stopPropagation()}>
+                  <ExTd className="sticky left-0 z-[1] w-12 bg-surface-1 text-text-2 group-hover:bg-surface-2-hover">{rank}</ExTd>
+                  <ExTd className="sticky left-12 z-[1] bg-surface-1 group-hover:bg-surface-2-hover">
+                    <Link to={href} className="flex items-center gap-3 focus-visible:outline-none" onClick={(e) => e.stopPropagation()}>
                       <DoubleLogo token0={{ symbol: t0.symbol, address: t0.address }} token1={{ symbol: t1.symbol, address: t1.address }} size={28} />
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate font-semibold text-text-1">
