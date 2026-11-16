@@ -272,4 +272,10 @@ export default {
   "24 hours": "24 jam",
   "7 days": "7 hari",
   "30 days": "30 hari",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "Pantau portofolio kripto dan aktivitas Anda",
+  "Earn Fixed APY on Stablecoins and ETH": "Dapatkan APY tetap dari stablecoin dan ETH",
+  "{asset} Savings Vault with Fixed APY": "Brankas tabungan {asset} dengan APY tetap",
+  "MetaSwapX Gasless Intent Orders": "Order intent tanpa gas MetaSwapX",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet dan peta jalan layer 2",
 } satisfies Record<string, string>

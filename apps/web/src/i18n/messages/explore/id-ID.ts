@@ -217,4 +217,11 @@ export default {
   "The MetaSwap devnet token. It has a 1% fee-tier pool against WETH and is used to exercise thinner liquidity.": "Token devnet MetaSwap. Memiliki pool dengan biaya 1% berpasangan dengan WETH dan digunakan untuk menguji likuiditas yang lebih tipis.",
   "A devnet oracle-style token with a V2 pool against WETH, for testing mid-volatility pairs.": "Token bergaya oracle devnet dengan pool V2 berpasangan dengan WETH, untuk menguji pasangan dengan volatilitas menengah.",
   "A devnet token with a 0.3% V3 pool against WETH, for testing a mid-cap asset.": "Token devnet dengan pool V3 0,3% berpasangan dengan WETH, untuk menguji aset berkapitalisasi menengah.",
+  // Browser tab titles
+  "Explore Top Tokens and Prices": "Jelajahi token teratas dan harganya",
+  "Explore Liquidity Pools": "Jelajahi pool likuiditas",
+  "Recent DEX Transactions": "Transaksi DEX terbaru",
+  "Explore Token Launch Auctions": "Jelajahi lelang peluncuran token",
+  "{symbol} Price, Chart and Pools": "Harga, grafik, dan pool {symbol}",
+  "{pair} Pool: Price, Liquidity and Volume": "Pool {pair}: harga, likuiditas, dan volume",
 } satisfies Record<string, string>

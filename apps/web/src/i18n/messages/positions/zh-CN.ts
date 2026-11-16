@@ -224,4 +224,7 @@ export default {
   "{value} TVL": "TVL {value}",
   "Position #{id}": "仓位 #{id}",
   "V2 position": "V2 仓位",
+  // Browser tab titles
+  "Provide Liquidity and Manage Positions": "提供流动性并管理仓位",
+  "Create a Liquidity Position": "创建流动性仓位",
 } satisfies Record<string, string>

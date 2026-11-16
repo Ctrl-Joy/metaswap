@@ -1,9 +1,19 @@
+import { useEffect } from 'react'
 import { ButtonLink } from '@/components/ui'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { t } from '@/i18n'
 
 export default function NotFoundPage() {
   useDocumentTitle(t('Page not found'))
+  // The app shell answers every path with HTTP 200, so a missing page asks search engines not to index it.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="robots"]')
+    const previous = meta?.getAttribute('content')
+    meta?.setAttribute('content', 'noindex')
+    return () => {
+      if (previous) meta?.setAttribute('content', previous)
+    }
+  }, [])
   return (
     <div className="mx-auto flex max-w-[560px] flex-col items-center px-4 pt-24 pb-24 text-center" data-testid="not-found">
       <div className="text-[96px] leading-none font-semibold tracking-[-0.04em] text-accent">404</div>

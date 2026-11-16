@@ -32,7 +32,7 @@ export default function PoolDetailPage() {
   const d = pool.data
   const t0 = tokenOf(d?.token0)
   const t1 = tokenOf(d?.token1)
-  useDocumentTitle(d ? `${t0.symbol} / ${t1.symbol}` : t('Pool'))
+  useDocumentTitle(d ? t('{pair} Pool: Price, Liquidity and Volume', { pair: `${t0.symbol}/${t1.symbol}` }) : t('Pool'))
 
   if (chain && chain !== CHAIN_SLUG) return <NotFoundState title={t('Network not found')} backTo="/explore" backLabel={t('Back to explore')} />
   if (pool.isError && isNotFound(pool.error)) return <NotFoundState title={t('Pool not found')} backTo="/explore/pools" backLabel={t('Back to pools')} />

@@ -242,4 +242,8 @@ export default {
   "No auctions starting soon.": "暂无即将开始的拍卖。",
   "No failed auctions.": "没有失败的拍卖。",
   "auction::Receive": "将获得",
+  // Browser tab titles
+  "New Token Launches on MetaChain": "MetaChain 上的新代币发行",
+  "Launch a Token with an Auction": "通过拍卖发行代币",
+  "Token Launch Auction": "代币发行拍卖",
 } satisfies Record<string, string>

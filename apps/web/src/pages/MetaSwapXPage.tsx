@@ -8,7 +8,7 @@ import { useXFillerStatus } from './useXFiller'
 import { t } from '@/i18n'
 
 export default function MetaSwapXPage() {
-  useDocumentTitle('MetaSwapX')
+  useDocumentTitle(t('MetaSwapX Gasless Intent Orders'))
   const { address } = useWallet()
   const filler = useXFillerStatus()
   return (

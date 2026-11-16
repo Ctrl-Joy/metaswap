@@ -272,4 +272,10 @@ export default {
   "24 hours": "24 часа",
   "7 days": "7 дней",
   "30 days": "30 дней",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "Отслеживайте криптопортфель и активность",
+  "Earn Fixed APY on Stablecoins and ETH": "Фиксированный APY на стейблкоины и ETH",
+  "{asset} Savings Vault with Fixed APY": "Сберегательное хранилище {asset} с фиксированным APY",
+  "MetaSwapX Gasless Intent Orders": "Интент-ордера MetaSwapX без газа",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet и дорожная карта L2",
 } satisfies Record<string, string>

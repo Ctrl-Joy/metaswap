@@ -11,7 +11,7 @@ import { EarnModal } from '@/features/earn/EarnModal'
 import { t } from '@/i18n'
 
 export default function EarnPage() {
-  useDocumentTitle(t('Earn'))
+  useDocumentTitle(t('Earn Fixed APY on Stablecoins and ETH'))
   const { address } = useWallet()
   const vaults = useEarnVaults()
   const mine = useAccountEarn(address)

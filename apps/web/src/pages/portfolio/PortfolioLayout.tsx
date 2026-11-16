@@ -32,7 +32,7 @@ const TABS = [
 
 /** /portfolio shell: demo banner when signed out, wallet header with hide-balances eye, sub-route tabs. */
 export default function PortfolioLayout() {
-  useDocumentTitle(t('Portfolio'))
+  useDocumentTitle(t('Track Your Crypto Portfolio and Activity'))
   const account = usePortfolioAccount()
   const data = usePortfolioData(account.address)
   const openConnect = useUi((s) => s.openConnect)

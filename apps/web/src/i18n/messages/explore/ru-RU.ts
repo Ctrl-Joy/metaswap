@@ -217,4 +217,11 @@ export default {
   "The MetaSwap devnet token. It has a 1% fee-tier pool against WETH and is used to exercise thinner liquidity.": "Токен MetaSwap в devnet. У него есть пул с комиссией 1% в паре с WETH, он служит для проверки низкой ликвидности.",
   "A devnet oracle-style token with a V2 pool against WETH, for testing mid-volatility pairs.": "Токен оракульного типа в devnet с пулом V2 в паре с WETH для проверки пар со средней волатильностью.",
   "A devnet token with a 0.3% V3 pool against WETH, for testing a mid-cap asset.": "Токен devnet с пулом V3 с комиссией 0,3% в паре с WETH для проверки актива средней капитализации.",
+  // Browser tab titles
+  "Explore Top Tokens and Prices": "Популярные токены и цены",
+  "Explore Liquidity Pools": "Пулы ликвидности",
+  "Recent DEX Transactions": "Последние транзакции DEX",
+  "Explore Token Launch Auctions": "Аукционы запуска токенов",
+  "{symbol} Price, Chart and Pools": "{symbol}: цена, график и пулы",
+  "{pair} Pool: Price, Liquidity and Volume": "Пул {pair}: цена, ликвидность и объём",
 } satisfies Record<string, string>

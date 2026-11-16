@@ -21,7 +21,7 @@ export default function VaultPage() {
   const vault = vaults.data?.find((v) => v.address.toLowerCase() === param?.toLowerCase() || v.symbol.toLowerCase() === param?.toLowerCase())
   const chain = useVaultChain(vault?.address, vault?.asset.address, address)
   const [modal, setModal] = useState<EarnMode | null>(null)
-  useDocumentTitle(vault ? t('{asset} Earn', { asset: assetLabel(vault) }) : t('Earn'))
+  useDocumentTitle(vault ? t('{asset} Savings Vault with Fixed APY', { asset: assetLabel(vault) }) : t('Earn Fixed APY on Stablecoins and ETH'))
   const position = mine.data?.find((p) => String(typeof p.vault === 'object' ? p.vault.address : p.vault).toLowerCase() === vault?.address.toLowerCase())
 
   if (vaults.isLoading) return <div className="mx-auto max-w-[900px] px-4 pt-10"><Skeleton width="100%" height={300} rounded="lg" /></div>

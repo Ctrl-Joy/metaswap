@@ -32,7 +32,7 @@ export default function TokenDetailPage() {
   const d = detail.data
   const symbol = d?.token.symbol ?? token?.symbol ?? ''
   const name = d?.token.name ?? token?.name ?? ''
-  useDocumentTitle(symbol ? `${symbol}` : t('Token'))
+  useDocumentTitle(symbol ? t('{symbol} Price, Chart and Pools', { symbol }) : t('Token'))
 
   const poolsForToken = useMemo(() => (pools.data ?? []).filter((p) => poolHasToken(p, apiAddr)), [pools.data, apiAddr])
 

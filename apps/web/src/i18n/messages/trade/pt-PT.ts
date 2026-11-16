@@ -238,4 +238,9 @@ export default {
   "Trade": "Negociar",
   "Hide price chart": "Ocultar gráfico de preços",
   "Show price chart": "Mostrar gráfico de preços",
+  // Browser tab titles
+  "Decentralized Exchange with Gasless Swaps": "Exchange descentralizada com trocas sem gas",
+  "Gasless Limit Orders for Token Swaps": "Ordens limite sem gas para trocar tokens",
+  "Send Tokens to Any Wallet Address": "Envie tokens para qualquer endereço de carteira",
+  "Free Test ETH and Token Faucet": "Faucet gratuita de ETH e tokens de teste",
 } satisfies Record<string, string>

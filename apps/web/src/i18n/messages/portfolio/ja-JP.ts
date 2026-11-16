@@ -272,4 +272,10 @@ export default {
   "24 hours": "24 時間",
   "7 days": "7 日間",
   "30 days": "30 日間",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "暗号資産ポートフォリオとアクティビティを追跡",
+  "Earn Fixed APY on Stablecoins and ETH": "ステーブルコインと ETH で固定 APY を獲得",
+  "{asset} Savings Vault with Fixed APY": "固定 APY の {asset} 貯蓄ボールト",
+  "MetaSwapX Gasless Intent Orders": "MetaSwapX のガスレスインテント注文",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet とレイヤー2 ロードマップ",
 } satisfies Record<string, string>

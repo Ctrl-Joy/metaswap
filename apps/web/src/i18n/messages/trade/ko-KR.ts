@@ -238,4 +238,9 @@ export default {
   "Trade": "거래",
   "Hide price chart": "가격 차트 숨기기",
   "Show price chart": "가격 차트 표시",
+  // Browser tab titles
+  "Decentralized Exchange with Gasless Swaps": "가스리스 스왑을 지원하는 탈중앙화 거래소",
+  "Gasless Limit Orders for Token Swaps": "토큰 스왑을 위한 가스리스 지정가 주문",
+  "Send Tokens to Any Wallet Address": "모든 지갑 주소로 토큰 보내기",
+  "Free Test ETH and Token Faucet": "무료 테스트 ETH 및 토큰 파우셋",
 } satisfies Record<string, string>

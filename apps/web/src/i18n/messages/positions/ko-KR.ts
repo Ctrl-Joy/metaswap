@@ -224,4 +224,7 @@ export default {
   "{value} TVL": "TVL {value}",
   "Position #{id}": "포지션 #{id}",
   "V2 position": "V2 포지션",
+  // Browser tab titles
+  "Provide Liquidity and Manage Positions": "유동성 공급 및 포지션 관리",
+  "Create a Liquidity Position": "유동성 포지션 만들기",
 } satisfies Record<string, string>

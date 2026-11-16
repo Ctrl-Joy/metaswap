@@ -242,4 +242,8 @@ export default {
   "No auctions starting soon.": "Aucune enchère ne commence bientôt.",
   "No failed auctions.": "Aucune enchère échouée.",
   "auction::Receive": "Vous recevez",
+  // Browser tab titles
+  "New Token Launches on MetaChain": "Nouveaux lancements de tokens sur MetaChain",
+  "Launch a Token with an Auction": "Lancez un token avec une enchère",
+  "Token Launch Auction": "Enchère de lancement de token",
 } satisfies Record<string, string>

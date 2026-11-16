@@ -1,2 +1,9 @@
+# MetaSwap: every page is public. A wallet is connected in the browser, so there are no
+# signed-in areas on the server to hide.
+# /api and /rpc are not disallowed on purpose: the public pages load their prices, pools and
+# network status from them while rendering, and blocking them would make crawlers see empty pages.
+# They return JSON, not HTML, so they do not show up as search results.
 User-agent: *
 Allow: /
+
+Sitemap: https://metaswaplabs.duckdns.org/sitemap.xml

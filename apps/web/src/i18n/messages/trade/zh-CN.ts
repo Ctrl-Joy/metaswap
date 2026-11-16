@@ -238,4 +238,9 @@ export default {
   "Trade": "交易",
   "Hide price chart": "隐藏价格图表",
   "Show price chart": "显示价格图表",
+  // Browser tab titles
+  "Decentralized Exchange with Gasless Swaps": "支持免 Gas 兑换的去中心化交易所",
+  "Gasless Limit Orders for Token Swaps": "免 Gas 的代币兑换限价单",
+  "Send Tokens to Any Wallet Address": "向任意钱包地址发送代币",
+  "Free Test ETH and Token Faucet": "免费测试 ETH 和代币水龙头",
 } satisfies Record<string, string>

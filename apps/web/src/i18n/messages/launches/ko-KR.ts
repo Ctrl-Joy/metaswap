@@ -242,4 +242,8 @@ export default {
   "No auctions starting soon.": "곧 시작하는 경매가 없습니다.",
   "No failed auctions.": "실패한 경매가 없습니다.",
   "auction::Receive": "받을 수량",
+  // Browser tab titles
+  "New Token Launches on MetaChain": "MetaChain의 새 토큰 런치",
+  "Launch a Token with an Auction": "경매로 토큰 런치하기",
+  "Token Launch Auction": "토큰 런치 경매",
 } satisfies Record<string, string>

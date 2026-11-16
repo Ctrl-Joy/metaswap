@@ -26,7 +26,13 @@ const TAB_PATH: Record<ExploreTab, string> = {
  * Earn rows, then Tokens · Auctions · Pools · Transactions with URL sync.
  */
 export default function ExplorePage({ tab = 'tokens' }: { tab?: ExploreTab }) {
-  useDocumentTitle(t('Explore'))
+  const titles: Record<ExploreTab, string> = {
+    tokens: t('Explore Top Tokens and Prices'),
+    auctions: t('Explore Token Launch Auctions'),
+    pools: t('Explore Liquidity Pools'),
+    transactions: t('Recent DEX Transactions'),
+  }
+  useDocumentTitle(titles[tab])
   const navigate = useNavigate()
   const [range, setRange] = useState<RangeKey>('1D')
   const tokens = useExploreTokenRows(range)

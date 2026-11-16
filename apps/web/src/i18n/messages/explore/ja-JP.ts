@@ -217,4 +217,11 @@ export default {
   "The MetaSwap devnet token. It has a 1% fee-tier pool against WETH and is used to exercise thinner liquidity.": "MetaSwap の devnet トークンです。WETH との手数料 1% のプールがあり、流動性が薄い状況のテストに使われます。",
   "A devnet oracle-style token with a V2 pool against WETH, for testing mid-volatility pairs.": "WETH との V2 プールを持つ devnet のオラクル系トークンで、中程度のボラティリティのペアをテストするためのものです。",
   "A devnet token with a 0.3% V3 pool against WETH, for testing a mid-cap asset.": "WETH との手数料 0.3% の V3 プールを持つ devnet のトークンで、中型資産のテスト用です。",
+  // Browser tab titles
+  "Explore Top Tokens and Prices": "人気トークンと価格を見る",
+  "Explore Liquidity Pools": "流動性プールを見る",
+  "Recent DEX Transactions": "最近の DEX 取引",
+  "Explore Token Launch Auctions": "トークンローンチのオークションを見る",
+  "{symbol} Price, Chart and Pools": "{symbol} の価格・チャート・プール",
+  "{pair} Pool: Price, Liquidity and Volume": "{pair} プール：価格・流動性・取引量",
 } satisfies Record<string, string>

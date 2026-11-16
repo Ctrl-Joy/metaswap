@@ -217,4 +217,11 @@ export default {
   "The MetaSwap devnet token. It has a 1% fee-tier pool against WETH and is used to exercise thinner liquidity.": "MetaSwap 的 devnet 代币。拥有与 WETH 配对的 1% 费率资金池，用于测试较浅的流动性。",
   "A devnet oracle-style token with a V2 pool against WETH, for testing mid-volatility pairs.": "devnet 上的预言机类代币，拥有与 WETH 配对的 V2 资金池，用于测试中等波动的交易对。",
   "A devnet token with a 0.3% V3 pool against WETH, for testing a mid-cap asset.": "devnet 上的代币，拥有与 WETH 配对的 0.3% V3 资金池，用于测试中等市值资产。",
+  // Browser tab titles
+  "Explore Top Tokens and Prices": "浏览热门代币和价格",
+  "Explore Liquidity Pools": "浏览流动性资金池",
+  "Recent DEX Transactions": "最近的 DEX 交易",
+  "Explore Token Launch Auctions": "浏览代币发行拍卖",
+  "{symbol} Price, Chart and Pools": "{symbol} 价格、图表和资金池",
+  "{pair} Pool: Price, Liquidity and Volume": "{pair} 资金池：价格、流动性和交易量",
 } satisfies Record<string, string>

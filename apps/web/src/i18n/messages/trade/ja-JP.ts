@@ -238,4 +238,9 @@ export default {
   "Trade": "取引",
   "Hide price chart": "価格チャートを非表示",
   "Show price chart": "価格チャートを表示",
+  // Browser tab titles
+  "Decentralized Exchange with Gasless Swaps": "ガスレススワップ対応の分散型取引所",
+  "Gasless Limit Orders for Token Swaps": "トークンスワップのガスレス指値注文",
+  "Send Tokens to Any Wallet Address": "任意のウォレットアドレスへトークンを送金",
+  "Free Test ETH and Token Faucet": "テスト用 ETH とトークンの無料フォーセット",
 } satisfies Record<string, string>

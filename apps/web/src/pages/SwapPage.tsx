@@ -7,7 +7,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { t } from '@/i18n'
 
 export default function SwapPage() {
-  useDocumentTitle(t('Swap'))
+  useDocumentTitle(t('Decentralized Exchange with Gasless Swaps'))
   const [open, toggle] = useTradeChartOpen()
   const [chartToken, setChartToken] = useState<Token | undefined>()
   const onTokens = useCallback((input: Token | undefined, output: Token | undefined) => setChartToken(chartTokenFor(input, output)), [])

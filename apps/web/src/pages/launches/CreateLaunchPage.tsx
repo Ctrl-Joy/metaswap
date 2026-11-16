@@ -3,6 +3,6 @@ import { t } from '@/i18n'
 import { CreateLaunch } from '@/features/launches/CreateLaunch'
 
 export default function CreateLaunchPage() {
-  useDocumentTitle(t('Launch a token'))
+  useDocumentTitle(t('Launch a Token with an Auction'))
   return <CreateLaunch />
 }

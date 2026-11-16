@@ -3,6 +3,6 @@ import { CreatePosition } from '@/features/positions/create/CreatePosition'
 import { t } from '@/i18n'
 
 export default function CreatePositionPage() {
-  useDocumentTitle(t('New position'))
+  useDocumentTitle(t('Create a Liquidity Position'))
   return <CreatePosition />
 }

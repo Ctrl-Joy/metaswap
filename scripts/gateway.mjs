@@ -6,7 +6,7 @@
 //   /*      → apps/web/dist     (SPA fallback to index.html)
 // Anvil's admin RPC methods are blocked so visitors cannot reset or rewrite the shared chain.
 // Only standard node modules.
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer, request } from 'node:http'
 import { connect } from 'node:net'
 import { extname, join, normalize, resolve } from 'node:path'
@@ -28,6 +28,7 @@ const TYPES = {
   '.woff2': 'font/woff2',
   '.webp': 'image/webp',
   '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 }
 
 // Admin namespaces are blocked except anvil_setBalance, which the devnet faucet uses.
@@ -81,6 +82,21 @@ function proxyRpc(req, res) {
   })
 }
 
+// index.html names the home page as its canonical URL, but every route is served from that one file,
+// so the canonical and og:url links are pointed at the requested page. Aliases share one canonical URL.
+const CANONICAL_ALIASES = { '/index.html': '/', '/swap': '/', '/explore/tokens': '/explore' }
+
+function sendShell(res, file, pathname) {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : '/'
+  const canonicalPath = (CANONICAL_ALIASES[path] ?? path).replace(/&/g, '&amp;')
+  const html = readFileSync(file, 'utf8').replace(
+    /(<link rel="canonical" href="|<meta property="og:url" content=")(https?:\/\/[^/"]+)\/[^"]*"/g,
+    (_, attr, origin) => `${attr}${origin}${canonicalPath}"`,
+  )
+  res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' })
+  res.end(html)
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url ?? '/', 'http://x')
   const safe = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '')
@@ -88,7 +104,7 @@ function serveStatic(req, res) {
   if (!file.startsWith(WEB_DIR) || !existsSync(file) || statSync(file).isDirectory()) {
     // a missing script/style/image must be a real 404, not the app shell: a stale tab asking for an old
     // chunk would otherwise get HTML back and fail with a confusing module-type error
-    if (/^assets[/\\]/.test(safe) || /\.(js|mjs|css|map|png|jpe?g|svg|webp|ico|woff2?)$/i.test(safe)) {
+    if (/^assets[/\\]/.test(safe) || /\.(js|mjs|css|map|png|jpe?g|svg|webp|ico|woff2?|txt|xml)$/i.test(safe)) {
       res.writeHead(404, { 'content-type': 'text/plain', 'cache-control': 'no-store' })
       return res.end('Not found')
     }
@@ -98,6 +114,7 @@ function serveStatic(req, res) {
     res.writeHead(503, { 'content-type': 'text/plain' })
     return res.end('MetaSwap is starting up — refresh in a minute.')
   }
+  if (file === join(WEB_DIR, 'index.html')) return sendShell(res, file, url.pathname)
   const immutable = file.startsWith(join(WEB_DIR, 'assets'))
   res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache' })
   createReadStream(file).pipe(res)

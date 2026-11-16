@@ -224,4 +224,7 @@ export default {
   "{value} TVL": "{value} TVL",
   "Position #{id}": "Posição #{id}",
   "V2 position": "Posição V2",
+  // Browser tab titles
+  "Provide Liquidity and Manage Positions": "Forneça liquidez e gira posições",
+  "Create a Liquidity Position": "Criar uma posição de liquidez",
 } satisfies Record<string, string>

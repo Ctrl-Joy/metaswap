@@ -5,6 +5,6 @@ import { AuctionDetail } from '@/features/launches/AuctionDetail'
 
 export default function AuctionPage() {
   const { auction } = useParams()
-  useDocumentTitle(t('Auction'))
+  useDocumentTitle(t('Token Launch Auction'))
   return <AuctionDetail auctionParam={auction} />
 }

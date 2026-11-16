@@ -272,4 +272,10 @@ export default {
   "24 hours": "24시간",
   "7 days": "7일",
   "30 days": "30일",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "암호화폐 포트폴리오와 활동 추적",
+  "Earn Fixed APY on Stablecoins and ETH": "스테이블코인과 ETH로 고정 APY 받기",
+  "{asset} Savings Vault with Fixed APY": "고정 APY {asset} 저축 볼트",
+  "MetaSwapX Gasless Intent Orders": "MetaSwapX 가스리스 인텐트 주문",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet 및 레이어 2 로드맵",
 } satisfies Record<string, string>

@@ -242,4 +242,8 @@ export default {
   "No auctions starting soon.": "まもなく開始するオークションはありません。",
   "No failed auctions.": "失敗したオークションはありません。",
   "auction::Receive": "受取",
+  // Browser tab titles
+  "New Token Launches on MetaChain": "MetaChain の新しいトークンローンチ",
+  "Launch a Token with an Auction": "オークションでトークンをローンチ",
+  "Token Launch Auction": "トークンローンチのオークション",
 } satisfies Record<string, string>

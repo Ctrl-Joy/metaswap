@@ -9,7 +9,7 @@ import { TradeLayout } from './TradeLayout'
 import { t } from '@/i18n'
 
 export default function LimitPage() {
-  useDocumentTitle(t('Limit order'))
+  useDocumentTitle(t('Gasless Limit Orders for Token Swaps'))
   const { address } = useWallet()
   const [open, toggle] = useTradeChartOpen()
   // The limit chart follows the sell token (the price the order is set against).

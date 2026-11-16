@@ -38,7 +38,7 @@ const PLANNED_SPECS = [
 ]
 
 export default function MetaChainPage() {
-  useDocumentTitle('MetaChain')
+  useDocumentTitle(t('MetaChain Devnet and Layer 2 Roadmap'))
   const { reachable, blockNumber } = useDevnetReachable()
   const devnet = METACHAIN_NETWORKS.find((n) => n.key === 'devnet')!
   const contracts = Object.keys(deployment.contracts ?? {}).length

@@ -272,4 +272,10 @@ export default {
   "24 hours": "24 horas",
   "7 days": "7 dias",
   "30 days": "30 dias",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "Acompanhe o seu portefólio cripto e atividade",
+  "Earn Fixed APY on Stablecoins and ETH": "Ganhe APY fixo com stablecoins e ETH",
+  "{asset} Savings Vault with Fixed APY": "Cofre de poupança {asset} com APY fixo",
+  "MetaSwapX Gasless Intent Orders": "Ordens de intenção sem gas da MetaSwapX",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet e roteiro da camada 2",
 } satisfies Record<string, string>

@@ -242,4 +242,8 @@ export default {
   "No auctions starting soon.": "Tidak ada lelang yang segera dimulai.",
   "No failed auctions.": "Tidak ada lelang yang gagal.",
   "auction::Receive": "Terima",
+  // Browser tab titles
+  "New Token Launches on MetaChain": "Peluncuran token baru di MetaChain",
+  "Launch a Token with an Auction": "Luncurkan token dengan lelang",
+  "Token Launch Auction": "Lelang peluncuran token",
 } satisfies Record<string, string>

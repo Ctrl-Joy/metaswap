@@ -4,7 +4,7 @@ import { TradeLayout } from './TradeLayout'
 import { t } from '@/i18n'
 
 export default function BuyPage() {
-  useDocumentTitle(t('Buy'))
+  useDocumentTitle(t('Free Test ETH and Token Faucet'))
   return (
     <TradeLayout>
       <BuyForm />

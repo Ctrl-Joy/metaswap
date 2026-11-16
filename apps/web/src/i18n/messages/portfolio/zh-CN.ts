@@ -272,4 +272,10 @@ export default {
   "24 hours": "24 小时",
   "7 days": "7 天",
   "30 days": "30 天",
+  // Browser tab titles
+  "Track Your Crypto Portfolio and Activity": "追踪你的加密资产投资组合和活动",
+  "Earn Fixed APY on Stablecoins and ETH": "用稳定币和 ETH 赚取固定 APY",
+  "{asset} Savings Vault with Fixed APY": "固定 APY 的 {asset} 储蓄金库",
+  "MetaSwapX Gasless Intent Orders": "MetaSwapX 免 Gas 意图订单",
+  "MetaChain Devnet and Layer 2 Roadmap": "MetaChain Devnet 与二层网络路线图",
 } satisfies Record<string, string>

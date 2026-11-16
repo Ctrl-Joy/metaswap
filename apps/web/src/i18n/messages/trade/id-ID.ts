@@ -238,4 +238,9 @@ export default {
   "Trade": "Trade",
   "Hide price chart": "Sembunyikan grafik harga",
   "Show price chart": "Tampilkan grafik harga",
+  // Browser tab titles
+  "Decentralized Exchange with Gasless Swaps": "Bursa terdesentralisasi dengan swap tanpa gas",
+  "Gasless Limit Orders for Token Swaps": "Order limit tanpa gas untuk swap token",
+  "Send Tokens to Any Wallet Address": "Kirim token ke alamat wallet mana pun",
+  "Free Test ETH and Token Faucet": "Faucet gratis ETH dan token uji",
 } satisfies Record<string, string>
